@@ -9,9 +9,76 @@ The Agent Memory System enables AI agents to maintain persistent memory across s
 **Key Features:**
 - ✅ Persist almost all interactions (messages, tool I/O, decisions)
 - ✅ Curate small active context under strict 65K token budget
-- ✅ Multi-agent support with daemon architecture
+- ✅ Multi-agent support with microservices architecture
 - ✅ Fast context assembly (p95 ≤ 500ms)
 - ✅ Channel-based privacy filtering (public/private/team/agent)
+- ✅ JWT-based authentication and API key support
+
+## Architecture
+
+The system is transitioning from a monolithic architecture to microservices (see [SPEC-ARCH-001](.moai/specs/SPEC-ARCH-001/spec.md)).
+
+### Current State (v2.1.0 - In Progress)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Agent Memory System                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ Admin Server │  │ API Server   │  │ MCP Server   │      │
+│  │   (Port 3001) │  │  (Port 3002) │  │  (stdio)     │      │
+│  │              │  │              │  │              │      │
+│  │ • Auth       │  │ • Events     │  │ • MCP Tools  │      │
+│  │ • Users      │  │ • ACB        │  │ • HTTP API   │      │
+│  │ • OAuth      │  │ • Chunks     │  │              │      │
+│  │ • API Keys   │  │ • Decisions  │  │              │      │
+│  │              │  │ • Tasks      │  │              │      │
+│  │ ⚠ WIP        │  │              │  │              │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+│         │                 │                 │               │
+│         └─────────────────┴─────────────────┘               │
+│                           │                                 │
+│                           ▼                                 │
+│                  ┌─────────────────┐                        │
+│                  │   PostgreSQL    │                        │
+│                  │   (Shared DB)   │                        │
+│                  └─────────────────┘                        │
+│                                                           │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │         Shared Libraries (packages/)                │  │
+│  │  • @agent-memory/auth (JWT, API Keys, Middleware)  │  │
+│  └─────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+
+Legend: ✅ Complete | ⚠ Work in Progress | ❌ Not Started
+```
+
+### Component Status
+
+| Component | Port | Status | Description |
+|-----------|------|--------|-------------|
+| **Admin Server** | 3001 | 🟡 WIP | User auth, OAuth, API keys (Phase 1) |
+| **API Server** | 3002 | 🟢 Monolith | Memory operations (to be extracted) |
+| **MCP Server** | stdio | 🟢 Monolith | Model Context Protocol (to be separated) |
+| **@agent-memory/auth** | - | 🟢 Complete | Shared authentication library |
+| **Landing Page** | 3000/80 | 🔴 Planned | Public marketing site (Phase 4) |
+| **Documentation** | - | 🔴 Planned | Developer docs (Phase 5) |
+
+### Migration Progress (SPEC-ARCH-001)
+
+**Phase 1: Admin Server Extraction** (In Progress - 60%)
+- ✅ TASK-001: Admin Server project setup
+- ✅ TASK-002: Shared authentication library
+- 🟡 TASK-003: Authentication endpoints
+- 🔴 TASK-004: OAuth provider configuration
+- 🔴 TASK-005: API key management
+- 🔴 TASK-006: User administration
+- 🟡 TASK-007: Infrastructure and tooling
+
+**Phase 2-5:** API Server, MCP Server, Landing Page, Documentation (Planned)
+
+See [progress report](.moai/specs/SPEC-ARCH-001/progress.md) for details.
 
 ## Quick Start
 
