@@ -49,8 +49,9 @@ done
 **For Production:**
 
 ```bash
-# Use production database template
-cp .env.example .env
+# Use production environment template
+cp .env.prod .env
+# IMPORTANT: Edit .env and change all secrets!
 
 # Create and setup database
 createdb agent_memory
@@ -71,7 +72,8 @@ done
 cp .env.dev .env
 
 # Production (uses agent_memory)
-cp .env.example .env
+cp .env.prod .env
+# IMPORTANT: Change all secrets and passwords in .env!
 ```
 
 ### 4. Start Server

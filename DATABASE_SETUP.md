@@ -37,18 +37,24 @@ cat src/db/migrations/005_oauth.sql | psql agent_memory_dev
 
 ### 2. Configure Environment
 
-**Option A: Use .env.dev (Recommended for development)**
+**Development:**
 
 ```bash
 cp .env.dev .env
 # Edit .env with your database credentials
 ```
 
-**Option B: Use .env.example (For production)**
+**Production:**
 
 ```bash
-cp .env.example .env
-# Edit .env and set PGDATABASE=agent_memory
+cp .env.prod .env
+# IMPORTANT: Change all secrets and passwords before deploying!
+```
+
+**Testing:**
+
+```bash
+cp .env.test .env
 ```
 
 ### 3. Start the Server
