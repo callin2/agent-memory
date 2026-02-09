@@ -51,3 +51,17 @@ export function generateArtifactId(): string {
 export function generateACBId(): string {
   return generateId('acb');
 }
+
+/**
+ * Generate capsule ID
+ */
+export function generateCapsuleId(): string {
+  return generateId('cap');
+}
+
+/**
+ * Generate memory edit ID
+ */
+export function generateEditId(): string {
+  return generateId('edt');
+}

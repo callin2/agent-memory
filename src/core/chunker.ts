@@ -6,6 +6,11 @@ export interface EventContent {
   excerpt_text?: string;
   decision?: string;
   rationale?: string[];
+  // Scope+subject framework
+  scope?: string;
+  subject_type?: string;
+  subject_id?: string;
+  project_id?: string;
   [key: string]: any;
 }
 
@@ -21,6 +26,11 @@ export interface Chunk {
   token_est: number;
   importance: number;
   text: string;
+  // Scope+subject framework
+  scope?: string | null;
+  subject_type?: string | null;
+  subject_id?: string | null;
+  project_id?: string | null;
 }
 
 /**
@@ -90,7 +100,7 @@ export function calculateImportance(
 }
 
 /**
- * Create a chunk from an event
+ * Create a chunk from an event with scope+subject propagation
  */
 export function createChunk(
   tenant_id: string,
@@ -100,7 +110,11 @@ export function createChunk(
   sensitivity: string,
   tags: string[],
   content: EventContent,
-  ts: Date = new Date()
+  ts: Date = new Date(),
+  scope?: string | null,
+  subject_type?: string | null,
+  subject_id?: string | null,
+  project_id?: string | null
 ): Chunk | null {
   const text = extractText(kind, content);
 
@@ -123,6 +137,11 @@ export function createChunk(
     token_est: estimateTokens(text),
     importance,
     text,
+    // Propagate scope+subject from event
+    scope,
+    subject_type,
+    subject_id,
+    project_id,
   };
 }
 
@@ -138,7 +157,11 @@ export function createChunks(
   sensitivity: string,
   tags: string[],
   content: EventContent,
-  ts: Date = new Date()
+  ts: Date = new Date(),
+  scope?: string | null,
+  subject_type?: string | null,
+  subject_id?: string | null,
+  project_id?: string | null
 ): Chunk[] {
   const chunk = createChunk(
     tenant_id,
@@ -148,7 +171,11 @@ export function createChunks(
     sensitivity,
     tags,
     content,
-    ts
+    ts,
+    scope,
+    subject_type,
+    subject_id,
+    project_id
   );
 
   return chunk ? [chunk] : [];

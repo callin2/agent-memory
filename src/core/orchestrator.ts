@@ -11,6 +11,13 @@ export interface ACBRequest {
   intent: string;
   query_text: string;
   max_tokens?: number;
+  // Scope+subject filters
+  subject_type?: string;
+  subject_id?: string;
+  project_id?: string;
+  // Capsule and edit integration
+  include_capsules?: boolean;
+  include_quarantined?: boolean;
 }
 
 export interface ACBItem {
@@ -54,6 +61,19 @@ export interface ACBResponse {
   sections: ACBSection[];
   omissions: ACBOmission[];
   provenance: ACBProvenance;
+  // Capsule and edit integration
+  capsules: CapsuleInfo[];
+  edits_applied: number;
+}
+
+export interface CapsuleInfo {
+  capsule_id: string;
+  scope: string;
+  subject_type: string;
+  subject_id: string;
+  item_count: number;
+  author_agent_id: string;
+  risks: string[];
 }
 
 const DEFAULT_MAX_TOKENS = 65000;
@@ -171,14 +191,17 @@ async function buildRecentWindow(
 }
 
 /**
- * Build retrieved evidence section using FTS
+ * Build retrieved evidence section using effective_chunks (with edits applied)
  */
 async function retrieveEvidence(
   pool: Pool,
   tenant_id: string,
   channel: Channel,
   queryText: string,
-  maxTokens: number
+  maxTokens: number,
+  include_quarantined: boolean,
+  subject_type: string | undefined,
+  subject_id: string | undefined
 ): Promise<ACBSection> {
   const items: ACBItem[] = [];
   let tokenUsed = 0;
@@ -186,25 +209,34 @@ async function retrieveEvidence(
   const allowedSensitivity = getAllowedSensitivity(channel);
   const tsquery = toTsquery(queryText);
 
-  // FTS search with scoring
+  // Use effective_chunks view with edit awareness
   const result = await pool.query(
-    `SELECT chunk_id, text, token_est, refs, kind,
-            ts_rank(tsv, $1) as rank,
-            importance,
-            EXTRACT(EPOCH FROM (NOW() - ts)) / 86400.0 as days_old
-     FROM chunks
-     WHERE tenant_id = $2
-       AND sensitivity = ANY($3)
-       AND tsv @@ $1
-     ORDER BY rank DESC, importance DESC, ts DESC
+    `SELECT chunk_id, text, token_est, edits_applied_count,
+            ts, importance
+     FROM effective_chunks
+     WHERE tenant_id = $1
+       AND sensitivity = ANY($2)
+       AND tsv @@ $3
+       AND ($4::boolean OR NOT is_quarantined)
+       AND ($5::text IS NULL OR scope = $5)
+       AND ($6::text IS NULL OR subject_type = $6)
+       AND ($7::text IS NULL OR subject_id = $7)
+       AND NOT ($8::text = ANY(blocked_channels))
+     ORDER BY importance DESC, ts DESC
      LIMIT 200`,
-    [tsquery, tenant_id, allowedSensitivity]
+    [
+      tenant_id,
+      allowedSensitivity,
+      tsquery,
+      include_quarantined,
+      subject_type || null,
+      subject_type || null,
+      subject_id || null,
+      channel,
+    ]
   );
 
-  // Scoring weights (currently unused but kept for future enhancements)
-  // const alpha = 0.6; // semantic relevance
-  // const beta = 0.3; // recency
-  // const gamma = 0.1; // importance
+  let edits_applied = 0;
 
   for (const row of result.rows) {
     if (tokenUsed + row.token_est > maxTokens) {break;}
@@ -212,16 +244,22 @@ async function retrieveEvidence(
     items.push({
       type: 'text',
       text: row.text,
-      refs: [row.chunk_id, ...(row.refs || [])],
+      refs: [row.chunk_id],
     });
     tokenUsed += row.token_est;
+    edits_applied += row.edits_applied_count || 0;
   }
 
-  return {
+  const section = {
     name: 'retrieved_evidence',
     items,
     token_est: tokenUsed,
   };
+
+  // Store edits_applied in section metadata
+  (section as any).edits_applied = edits_applied;
+
+  return section;
 }
 
 /**
@@ -333,8 +371,73 @@ async function buildTaskState(
 }
 
 /**
- * Build Active Context Bundle
- * Main orchestrator function
+ * Build capsules section
+ */
+async function buildCapsulesSection(
+  pool: Pool,
+  tenant_id: string,
+  agent_id: string,
+  maxTokens: number,
+  subject_type?: string,
+  subject_id?: string
+): Promise<{ section: ACBSection; capsules: CapsuleInfo[] }> {
+  const items: ACBItem[] = [];
+  const capsules: CapsuleInfo[] = [];
+  let tokenUsed = 0;
+
+  const result = await pool.query(
+    `SELECT * FROM get_available_capsules($1::text, $2::text, $3::text, $4::text)`,
+    [tenant_id, agent_id, subject_type || null, subject_id || null]
+  );
+
+  for (const row of result.rows) {
+    const items = typeof row.items === 'string' ? JSON.parse(row.items) : row.items;
+    const chunkCount = items.chunks?.length || 0;
+    const decisionCount = items.decisions?.length || 0;
+    const artifactCount = items.artifacts?.length || 0;
+    const totalItems = chunkCount + decisionCount + artifactCount;
+
+    capsules.push({
+      capsule_id: row.capsule_id,
+      scope: row.scope,
+      subject_type: row.subject_type,
+      subject_id: row.subject_id,
+      item_count: totalItems,
+      author_agent_id: row.author_agent_id,
+      risks: row.risks,
+    });
+
+    // Add capsule content as text item
+    let capsuleText = `Capsule ${row.capsule_id}: `;
+    if (chunkCount > 0) capsuleText += `${chunkCount} chunks`;
+    if (decisionCount > 0) capsuleText += `, ${decisionCount} decisions`;
+    if (artifactCount > 0) capsuleText += `, ${artifactCount} artifacts`;
+    if (row.risks.length > 0) capsuleText += `\nRisks: ${row.risks.join(', ')}`;
+
+    const tokens = 50; // Estimate
+    if (tokenUsed + tokens <= maxTokens) {
+      items.push({
+        type: 'text',
+        text: capsuleText,
+        refs: [`capsule:${row.capsule_id}`],
+      });
+      tokenUsed += tokens;
+    }
+  }
+
+  return {
+    section: {
+      name: 'capsules',
+      items,
+      token_est: tokenUsed,
+    },
+    capsules,
+  };
+}
+
+/**
+ * Build Active Context Bundle with capsules and memory edits
+ * Main orchestrator function - enhanced for SPEC-MEMORY-002
  */
 export async function buildACB(
   pool: Pool,
@@ -344,12 +447,15 @@ export async function buildACB(
   const budget_tokens = request.max_tokens || DEFAULT_MAX_TOKENS;
   const sections: ACBSection[] = [];
   let token_used = 0;
+  let total_edits_applied = 0;
+  const allCapsules: CapsuleInfo[] = [];
 
   // Budget allocations (from PRD)
   const budgets = {
     rules: 6000,
     task_state: 3000,
     recent_window: 8000,
+    capsules: request.include_capsules ? 4000 : 0,
     retrieved_evidence: 28000,
     relevant_decisions: 4000,
   };
@@ -392,20 +498,39 @@ export async function buildACB(
     token_used += section.token_est;
   }
 
-  // 4. Retrieved evidence
+  // 4. Capsules (new for SPEC-MEMORY-002)
+  if (request.include_capsules && token_used < budget_tokens) {
+    const { section, capsules } = await buildCapsulesSection(
+      pool,
+      request.tenant_id,
+      request.agent_id,
+      Math.min(budgets.capsules, budget_tokens - token_used),
+      request.subject_type,
+      request.subject_id
+    );
+    sections.push(section);
+    token_used += section.token_est;
+    allCapsules.push(...capsules);
+  }
+
+  // 5. Retrieved evidence (enhanced with edit awareness)
   if (token_used < budget_tokens) {
     const section = await retrieveEvidence(
       pool,
       request.tenant_id,
       request.channel,
       request.query_text,
-      Math.min(budgets.retrieved_evidence, budget_tokens - token_used)
+      Math.min(budgets.retrieved_evidence, budget_tokens - token_used),
+      request.include_quarantined ?? false,
+      request.subject_type,
+      request.subject_id
     );
     sections.push(section);
     token_used += section.token_est;
+    total_edits_applied += (section as any).edits_applied || 0;
   }
 
-  // 5. Decision ledger
+  // 6. Decision ledger
   if (token_used < budget_tokens) {
     const section = await retrieveDecisions(
       pool,
@@ -437,5 +562,8 @@ export async function buildACB(
         gamma: 0.1,
       },
     },
+    // New for SPEC-MEMORY-002
+    capsules: allCapsules,
+    edits_applied: total_edits_applied,
   };
 }

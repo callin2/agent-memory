@@ -19,6 +19,11 @@ export interface EventInput {
   tags?: string[];
   content: EventContent;
   refs?: string[];
+  // Scope + Subject Framework (optional, will be extracted from content if not provided)
+  scope?: 'session' | 'user' | 'project' | 'policy' | 'global';
+  subject_type?: string;
+  subject_id?: string;
+  project_id?: string;
 }
 
 export interface EventResult {
@@ -94,11 +99,12 @@ export async function recordEvent(
       }
     }
 
-    // Insert event
+    // Insert event with scope+subject metadata
     await client.query(
       `INSERT INTO events (event_id, tenant_id, session_id, channel,
-                          actor_type, actor_id, kind, sensitivity, tags, content, refs)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                          actor_type, actor_id, kind, sensitivity, tags, content, refs,
+                          scope, subject_type, subject_id, project_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
       [
         event_id,
         input.tenant_id,
@@ -111,10 +117,20 @@ export async function recordEvent(
         input.tags || [],
         JSON.stringify(content),
         input.refs || [],
+        // Scope+subject framework - extract from content if not provided
+        input.scope || content.scope || 'global',
+        input.subject_type || content.subject_type || null,
+        input.subject_id || content.subject_id || null,
+        input.project_id || content.project_id || null,
       ]
     );
 
-    // Auto-chunking
+    // Auto-chunking with scope+subject metadata
+    const extractedScope = input.scope || content.scope || 'global';
+    const extractedSubjectType = input.subject_type || content.subject_type || null;
+    const extractedSubjectId = input.subject_id || content.subject_id || null;
+    const extractedProjectId = input.project_id || content.project_id || null;
+
     const chunks = createChunks(
       input.tenant_id,
       event_id,
@@ -122,14 +138,20 @@ export async function recordEvent(
       input.channel,
       input.sensitivity || 'none',
       input.tags || [],
-      content
+      content,
+      undefined, // ts will be set inside createChunks
+      extractedScope,
+      extractedSubjectType,
+      extractedSubjectId,
+      extractedProjectId
     );
 
     for (const chunk of chunks) {
       await client.query(
         `INSERT INTO chunks (chunk_id, tenant_id, event_id, ts, kind,
-                            channel, sensitivity, tags, token_est, importance, text)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                            channel, sensitivity, tags, token_est, importance, text,
+                            scope, subject_type, subject_id, project_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
         [
           chunk.chunk_id,
           chunk.tenant_id,
@@ -142,6 +164,10 @@ export async function recordEvent(
           chunk.token_est,
           chunk.importance,
           chunk.text,
+          chunk.scope,
+          chunk.subject_type,
+          chunk.subject_id,
+          chunk.project_id,
         ]
       );
 
