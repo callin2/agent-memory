@@ -30,19 +30,48 @@ npm install
 
 ### 2. Setup Database
 
-```bash
-# Create database
-createdb agent_memory
+**For Development:**
 
-# Apply schema
-psql agent_memory < src/db/schema.sql
+```bash
+# Use development database template
+cp .env.dev .env
+
+# Run setup script (requires postgres superuser)
+bash setup-dev-db.sh
+
+# Or manually apply migrations
+PGDATABASE=agent_memory_dev psql -f src/db/schema.sql
+for f in src/db/migrations/*.sql; do
+    PGDATABASE=agent_memory_dev psql -f "$f"
+done
 ```
+
+**For Production:**
+
+```bash
+# Use production database template
+cp .env.example .env
+
+# Create and setup database
+createdb agent_memory
+psql agent_memory < src/db/schema.sql
+
+# Apply migrations
+for f in src/db/migrations/*.sql; do
+    psql agent_memory -f "$f"
+done
+```
+
+> **See [DATABASE_SETUP.md](DATABASE_SETUP.md)** for comprehensive database setup and environment switching guide.
 
 ### 3. Configure Environment
 
 ```bash
+# Development (uses agent_memory_dev)
+cp .env.dev .env
+
+# Production (uses agent_memory)
 cp .env.example .env
-# Edit .env with your database credentials
 ```
 
 ### 4. Start Server
@@ -57,6 +86,16 @@ npm start
 ```
 
 The server will start on http://localhost:3000
+
+**Database Switching:** The server uses the `PGDATABASE` environment variable. To switch databases:
+
+```bash
+# Use development database
+PGDATABASE=agent_memory_dev npm run dev
+
+# Use production database
+PGDATABASE=agent_memory npm start
+```
 
 ## Docker Deployment
 
