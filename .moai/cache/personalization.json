@@ -1,0 +1,10 @@
+{
+  "user_name": "callin",
+  "conversation_language": "en",
+  "conversation_language_name": "English",
+  "is_korean": false,
+  "has_personalization": true,
+  "config_source": "fallback",
+  "personalized_greeting": "callin",
+  "needs_setup": false
+}

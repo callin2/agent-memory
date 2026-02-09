@@ -1,0 +1,96 @@
+# Production Docker Compose with TLS
+# Uses nginx as reverse proxy for SSL termination
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: agent_memory_db
+    environment:
+      POSTGRES_DB: agent_memory
+      POSTGRES_USER: memory
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Enable SSL (requires certificates)
+      # PGSSLMODE: require
+    ports:
+      - "127.0.0.1:5432:5432"  # Bind to localhost only
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memory -d agent_memory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - memory_network
+
+  memory-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent_memory_daemon
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: agent_memory
+      PGUSER: memory
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PORT: 3000
+      NODE_ENV: production
+      # JWT config
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      JWT_ISSUER: ${JWT_ISSUER:-agent-memory-system}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - memory_network
+    # No exposed ports - only accessible via nginx
+
+  nginx:
+    image: nginx:alpine
+    container_name: agent_memory_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - memory-daemon
+    restart: unless-stopped
+    networks:
+      - memory_network
+
+  # Optional: Certbot for Let's Encrypt SSL certificates
+  certbot:
+    image: certbot/certbot
+    container_name: agent_memory_certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait; done;'"
+    networks:
+      - memory_network
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  memory_network:
+    driver: bridge
