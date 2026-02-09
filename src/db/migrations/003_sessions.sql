@@ -1,5 +1,6 @@
 -- Sessions table for active session tracking
 -- This table stores user sessions for monitoring and management
+-- Fixed: Removed invalid foreign key on tenant_id
 
 CREATE TABLE IF NOT EXISTS sessions (
   session_id      TEXT PRIMARY KEY,
@@ -22,29 +23,25 @@ CREATE TABLE IF NOT EXISTS sessions (
   CONSTRAINT fk_session_user
     FOREIGN KEY (user_id)
     REFERENCES users(user_id)
-    ON DELETE CASCADE,
-
-  CONSTRAINT fk_session_tenant
-    FOREIGN KEY (tenant_id)
-    REFERENCES users(tenant_id)
+    ON DELETE CASCADE
 );
 
 -- Index for active session lookup by user
-CREATE INDEX idx_sessions_user_active
+CREATE INDEX IF NOT EXISTS idx_sessions_user_active
   ON sessions (user_id, is_active, last_activity_at DESC)
   WHERE is_active = true;
 
 -- Index for expired session cleanup
-CREATE INDEX idx_sessions_expires_at
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at
   ON sessions (expires_at)
   WHERE is_active = true;
 
 -- Index for tenant-level queries
-CREATE INDEX idx_sessions_tenant
+CREATE INDEX IF NOT EXISTS idx_sessions_tenant
   ON sessions (tenant_id, is_active);
 
 -- Index for IP-based security analysis
-CREATE INDEX idx_sessions_ip
+CREATE INDEX IF NOT EXISTS idx_sessions_ip
   ON sessions (ip_address, last_activity_at DESC)
   WHERE is_active = true;
 

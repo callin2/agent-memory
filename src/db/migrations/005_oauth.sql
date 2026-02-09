@@ -98,24 +98,27 @@ INSERT INTO oauth_providers (
 ) ON CONFLICT (provider_id) DO NOTHING;
 
 -- Add audit log entry for OAuth initialization
+-- Note: user_id is intentionally null to avoid FK constraint violation for system events
 INSERT INTO audit_logs (
   log_id,
-  user_id,
   tenant_id,
+  event_type,
   action,
   resource_type,
   resource_id,
+  outcome,
   details,
   ip_address,
   user_agent,
   created_at
 ) VALUES (
   'oauth_init_' || gen_random_uuid(),
-  'system',
   'default',
+  'system',
   'oauth_initialized',
   'oauth_providers',
-  'google,github',
+  'migration',
+  'success',
   '{"providers": ["google", "github"], "migration": "005_oauth.sql"}',
   '127.0.0.1',
   'migration_script',
