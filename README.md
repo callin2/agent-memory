@@ -13,6 +13,9 @@ The Agent Memory System enables AI agents to maintain persistent memory across s
 - ✅ Fast context assembly (p95 ≤ 500ms)
 - ✅ Channel-based privacy filtering (public/private/team/agent)
 - ✅ JWT-based authentication and API key support
+- ✅ Memory Surgery: retract, amend, quarantine, attenuate, and block memory
+- ✅ Capsule Transfer: share curated memory bundles between agents
+- ✅ Scope + Subject filtering: target memory by session, user, project, or policy
 
 ## Architecture
 
@@ -113,6 +116,16 @@ for f in src/db/migrations/*.sql; do
 done
 ```
 
+**Available Migrations**:
+- `001-005`: Core schema (events, chunks, decisions, tasks, artifacts)
+- `006-011`: Authentication system (users, sessions, api_keys, oauth_connections)
+- `012`: Tenants table for multi-tenant isolation
+- `013`: Decision scope enhancement
+- `014`: Audit logs (no foreign key constraints)
+- `015`: Memory edits constraints
+- `008-015`: Memory Surgery & Capsule Transfer (see [SPEC-MEMORY-002](.moai/specs/SPEC-MEMORY-002/spec.md))
+```
+
 **For Production:**
 
 ```bash
@@ -194,7 +207,13 @@ curl -X POST http://localhost:3000/api/v1/events \
     "kind": "message",
     "sensitivity": "none",
     "tags": ["topic:architecture"],
-    "content": {"text": "We should use microservices"},
+    "content": {
+      "text": "We should use microservices",
+      "scope": "user",
+      "subject_type": "user",
+      "subject_id": "user-42",
+      "project_id": "project-architecture"
+    },
     "refs": []
   }'
 ```
@@ -211,6 +230,9 @@ curl -X POST http://localhost:3000/api/v1/acb/build \
     "channel": "private",
     "intent": "architecture_review",
     "query_text": "What did we decide about services?",
+    "scope": "project",
+    "subject_type": "project",
+    "subject_id": "project-architecture",
     "max_tokens": 65000
   }'
 ```

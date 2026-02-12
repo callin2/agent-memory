@@ -1,0 +1,2065 @@
+openapi: 3.0.3
+info:
+  title: Agent Memory System API
+  description: |
+    PostgreSQL-backed daemon service for AI agent persistent memory.
+
+    ## Authentication
+
+    The API supports two authentication methods:
+
+    1. **JWT Bearer Token** - Standard OAuth2 Bearer token authentication
+    2. **API Key** - Service-to-service authentication via `X-API-Key` header
+
+    Most endpoints require authentication. Public endpoints are marked accordingly.
+
+    ## Tenant Isolation
+
+    All data is isolated by tenant_id. Users can only access data belonging to their tenant.
+
+    ## Rate Limiting
+
+    API endpoints are rate-limited to prevent abuse.
+  version: 2.0.0
+  contact:
+    name: Agent Memory System
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: OAuth
+    description: OAuth2/SSO integration
+  - name: Sessions
+    description: Session management
+  - name: Events
+    description: Event recording and retrieval
+  - name: ACB
+    description: Active Context Bundle operations
+  - name: Chunks
+    description: Memory chunk operations
+  - name: Artifacts
+    description: Artifact operations
+  - name: Decisions
+    description: Decision tracking
+  - name: Capsules
+    description: Memory capsule operations
+  - name: Edits
+    description: Memory surgery operations
+  - name: Health
+    description: Health check and metrics
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user with username/password and receive JWT tokens
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: User username
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  description: User password
+                  example: SecurePassword123!
+                tenant_id:
+                  type: string
+                  description: Tenant ID (optional, defaults to 'default')
+                  example: default
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT access token (15 minute expiry)
+                  refresh_token:
+                    type: string
+                    description: Refresh token (7 day expiry)
+                  token_type:
+                    type: string
+                    enum: [Bearer]
+                  expires_in:
+                    type: integer
+                    description: Access token expiry in seconds
+                    example: 900
+                  refresh_expires_in:
+                    type: integer
+                    description: Refresh token expiry in seconds
+                    example: 604800
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: User registration
+      description: Register a new user account
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: Unique username
+                  example: newuser@example.com
+                password:
+                  type: string
+                  format: password
+                  description: User password (min 8 characters)
+                  example: SecurePassword123!
+                email:
+                  type: string
+                  format: email
+                  description: User email address
+                  example: user@example.com
+                tenant_id:
+                  type: string
+                  description: Tenant ID (optional, defaults to 'default')
+                  example: default
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  token_type:
+                    type: string
+                    enum: [Bearer]
+                  expires_in:
+                    type: integer
+                  refresh_expires_in:
+                    type: integer
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/token/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Exchange a refresh token for a new access token (with token rotation)
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  description: Valid refresh token
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                    description: New refresh token (old one revoked)
+                  token_type:
+                    type: string
+                    enum: [Bearer]
+                  expires_in:
+                    type: integer
+                  refresh_expires_in:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Token theft detected - all sessions revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/token/revoke:
+    post:
+      tags:
+        - Authentication
+      summary: Revoke refresh token (logout)
+      description: Revoke a refresh token and terminate the associated session
+      operationId: revokeToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token revoked successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/api-keys:
+    post:
+      tags:
+        - Authentication
+      summary: Generate API key
+      description: Generate a new API key for service-to-service authentication (requires admin role)
+      operationId: generateAPIKey
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scopes:
+                  type: array
+                  items:
+                    type: string
+                  description: API key scopes/permissions
+                  example: ['read:events', 'write:events']
+      responses:
+        '201':
+          description: API key generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  api_key:
+                    type: string
+                    description: API key (save this, it won't be shown again)
+                  tenant_id:
+                    type: string
+                  scopes:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/validate:
+    post:
+      tags:
+        - Authentication
+      summary: Validate token
+      description: Validate a JWT token without refreshing it
+      operationId: validateToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: JWT access token to validate
+      responses:
+        '200':
+          description: Token validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Token is invalid or expired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    example: false
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/oauth/providers:
+    get:
+      tags:
+        - OAuth
+      summary: List OAuth providers
+      description: Get list of available OAuth providers
+      operationId: listOAuthProviders
+      security: []
+      responses:
+        '200':
+          description: List of available providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        provider_id:
+                          type: string
+                          example: google
+                        display_name:
+                          type: string
+                          example: Google
+                        auth_url:
+                          type: string
+                          format: uri
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/oauth/{provider}:
+    get:
+      tags:
+        - OAuth
+      summary: Initiate OAuth flow
+      description: Start OAuth authentication flow with specified provider
+      operationId: initiateOAuth
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          description: OAuth provider ID (google, github, etc.)
+          schema:
+            type: string
+            example: google
+        - name: redirect_uri
+          in: query
+          required: true
+          description: OAuth callback URL
+          schema:
+            type: string
+            format: uri
+        - name: tenant_id
+          in: query
+          description: Tenant ID (optional, defaults to 'default')
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to OAuth provider
+          headers:
+            Location:
+              description: OAuth provider authorization URL
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: OAuth provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/oauth/{provider}/callback:
+    get:
+      tags:
+        - OAuth
+      summary: OAuth callback handler
+      description: Handle OAuth provider callback
+      operationId: oauthCallback
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: true
+          description: Authorization code from OAuth provider
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          description: State parameter for CSRF protection
+          schema:
+            type: string
+        - name: error
+          in: query
+          description: Error parameter if OAuth flow failed
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          description: Error description
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          required: true
+          description: Original redirect URI
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect back to application with token
+          headers:
+            Location:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/oauth/link:
+    post:
+      tags:
+        - OAuth
+      summary: Link OAuth account
+      description: Link OAuth account to existing user
+      operationId: linkOAuthAccount
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - provider
+                - code
+                - redirect_uri
+              properties:
+                provider:
+                  type: string
+                  description: OAuth provider ID
+                  example: google
+                code:
+                  type: string
+                  description: Authorization code
+                redirect_uri:
+                  type: string
+                  format: uri
+                  description: OAuth callback URL
+      responses:
+        '200':
+          description: Account linked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  provider:
+                    type: string
+                  provider_user_id:
+                    type: string
+                  email:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Account already linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/oauth/connections:
+    get:
+      tags:
+        - OAuth
+      summary: List OAuth connections
+      description: Get list of OAuth connections for authenticated user
+      operationId: listOAuthConnections
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of connections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connections:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        connection_id:
+                          type: string
+                        provider_id:
+                          type: string
+                        provider_user_id:
+                          type: string
+                        email:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/oauth/connections/{connectionId}:
+    delete:
+      tags:
+        - OAuth
+      summary: Unlink OAuth account
+      description: Remove OAuth connection for authenticated user
+      operationId: unlinkOAuthAccount
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: connectionId
+          in: path
+          required: true
+          description: Connection ID to unlink
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Account unlinked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/sessions:
+    get:
+      tags:
+        - Sessions
+      summary: List active sessions
+      description: Get all active sessions for authenticated user
+      operationId: listSessions
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Session'
+                  count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Sessions
+      summary: Revoke all sessions
+      description: Revoke all sessions except the current one (logout from all devices)
+      operationId: revokeAllSessions
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                except_session_id:
+                  type: string
+                  description: Session ID to keep active
+      responses:
+        '200':
+          description: Sessions revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  revoked_count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/sessions/stats:
+    get:
+      tags:
+        - Sessions
+      summary: Get session statistics
+      description: Get session statistics for authenticated user
+      operationId: getSessionStats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Session statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_sessions:
+                    type: integer
+                  active_sessions:
+                    type: integer
+                  revoked_sessions:
+                    type: integer
+                  unique_devices:
+                    type: integer
+                  unique_locations:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/sessions/{sessionId}:
+    delete:
+      tags:
+        - Sessions
+      summary: Revoke specific session
+      description: Revoke a specific session by ID
+      operationId: revokeSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: Session ID to revoke
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Session revoked successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/events:
+    post:
+      tags:
+        - Events
+      summary: Record an event
+      description: Record a new event in the agent memory system
+      operationId: recordEvent
+      security:
+        - BearerAuth: []
+        - APIKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventInput'
+            examples:
+              user_message:
+                summary: User message event
+                value:
+                  agent_id: agent_123
+                  session_id: sess_456
+                  role: user
+                  content: Hello, how are you?
+              agent_action:
+                summary: Agent action event
+                value:
+                  agent_id: agent_123
+                  session_id: sess_456
+                  role: assistant
+                  content: I'm doing well, thank you!
+                  function_call:
+                    name: search
+                    arguments: '{"query": "weather"}'
+      responses:
+        '201':
+          description: Event recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event_id:
+                    type: string
+                    format: uuid
+                  ts:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags:
+        - Events
+      summary: Query events
+      description: Get events by session ID
+      operationId: getEvents
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: query
+          required: true
+          description: Session ID to filter events
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of events to return (max 1000)
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/events/{event_id}:
+    get:
+      tags:
+        - Events
+      summary: Get event by ID
+      description: Retrieve a specific event by its ID
+      operationId: getEvent
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          description: Event ID
+          schema:
+            type: string
+            pattern: '^evt_[a-f0-9]{16}$'
+            example: evt_abc123def4567890
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/acb/build:
+    post:
+      tags:
+        - ACB
+      summary: Build Active Context Bundle
+      description: Build an ACB for an agent based on session history and intent
+      operationId: buildACB
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - session_id
+                - agent_id
+                - channel
+                - intent
+              properties:
+                session_id:
+                  type: string
+                  description: Session ID
+                agent_id:
+                  type: string
+                  description: Agent ID
+                channel:
+                  type: string
+                  enum: [private, public, team, agent]
+                  description: Channel scope
+                intent:
+                  type: string
+                  description: Current intent/goal
+                query_text:
+                  type: string
+                  description: Query text for relevance search
+                max_tokens:
+                  type: integer
+                  description: Maximum tokens in ACB (1000-200000)
+                  default: 65000
+                  minimum: 1000
+                  maximum: 200000
+      responses:
+        '200':
+          description: ACB built successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ACB'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/chunks/{chunk_id}:
+    get:
+      tags:
+        - Chunks
+      summary: Get chunk by ID
+      description: Retrieve a specific memory chunk
+      operationId: getChunk
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: chunk_id
+          in: path
+          required: true
+          description: Chunk ID
+          schema:
+            type: string
+            pattern: '^chk_[a-f0-9]{16}$'
+      responses:
+        '200':
+          description: Chunk details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chunk'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/artifacts/{artifact_id}:
+    get:
+      tags:
+        - Artifacts
+      summary: Get artifact by ID
+      description: Retrieve a specific artifact (binary data)
+      operationId: getArtifact
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: artifact_id
+          in: path
+          required: true
+          description: Artifact ID
+          schema:
+            type: string
+            pattern: '^art_[a-f0-9]{16}$'
+      responses:
+        '200':
+          description: Artifact binary data
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/decisions:
+    post:
+      tags:
+        - Decisions
+      summary: Create decision
+      description: Record a new architectural or design decision
+      operationId: createDecision
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - decision
+              properties:
+                decision:
+                  type: string
+                  description: Decision statement
+                  example: Use PostgreSQL for primary data storage
+                rationale:
+                  type: array
+                  items:
+                    type: string
+                  description: Reasons supporting the decision
+                  example: ['ACID compliance', 'Complex query capabilities', 'Mature ecosystem']
+                constraints:
+                  type: array
+                  items:
+                    type: string
+                  description: Constraints influencing the decision
+                alternatives:
+                  type: array
+                  items:
+                    type: string
+                  description: Alternative approaches considered
+                  example: ['MongoDB', 'DynamoDB']
+                consequences:
+                  type: array
+                  items:
+                    type: string
+                  description: Expected consequences
+                refs:
+                  type: array
+                  items:
+                    type: string
+                  description: Related references
+                scope:
+                  type: string
+                  enum: [project, user, global]
+                  default: project
+                  description: Decision scope
+      responses:
+        '201':
+          description: Decision created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decision_id:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags:
+        - Decisions
+      summary: Query decisions
+      description: Get decisions by status
+      operationId: getDecisions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Decision status filter
+          schema:
+            type: string
+            enum: [active, supersed]
+            default: active
+      responses:
+        '200':
+          description: List of decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Decision'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/capsules:
+    post:
+      tags:
+        - Capsules
+      summary: Create capsule
+      description: Create a memory capsule with curated memory items
+      operationId: createCapsule
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapsuleInput'
+      responses:
+        '201':
+          description: Capsule created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  capsule_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [active, expired, revoked]
+                  expires_at:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags:
+        - Capsules
+      summary: Query available capsules
+      description: Get capsules available to an agent
+      operationId: getCapsules
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: agent_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: subject_type
+          in: query
+          schema:
+            type: string
+            enum: [session, user, project, policy, global]
+        - name: subject_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of capsules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  capsules:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Capsule'
+                  count:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/capsules/{capsule_id}:
+    get:
+      tags:
+        - Capsules
+      summary: Get capsule by ID
+      description: Retrieve a specific capsule with all its contents
+      operationId: getCapsule
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: capsule_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: agent_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Capsule details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapsuleDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Capsules
+      summary: Revoke capsule
+      description: Revoke a capsule (mark as revoked)
+      operationId: revokeCapsule
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: capsule_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenant_id
+              properties:
+                tenant_id:
+                  type: string
+      responses:
+        '200':
+          description: Capsule revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  capsule_id:
+                    type: string
+                  status:
+                    type: string
+                    example: revoked
+                  revoked_at:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/edits:
+    post:
+      tags:
+        - Edits
+      summary: Create memory edit
+      description: Create a memory edit operation (retract, amend, quarantine, attenuate, block)
+      operationId: createMemoryEdit
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryEditInput'
+      responses:
+        '201':
+          description: Memory edit created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  edit_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, approved]
+                  applied_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags:
+        - Edits
+      summary: List memory edits
+      description: Get list of memory edits for tenant
+      operationId: listMemoryEdits
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+        - name: target_type
+          in: query
+          schema:
+            type: string
+            enum: [chunk, decision, capsule]
+      responses:
+        '200':
+          description: List of memory edits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  edits:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MemoryEdit'
+                  count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/edits/{edit_id}:
+    get:
+      tags:
+        - Edits
+      summary: Get memory edit
+      description: Get details of a specific memory edit
+      operationId: getMemoryEdit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: edit_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Memory edit details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryEdit'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/edits/{edit_id}/approve:
+    put:
+      tags:
+        - Edits
+      summary: Approve memory edit
+      description: Approve a pending memory edit (requires admin role)
+      operationId: approveMemoryEdit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: edit_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approved_by:
+                  type: string
+                  description: Approver user ID
+      responses:
+        '200':
+          description: Memory edit approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  edit_id:
+                    type: string
+                  status:
+                    type: string
+                    example: approved
+                  applied_at:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API and database are healthy
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  authenticated:
+                    type: boolean
+        '503':
+          description: System is unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [unhealthy]
+
+  /metrics:
+    get:
+      tags:
+        - Health
+      summary: Get Prometheus metrics
+      description: Get metrics in Prometheus text format
+      operationId: getMetrics
+      security: []
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /metrics/json:
+    get:
+      tags:
+        - Health
+      summary: Get metrics as JSON
+      description: Get metrics snapshot as JSON
+      operationId: getMetricsJSON
+      security: []
+      responses:
+        '200':
+          description: Metrics as JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  operations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        operation:
+                          type: string
+                        duration:
+                          type: number
+                        success:
+                          type: boolean
+                        timestamp:
+                          type: string
+                          format: date-time
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication
+    APIKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key authentication for service-to-service communication
+
+  schemas:
+    User:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          description: Tenant identifier
+        user_id:
+          type: string
+          description: User identifier
+        username:
+          type: string
+          description: Username
+        email:
+          type: string
+          format: email
+          description: User email address
+        roles:
+          type: array
+          items:
+            type: string
+          description: User roles
+          example: ['user']
+        created_at:
+          type: string
+          format: date-time
+        last_login:
+          type: string
+          format: date-time
+
+    Session:
+      type: object
+      properties:
+        session_id:
+          type: string
+          description: Session identifier
+        created_at:
+          type: string
+          format: date-time
+        last_activity_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        device_info:
+          type: object
+          description: Device information
+          properties:
+            browser:
+              type: string
+            os:
+              type: string
+            ip:
+              type: string
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+
+    EventInput:
+      type: object
+      required:
+        - agent_id
+        - session_id
+        - role
+      properties:
+        agent_id:
+          type: string
+          description: Agent identifier
+        session_id:
+          type: string
+          description: Session identifier
+        role:
+          type: string
+          enum: [system, user, assistant, function]
+          description: Message role
+        content:
+          type: string
+          description: Message content
+        function_call:
+          type: object
+          description: Function call details
+          properties:
+            name:
+              type: string
+            arguments:
+              type: string
+        function_result:
+          type: object
+          description: Function result
+        extra:
+          type: object
+          description: Additional metadata
+        token_count:
+          type: integer
+          description: Token count for this event
+
+    Event:
+      allOf:
+        - $ref: '#/components/schemas/EventInput'
+        - type: object
+          properties:
+            event_id:
+              type: string
+              description: Event identifier
+            tenant_id:
+              type: string
+            ts:
+              type: string
+              format: date-time
+
+    Chunk:
+      type: object
+      properties:
+        chunk_id:
+          type: string
+          description: Chunk identifier
+        tenant_id:
+          type: string
+        session_id:
+          type: string
+        agent_id:
+          type: string
+        content:
+          type: string
+          description: Chunk content
+        metadata:
+          type: object
+          description: Chunk metadata
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    Artifact:
+      type: object
+      properties:
+        artifact_id:
+          type: string
+        tenant_id:
+          type: string
+        session_id:
+          type: string
+        type:
+          type: string
+          description: Artifact type
+        summary:
+          type: string
+          description: Artifact summary
+        bytes:
+          type: string
+          format: byte
+          description: Artifact binary data
+          nullable: true
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    Decision:
+      type: object
+      properties:
+        decision_id:
+          type: string
+        tenant_id:
+          type: string
+        ts:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, superseded]
+        scope:
+          type: string
+          enum: [project, user, global]
+        decision:
+          type: string
+        rationale:
+          type: array
+          items:
+            type: string
+        constraints:
+          type: array
+          items:
+            type: string
+        alternatives:
+          type: array
+          items:
+            type: string
+        consequences:
+          type: array
+          items:
+            type: string
+        refs:
+          type: array
+          items:
+            type: string
+
+    ACB:
+      type: object
+      description: Active Context Bundle
+      properties:
+        acb_id:
+          type: string
+        tenant_id:
+          type: string
+        session_id:
+          type: string
+        agent_id:
+          type: string
+        channel:
+          type: string
+          enum: [private, public, team, agent]
+        intent:
+          type: string
+        query_text:
+          type: string
+        chunks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Chunk'
+        decisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Decision'
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Artifact'
+        total_tokens:
+          type: integer
+          description: Total token count in ACB
+        created_at:
+          type: string
+          format: date-time
+
+    CapsuleInput:
+      type: object
+      required:
+        - author_agent_id
+        - subject_type
+        - subject_id
+        - scope
+        - audience_agent_ids
+        - items
+      properties:
+        author_agent_id:
+          type: string
+          description: Agent creating the capsule
+        subject_type:
+          type: string
+          enum: [session, user, project, policy, global]
+          description: Subject type
+        subject_id:
+          type: string
+          description: Subject identifier
+        scope:
+          type: string
+          enum: [session, user, project, policy, global]
+          description: Capsule scope
+        project_id:
+          type: string
+          description: Project identifier (if scope=project)
+        audience_agent_ids:
+          type: array
+          items:
+            type: string
+          description: Agents allowed to access this capsule
+          minItems: 1
+        items:
+          type: object
+          required:
+            - chunks
+            - decisions
+            - artifacts
+          properties:
+            chunks:
+              type: array
+              items:
+                type: string
+              description: List of chunk IDs
+            decisions:
+              type: array
+              items:
+                type: string
+              description: List of decision IDs
+            artifacts:
+              type: array
+              items:
+                type: string
+              description: List of artifact IDs
+        ttl_days:
+          type: integer
+          description: Time-to-live in days
+          minimum: 1
+        risks:
+          type: array
+          items:
+            type: string
+          description: Risk considerations
+
+    Capsule:
+      type: object
+      properties:
+        capsule_id:
+          type: string
+        tenant_id:
+          type: string
+        author_agent_id:
+          type: string
+        subject_type:
+          type: string
+        subject_id:
+          type: string
+        scope:
+          type: string
+        project_id:
+          type: string
+        status:
+          type: string
+          enum: [active, expired, revoked]
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    CapsuleDetail:
+      allOf:
+        - $ref: '#/components/schemas/Capsule'
+        - type: object
+          properties:
+            audience_agent_ids:
+              type: array
+              items:
+                type: string
+            chunks:
+              type: array
+              items:
+                $ref: '#/components/schemas/Chunk'
+            decisions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Decision'
+            artifacts:
+              type: array
+              items:
+                $ref: '#/components/schemas/Artifact'
+            risks:
+              type: array
+              items:
+                type: string
+
+    MemoryEditInput:
+      type: object
+      required:
+        - target_type
+        - target_id
+        - op
+        - reason
+      properties:
+        target_type:
+          type: string
+          enum: [chunk, decision, capsule]
+          description: Type of target to edit
+        target_id:
+          type: string
+          description: ID of target to edit
+        op:
+          type: string
+          enum: [retract, amend, quarantine, attenuate, block]
+          description: Edit operation
+        reason:
+          type: string
+          description: Reason for the edit
+        patch:
+          type: object
+          description: Edit patch data
+          properties:
+            text:
+              type: string
+              description: New text (for amend operation)
+            importance:
+              type: number
+              description: New importance value (for amend/attenuate)
+            importance_delta:
+              type: number
+              description: Importance adjustment (for attenuate)
+            channel:
+              type: string
+              description: Channel to block (for block operation)
+
+    MemoryEdit:
+      allOf:
+        - $ref: '#/components/schemas/MemoryEditInput'
+        - type: object
+          properties:
+            edit_id:
+              type: string
+              description: Edit identifier
+            tenant_id:
+              type: string
+              description: Tenant identifier
+            proposed_by:
+              type: string
+              description: User or agent who proposed the edit
+            approved_by:
+              type: string
+              description: User who approved the edit
+              nullable: true
+            status:
+              type: string
+              enum: [pending, approved, rejected]
+              description: Edit status
+            created_at:
+              type: string
+              format: date-time
+            applied_at:
+              type: string
+              format: date-time
+              nullable: true
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        message:
+          type: string
+          description: Detailed error description (development only)
+        fields:
+          type: array
+          items:
+            type: string
+          description: Missing or invalid fields
+        required:
+          type: array
+          items:
+            type: string
+          description: Required fields
+        allowed:
+          type: array
+          items:
+            type: string
+          description: Allowed values
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 'Bad request'
+            message: 'Invalid input data'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 'Unauthorized'
+            message: 'Missing or invalid authentication'
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 'Forbidden'
+            message: 'Access denied'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 'Not found'
+            message: 'Resource not found'
+
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 'Conflict'
+            message: 'Resource already exists'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 'Internal server error'
+            message: 'An unexpected error occurred'
