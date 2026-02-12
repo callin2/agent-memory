@@ -1,7 +1,10 @@
 -- Migration 008: Memory Surgery Operations
 -- Creates memory_edits table for memory governance (retract, amend, quarantine, attenuate, block)
 
-CREATE TABLE IF NOT EXISTS memory_edits (
+BEGIN;
+
+-- Create table without foreign key constraints (will be aligned in migration 015)
+CREATE TABLE memory_edits (
   edit_id         TEXT PRIMARY KEY,
   tenant_id       TEXT NOT NULL,
   ts              TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -14,14 +17,7 @@ CREATE TABLE IF NOT EXISTS memory_edits (
   status          TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
   patch           JSONB NOT NULL, -- {text?: string, importance?: number, importance_delta?: number, channel?: string}
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  applied_at      TIMESTAMPTZ,
-
-  -- Foreign key constraints
-  CONSTRAINT fk_edit_proposer
-    FOREIGN KEY (proposed_by) REFERENCES users(user_id) ON DELETE RESTRICT,
-
-  CONSTRAINT fk_edit_approver
-    FOREIGN KEY (approved_by) REFERENCES users(user_id) ON DELETE SET NULL
+  applied_at      TIMESTAMPTZ
 );
 
 -- Indexes for memory edit queries
@@ -49,14 +45,16 @@ COMMENT ON TABLE memory_edits IS 'Audit trail for memory modifications with gove
 COMMENT ON COLUMN memory_edits.edit_id IS 'Unique edit identifier';
 COMMENT ON COLUMN memory_edits.tenant_id IS 'Tenant ID for isolation';
 COMMENT ON COLUMN memory_edits.target_type IS 'chunk, decision, or capsule';
-COMMENT ON COLUMN memory_edits.target_id IS 'ID of the target memory item';
+COMMENT ON COLUMN memory_edits.target_id IS 'ID of target memory item';
 COMMENT ON COLUMN memory_edits.op IS 'Operation: retract, amend, quarantine, attenuate, block';
-COMMENT ON COLUMN memory_edits.reason IS 'Reason for the edit';
-COMMENT ON COLUMN memory_edits.proposed_by IS 'User or agent who proposed the edit';
-COMMENT ON COLUMN memory_edits.approved_by IS 'User who approved the edit (if approval required)';
+COMMENT ON COLUMN memory_edits.reason IS 'Reason for edit';
+COMMENT ON COLUMN memory_edits.proposed_by IS 'Actor type: human or agent';
+COMMENT ON COLUMN memory_edits.approved_by IS 'Actor who approved the edit';
 COMMENT ON COLUMN memory_edits.status IS 'pending, approved, or rejected';
 COMMENT ON COLUMN memory_edits.patch IS 'JSONB patch data (text replacement, importance change, etc.)';
 COMMENT ON COLUMN memory_edits.applied_at IS 'Timestamp when edit was applied';
+
+COMMIT;
 
 -- Edit operation semantics:
 -- retract: Exclude from ALL queries (hard delete without data loss)

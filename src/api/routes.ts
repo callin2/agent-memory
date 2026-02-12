@@ -250,10 +250,10 @@ export function createRoutes(pool: Pool): Router {
   });
 
   /**
-   * GET /health
+   * GET /api/v1/health
    * Health check endpoint
    */
-  router.get('/health', async (req: Request, res: Response) => {
+  router.get('/api/v1/health', async (req: Request, res: Response) => {
     try {
       await pool.query('SELECT 1');
       res.json({ status: 'healthy', timestamp: new Date().toISOString() });

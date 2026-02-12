@@ -72,9 +72,11 @@ tsx examples/mcp-client.ts
 ### Authentication Endpoints
 
 #### `POST /auth/login`
+
 Login with username and password.
 
 **Request:**
+
 ```json
 {
   "username": "user@example.com",
@@ -84,6 +86,7 @@ Login with username and password.
 ```
 
 **Response:**
+
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
@@ -100,9 +103,11 @@ Login with username and password.
 ```
 
 #### `POST /auth/register`
+
 Register a new user.
 
 **Request:**
+
 ```json
 {
   "username": "newuser@example.com",
@@ -113,9 +118,11 @@ Register a new user.
 ```
 
 #### `POST /auth/token/refresh`
+
 Refresh access token using refresh token.
 
 **Request:**
+
 ```json
 {
   "refresh_token": "rt_1234567890_abc123..."
@@ -123,6 +130,7 @@ Refresh access token using refresh token.
 ```
 
 **Response:**
+
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
@@ -135,9 +143,11 @@ Refresh access token using refresh token.
 **Note:** Refresh token rotation - old token is revoked, new token issued.
 
 #### `POST /auth/token/revoke`
+
 Revoke a refresh token (logout).
 
 **Request:**
+
 ```json
 {
   "refresh_token": "rt_1234567890_abc123..."
@@ -145,9 +155,11 @@ Revoke a refresh token (logout).
 ```
 
 #### `GET /auth/sessions`
+
 List all active sessions for the authenticated user.
 
 **Response:**
+
 ```json
 {
   "sessions": [
@@ -170,17 +182,21 @@ List all active sessions for the authenticated user.
 ```
 
 #### `DELETE /auth/sessions/:id`
+
 Revoke a specific session.
 
 #### `DELETE /auth/sessions`
+
 Revoke all sessions except the current one.
 
 ### API Key Endpoints
 
 #### `POST /auth/api-keys`
+
 Create a new API key (requires admin or tenant_admin role).
 
 **Request:**
+
 ```json
 {
   "name": "Production Service",
@@ -190,6 +206,7 @@ Create a new API key (requires admin or tenant_admin role).
 ```
 
 **Response:**
+
 ```json
 {
   "api_key": "ak_1705276800_abc123.def456...",
@@ -205,9 +222,11 @@ Create a new API key (requires admin or tenant_admin role).
 **Important:** Store the API key securely. It will not be shown again.
 
 #### `GET /auth/api-keys`
+
 List all API keys for the tenant.
 
 #### `DELETE /auth/api-keys/:id`
+
 Revoke an API key.
 
 ## Using API Keys
@@ -230,21 +249,21 @@ curl -X POST http://localhost:3000/api/v1/events \
 ### With Node.js
 
 ```javascript
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 
-const response = await fetch('http://localhost:3000/api/v1/events', {
-  method: 'POST',
+const response = await fetch("http://localhost:3000/api/v1/events", {
+  method: "POST",
   headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': 'ak_1705276800_abc123.def456...'
+    "Content-Type": "application/json",
+    "X-API-Key": "ak_1705276800_abc123.def456...",
   },
   body: JSON.stringify({
-    session_id: 'session-123',
-    channel: 'private',
-    actor: { type: 'agent', id: 'service-1' },
-    kind: 'message',
-    content: { text: 'Event from service' }
-  })
+    session_id: "session-123",
+    channel: "private",
+    actor: { type: "agent", id: "service-1" },
+    kind: "message",
+    content: { text: "Event from service" },
+  }),
 });
 ```
 
@@ -315,14 +334,26 @@ response = requests.post(
 }
 ```
 
+### Local Development (Auth Bypass)
+
+If your MCP client cannot send `initialize.params.authorization`, you can start the MCP server in a local development profile:
+
+```bash
+MCP_ENV=dev npm run start:mcp
+```
+
+This enables an unauthenticated local-only connection (non-production only) and sets MCP defaults like tenant/user IDs.
+
 ## Security Features
 
 ### Password Security
+
 - **Hashing:** Bcrypt with 12 rounds
 - **Complexity:** Enforced minimum 12 characters with uppercase, lowercase, number, special char
 - **History:** Prevents reuse of last 5 passwords
 
 ### Token Security
+
 - **Access Token Lifetime:** 15 minutes (configurable)
 - **Refresh Token Lifetime:** 7 days (configurable)
 - **Token Rotation:** New refresh token on each use
@@ -330,6 +361,7 @@ response = requests.post(
 - **Revocation:** Immediate token invalidation on logout
 
 ### API Key Security
+
 - **Format:** `ak_<timestamp>_<random>.<random_secret>`
 - **Hashing:** SHA-256 hash stored in database
 - **Prefix:** First 8 characters shown for identification
@@ -338,6 +370,7 @@ response = requests.post(
 - **Expiration:** Optional expiration date
 
 ### Session Security
+
 - **Device Fingerprinting:** Browser, OS, IP tracking
 - **Activity Tracking:** Last activity timestamp
 - **Concurrent Sessions:** Multiple sessions per user
@@ -345,7 +378,9 @@ response = requests.post(
 - **Auto-Cleanup:** Expired sessions automatically removed
 
 ### Audit Logging
+
 All security events are logged to `audit_logs` table:
+
 - Login (success/failure)
 - Token operations (issue, refresh, revoke)
 - API key operations (create, delete, usage)
@@ -381,18 +416,22 @@ REDIS_URL=redis://localhost:6379/1
 ### Database Tables
 
 **refresh_tokens**
+
 - Stores refresh tokens with rotation tracking
 - Family tracking for theft detection
 
 **api_keys**
+
 - Stores API keys (hashed) with metadata
 - Usage tracking and rate limiting
 
 **sessions**
+
 - Stores active sessions with device info
 - IP address and user agent tracking
 
 **audit_logs**
+
 - Stores all security events
 - Queryable by tenant, user, event type
 
@@ -421,15 +460,19 @@ npm run test:scenarios
 ### Common Issues
 
 **Issue:** "Invalid or expired token"
+
 - **Solution:** Refresh the access token or re-login
 
 **Issue:** "API key validation failed"
+
 - **Solution:** Check API key is correct, not expired, and not revoked
 
 **Issue:** "MCP authentication failed"
+
 - **Solution:** Ensure authorization field is included in initialize params
 
 **Issue:** "Rate limit exceeded"
+
 - **Solution:** Implement exponential backoff and retry
 
 ## Migration from Unauthenticated
@@ -478,6 +521,7 @@ fetch('http://localhost:3000/api/v1/events', {
 ## Support
 
 For more information:
+
 - [MCP Authentication Guide](docs/MCP_AUTHENTICATION.md)
 - [Quick Start Guide](docs/MCP_QUICK_START.md)
 - [Examples](examples/)

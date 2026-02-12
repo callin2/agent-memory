@@ -17,12 +17,14 @@
     "db:migrate": "psql $PGDATABASE -f src/db/schema.sql",
     "db:reset": "dropdb $PGDATABASE && createdb $PGDATABASE && npm run db:migrate",
     "db:setup:dev": "bash setup-dev-db.sh",
-    "db:migrate:dev": "PGDATABASE=agent_memory_dev psql -f src/db/schema.sql && for f in src/db/migrations/*.sql; do echo \"Applying $f...\" && PGDATABASE=agent_memory_dev psql -f \"$f\"; done",
-    "db:migrate:prod": "PGDATABASE=agent_memory psql -f src/db/schema.sql && for f in src/db/migrations/*.sql; do echo \"Applying $f...\" && PGDATABASE=agent_memory psql -f \"$f\"; done",
+    "db:migrate:dev": "PGDATABASE=agent_memory_dev psql -f src/db/schema.sql && for f in src/db/migrations/*.sql; do [ \"$(basename \\\"$f\\\")\" = \"010_rollbacks.sql\" ] && continue; echo \"Applying $f...\" && PGDATABASE=agent_memory_dev psql -f \"$f\"; done",
+    "db:migrate:prod": "PGDATABASE=agent_memory psql -f src/db/schema.sql && for f in src/db/migrations/*.sql; do [ \"$(basename \\\"$f\\\")\" = \"010_rollbacks.sql\" ] && continue; echo \"Applying $f...\" && PGDATABASE=agent_memory psql -f \"$f\"; done",
     "db:verify": "bash scripts/verify-databases.sh",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docs:serve": "cd docs && npx serve . -p 8080",
+    "docs:validate": "npx @redocly/cli lint docs/openapi.yaml"
   },
   "keywords": [
     "ai",

@@ -2,8 +2,8 @@
  * Authentication and Authorization middleware
  */
 
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 
 // Extend Express Request type to include user
 declare global {
@@ -47,9 +47,9 @@ export interface AuthConfig {
  * Default auth configuration from environment
  */
 export const getAuthConfig = (): AuthConfig => ({
-  secret: process.env.JWT_SECRET || 'change-this-secret-in-production',
-  expiresIn: process.env.JWT_EXPIRES_IN || '24h',
-  issuer: process.env.JWT_ISSUER || 'agent-memory-system',
+  secret: process.env.JWT_SECRET || "change-this-secret-in-production",
+  expiresIn: process.env.JWT_EXPIRES_IN || "24h",
+  issuer: process.env.JWT_ISSUER || "agent-memory-system",
 });
 
 /**
@@ -67,27 +67,26 @@ export function generateToken(
   user_id: string,
   roles: string[] = [],
   config?: AuthConfig,
-  jti?: string
+  jti?: string,
 ): string {
   const authConfig = config || getAuthConfig();
-
-  const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
-    tenant_id,
-    user_id,
-    roles,
-    ...(jti && { jti }),
-  };
 
   const signOptions: any = {
     expiresIn: authConfig.expiresIn,
     issuer: authConfig.issuer,
     subject: user_id,
-    audience: 'agent-memory-api',
+    audience: "agent-memory-api",
   };
 
   if (jti) {
     signOptions.jwtid = jti;
   }
+
+  const payload: Omit<JWTPayload, "iat" | "exp" | "jti"> = {
+    tenant_id,
+    user_id,
+    roles,
+  };
 
   return jwt.sign(payload, authConfig.secret, signOptions);
 }
@@ -95,12 +94,15 @@ export function generateToken(
 /**
  * Verify JWT token
  */
-export function verifyToken(token: string, config?: AuthConfig): JWTPayload | null {
+export function verifyToken(
+  token: string,
+  config?: AuthConfig,
+): JWTPayload | null {
   try {
     const authConfig = config || getAuthConfig();
     const decoded = jwt.verify(token, authConfig.secret, {
       issuer: authConfig.issuer,
-      audience: 'agent-memory-api',
+      audience: "agent-memory-api",
     });
 
     return decoded as JWTPayload;
@@ -120,8 +122,8 @@ export function extractToken(req: Request): string | null {
   }
 
   // Bearer token format
-  const parts = authHeader.split(' ');
-  if (parts.length === 2 && parts[0] === 'Bearer') {
+  const parts = authHeader.split(" ");
+  if (parts.length === 2 && parts[0] === "Bearer") {
     return parts[1];
   }
 
@@ -132,13 +134,17 @@ export function extractToken(req: Request): string | null {
  * Authentication middleware
  * Verifies JWT token and attaches user to request
  */
-export function authenticate(req: Request, res: Response, next: NextFunction): void {
+export function authenticate(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
   const token = extractToken(req);
 
   if (!token) {
     res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing or invalid Authorization header',
+      error: "Unauthorized",
+      message: "Missing or invalid Authorization header",
     });
     return;
   }
@@ -147,8 +153,8 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
 
   if (!payload) {
     res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Invalid or expired token',
+      error: "Unauthorized",
+      message: "Invalid or expired token",
     });
     return;
   }
@@ -168,7 +174,11 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
  * Optional authentication middleware
  * Attaches user if token is present, but doesn't require it
  */
-export function optionalAuthenticate(req: Request, _res: Response, next: NextFunction): void {
+export function optionalAuthenticate(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void {
   const token = extractToken(req);
 
   if (token) {
@@ -193,18 +203,20 @@ export function requireRole(...requiredRoles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Authentication required',
+        error: "Unauthorized",
+        message: "Authentication required",
       });
       return;
     }
 
-    const hasRole = requiredRoles.some((role) => req.user!.roles.includes(role));
+    const hasRole = requiredRoles.some((role) =>
+      req.user!.roles.includes(role),
+    );
 
     if (!hasRole) {
       res.status(403).json({
-        error: 'Forbidden',
-        message: `Requires one of roles: ${requiredRoles.join(', ')}`,
+        error: "Forbidden",
+        message: `Requires one of roles: ${requiredRoles.join(", ")}`,
       });
       return;
     }
@@ -217,22 +229,27 @@ export function requireRole(...requiredRoles: string[]) {
  * Tenant isolation middleware
  * Ensures requests only access data for their tenant
  */
-export function requireTenantAccess(req: Request, res: Response, next: NextFunction): void {
+export function requireTenantAccess(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
   if (!req.user) {
     res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Authentication required',
+      error: "Unauthorized",
+      message: "Authentication required",
     });
     return;
   }
 
   // Check if requested tenant_id matches authenticated user's tenant
-  const requestedTenantId = req.body.tenant_id || req.query.tenant_id || req.params.tenant_id;
+  const requestedTenantId =
+    req.body.tenant_id || req.query.tenant_id || req.params.tenant_id;
 
   if (requestedTenantId && requestedTenantId !== req.user.tenant_id) {
     res.status(403).json({
-      error: 'Forbidden',
-      message: 'Cannot access data for different tenant',
+      error: "Forbidden",
+      message: "Cannot access data for different tenant",
     });
     return;
   }
@@ -260,9 +277,14 @@ export interface APIKey {
  */
 const API_KEYS: Map<string, APIKey> = new Map();
 
-export function generateAPIKey(tenant_id: string, scopes: string[] = []): string {
+export function generateAPIKey(
+  tenant_id: string,
+  scopes: string[] = [],
+): string {
   const key_id = `ak_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-  const keySecret = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const keySecret =
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15);
   const apiKey = `${key_id}.${keySecret}`;
 
   API_KEYS.set(apiKey, {
@@ -282,13 +304,17 @@ export function validateAPIKey(apiKey: string): APIKey | null {
 /**
  * API key authentication middleware
  */
-export function authenticateAPIKey(req: Request, res: Response, next: NextFunction): void {
-  const apiKey = req.headers['x-api-key'] as string;
+export function authenticateAPIKey(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const apiKey = req.headers["x-api-key"] as string;
 
   if (!apiKey) {
     res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing API key',
+      error: "Unauthorized",
+      message: "Missing API key",
     });
     return;
   }
@@ -297,8 +323,8 @@ export function authenticateAPIKey(req: Request, res: Response, next: NextFuncti
 
   if (!keyData) {
     res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Invalid API key',
+      error: "Unauthorized",
+      message: "Invalid API key",
     });
     return;
   }
@@ -317,14 +343,18 @@ export function authenticateAPIKey(req: Request, res: Response, next: NextFuncti
 /**
  * Combined authentication (JWT or API key)
  */
-export function authenticateAny(req: Request, res: Response, next: NextFunction): void {
+export function authenticateAny(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
   const token = extractToken(req);
-  const apiKey = req.headers['x-api-key'] as string;
+  const apiKey = req.headers["x-api-key"] as string;
 
   if (!token && !apiKey) {
     res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing authentication (Bearer token or X-API-Key header)',
+      error: "Unauthorized",
+      message: "Missing authentication (Bearer token or X-API-Key header)",
     });
     return;
   }
@@ -360,8 +390,8 @@ export function authenticateAny(req: Request, res: Response, next: NextFunction)
   }
 
   res.status(401).json({
-    error: 'Unauthorized',
-    message: 'Invalid authentication credentials',
+    error: "Unauthorized",
+    message: "Invalid authentication credentials",
   });
 }
 
@@ -397,26 +427,40 @@ export function revokeToken(jti: string): void {
  * @returns Device info object
  */
 export function extractDeviceInfo(req: Request): Record<string, any> {
-  const userAgent = req.headers['user-agent'] || '';
+  const userAgent = req.headers["user-agent"] || "";
 
   // Simple device parsing (can be enhanced with ua-parser-js)
   const deviceInfo: Record<string, any> = {
     userAgent,
-    ip: req.headers['x-forwarded-for'] as string || req.headers['x-real-ip'] as string || req.socket.remoteAddress,
+    ip:
+      (req.headers["x-forwarded-for"] as string) ||
+      (req.headers["x-real-ip"] as string) ||
+      req.socket.remoteAddress,
   };
 
   // Basic browser detection
-  if (userAgent.includes('Chrome')) {deviceInfo.browser = 'Chrome';}
-  else if (userAgent.includes('Firefox')) {deviceInfo.browser = 'Firefox';}
-  else if (userAgent.includes('Safari')) {deviceInfo.browser = 'Safari';}
-  else if (userAgent.includes('Edge')) {deviceInfo.browser = 'Edge';}
+  if (userAgent.includes("Chrome")) {
+    deviceInfo.browser = "Chrome";
+  } else if (userAgent.includes("Firefox")) {
+    deviceInfo.browser = "Firefox";
+  } else if (userAgent.includes("Safari")) {
+    deviceInfo.browser = "Safari";
+  } else if (userAgent.includes("Edge")) {
+    deviceInfo.browser = "Edge";
+  }
 
   // Basic OS detection
-  if (userAgent.includes('Windows')) {deviceInfo.os = 'Windows';}
-  else if (userAgent.includes('Mac')) {deviceInfo.os = 'macOS';}
-  else if (userAgent.includes('Linux')) {deviceInfo.os = 'Linux';}
-  else if (userAgent.includes('Android')) {deviceInfo.os = 'Android';}
-  else if (userAgent.includes('iOS')) {deviceInfo.os = 'iOS';}
+  if (userAgent.includes("Windows")) {
+    deviceInfo.os = "Windows";
+  } else if (userAgent.includes("Mac")) {
+    deviceInfo.os = "macOS";
+  } else if (userAgent.includes("Linux")) {
+    deviceInfo.os = "Linux";
+  } else if (userAgent.includes("Android")) {
+    deviceInfo.os = "Android";
+  } else if (userAgent.includes("iOS")) {
+    deviceInfo.os = "iOS";
+  }
 
   return deviceInfo;
 }

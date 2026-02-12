@@ -10,9 +10,9 @@
  * - Cleanup of expired tokens
  */
 
-import { Pool } from 'pg';
-import crypto from 'crypto';
-import { generateToken } from '../middleware/auth.js';
+import { Pool } from "pg";
+import crypto from "crypto";
+import { generateToken } from "../middleware/auth.js";
 
 export interface RefreshTokenData {
   token_id: string;
@@ -61,18 +61,25 @@ export class TokenService {
     userId: string,
     tenantId: string,
     deviceInfo?: Record<string, any>,
-    expiresIn: number = 7 * 24 * 60 * 60 // 7 days
+    expiresIn: number = 7 * 24 * 60 * 60, // 7 days
   ): Promise<GeneratedToken> {
     // Generate secure random token (48 bytes = 384 bits)
-    const token = crypto.randomBytes(48).toString('base64url');
+    const token = crypto.randomBytes(48).toString("base64url");
     const tokenHash = this.hashToken(token);
-    const tokenId = `rt_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
+    const tokenId = `rt_${Date.now()}_${crypto.randomBytes(16).toString("hex")}`;
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
     await this.pool.query(
       `INSERT INTO refresh_tokens (token_id, user_id, tenant_id, token_hash, expires_at, device_info)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [tokenId, userId, tenantId, tokenHash, expiresAt, JSON.stringify(deviceInfo || {})]
+      [
+        tokenId,
+        userId,
+        tenantId,
+        tokenHash,
+        expiresAt,
+        JSON.stringify(deviceInfo || {}),
+      ],
     );
 
     return {
@@ -84,35 +91,104 @@ export class TokenService {
   }
 
   /**
-   * Validate a refresh token and return its data
+   * Look up a refresh token by hash (includes revoked tokens)
    *
    * @param token - The refresh token string
-   * @returns Token data or null if invalid
+   * @returns Token data or null if not found
    */
-  async validateRefreshToken(token: string): Promise<RefreshTokenData | null> {
+  private async lookupRefreshToken(
+    token: string,
+  ): Promise<RefreshTokenData | null> {
     const tokenHash = this.hashToken(token);
 
     const result = await this.pool.query<RefreshTokenData>(
       `SELECT token_id, user_id, tenant_id, expires_at, rotated_at, replaced_by,
               revoked_at, revoked_reason, device_info, last_used_at, created_at
        FROM refresh_tokens
-       WHERE token_hash = $1 AND revoked_at IS NULL`,
-      [tokenHash]
+       WHERE token_hash = $1`,
+      [tokenHash],
     );
 
     if (result.rows.length === 0) {
       return null;
     }
 
-    const tokenData = result.rows[0];
+    return result.rows[0];
+  }
+
+  /**
+   * Look up a refresh token for logging purposes (public method)
+   *
+   * @param token - The refresh token string
+   * @returns Token data or null if not found
+   */
+  async lookupRefreshTokenForLogging(
+    token: string,
+  ): Promise<RefreshTokenData | null> {
+    const tokenHash = this.hashToken(token);
+
+    const result = await this.pool.query<RefreshTokenData>(
+      `SELECT token_id, user_id, tenant_id, expires_at, rotated_at, replaced_by,
+              revoked_at, revoked_reason, device_info, last_used_at, created_at
+       FROM refresh_tokens
+       WHERE token_hash = $1`,
+      [tokenHash],
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0];
+  }
+
+  /**
+   * Validate a refresh token and return its data
+   *
+   * @param token - The refresh token string
+   * @returns Token data or null if invalid
+   */
+  async validateRefreshToken(token: string): Promise<RefreshTokenData | null> {
+    const tokenData = await this.lookupRefreshToken(token);
+
+    if (!tokenData) {
+      return null;
+    }
+
+    // Check if revoked (rotated, expired manually, or theft)
+    if (tokenData.revoked_at !== null) {
+      return null;
+    }
 
     // Check if expired
     if (new Date() > tokenData.expires_at) {
-      await this.revokeRefreshToken(tokenData.token_id, 'expired');
+      await this.revokeRefreshToken(tokenData.token_id, "expired");
       return null;
     }
 
     return tokenData;
+  }
+
+  /**
+   * Check if a refresh token indicates theft attempt
+   * This should be called when validateRefreshToken returns null
+   *
+   * @param token - The refresh token string
+   * @returns True if token theft is detected
+   */
+  async checkTokenTheftAttempt(token: string): Promise<boolean> {
+    const tokenData = await this.lookupRefreshToken(token);
+
+    if (!tokenData) {
+      return false;
+    }
+
+    // Token was rotated (replaced by a newer token)
+    return (
+      tokenData.revoked_at !== null &&
+      tokenData.revoked_reason === "rotated" &&
+      tokenData.replaced_by !== null
+    );
   }
 
   /**
@@ -124,20 +200,21 @@ export class TokenService {
    */
   async rotateRefreshToken(
     oldToken: string,
-    deviceInfo?: Record<string, any>
+    deviceInfo?: Record<string, any>,
   ): Promise<RotatedToken> {
     const oldTokenData = await this.validateRefreshToken(oldToken);
 
     if (!oldTokenData) {
-      throw new Error('Invalid or expired refresh token');
+      throw new Error("Invalid or expired refresh token");
     }
 
     // Generate new token
-    const { token, tokenHash, tokenId, expiresAt } = await this.generateRefreshToken(
-      oldTokenData.user_id,
-      oldTokenData.tenant_id,
-      deviceInfo || oldTokenData.device_info
-    );
+    const { token, tokenHash, tokenId, expiresAt } =
+      await this.generateRefreshToken(
+        oldTokenData.user_id,
+        oldTokenData.tenant_id,
+        deviceInfo || oldTokenData.device_info,
+      );
 
     // Mark old token as rotated and link to new token
     await this.pool.query(
@@ -147,7 +224,7 @@ export class TokenService {
            revoked_at = NOW(),
            revoked_reason = 'rotated'
        WHERE token_id = $2`,
-      [tokenId, oldTokenData.token_id]
+      [tokenId, oldTokenData.token_id],
     );
 
     return {
@@ -170,7 +247,7 @@ export class TokenService {
        SET revoked_at = NOW(),
            revoked_reason = $1
        WHERE token_id = $2`,
-      [reason, tokenId]
+      [reason, tokenId],
     );
   }
 
@@ -188,7 +265,7 @@ export class TokenService {
       `SELECT replaced_by, revoked_at, revoked_reason
        FROM refresh_tokens
        WHERE token_id = $1`,
-      [tokenId]
+      [tokenId],
     );
 
     if (result.rows.length === 0) {
@@ -200,7 +277,7 @@ export class TokenService {
     // If token was rotated and someone tries to use it again
     return (
       tokenData.revoked_at !== null &&
-      tokenData.revoked_reason === 'rotated' &&
+      tokenData.revoked_reason === "rotated" &&
       tokenData.replaced_by !== null
     );
   }
@@ -218,7 +295,7 @@ export class TokenService {
        FROM refresh_tokens
        WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > NOW()
        ORDER BY created_at DESC`,
-      [userId]
+      [userId],
     );
 
     return result.rows;
@@ -234,7 +311,7 @@ export class TokenService {
       `UPDATE refresh_tokens
        SET last_used_at = NOW()
        WHERE token_id = $1`,
-      [tokenId]
+      [tokenId],
     );
   }
 
@@ -244,13 +321,16 @@ export class TokenService {
    * @param userId - User ID
    * @param reason - Revocation reason
    */
-  async revokeAllUserTokens(userId: string, reason: string = 'security'): Promise<void> {
+  async revokeAllUserTokens(
+    userId: string,
+    reason: string = "security",
+  ): Promise<void> {
     await this.pool.query(
       `UPDATE refresh_tokens
        SET revoked_at = NOW(),
            revoked_reason = $1
        WHERE user_id = $2 AND revoked_at IS NULL`,
-      [reason, userId]
+      [reason, userId],
     );
   }
 
@@ -264,7 +344,7 @@ export class TokenService {
     const result = await this.pool.query(
       `DELETE FROM refresh_tokens
        WHERE expires_at < NOW() - INTERVAL '1 day' * $1`,
-      [daysOld]
+      [daysOld],
     );
 
     return result.rowCount || 0;
@@ -277,7 +357,7 @@ export class TokenService {
    * @returns Hex-encoded hash
    */
   private hashToken(token: string): string {
-    return crypto.createHash('sha256').update(token).digest('hex');
+    return crypto.createHash("sha256").update(token).digest("hex");
   }
 
   /**
@@ -288,7 +368,12 @@ export class TokenService {
    * @param roles - User roles
    * @returns JWT access token
    */
-  generateAccessToken(userId: string, tenantId: string, roles: string[] = []): string {
-    return generateToken(tenantId, userId, roles);
+  generateAccessToken(
+    userId: string,
+    tenantId: string,
+    roles: string[] = [],
+  ): string {
+    const jti = `atk_${Date.now()}_${crypto.randomBytes(8).toString("hex")}`;
+    return generateToken(tenantId, userId, roles, undefined, jti);
   }
 }

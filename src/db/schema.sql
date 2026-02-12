@@ -5,8 +5,17 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
+-- Drop tables if they exist (for clean schema recreation)
+-- This ensures new columns are properly added
+DROP TABLE IF EXISTS tasks CASCADE;
+DROP TABLE IF EXISTS artifacts CASCADE;
+DROP TABLE IF EXISTS rules CASCADE;
+DROP TABLE IF EXISTS decisions CASCADE;
+DROP TABLE IF EXISTS chunks CASCADE;
+DROP TABLE IF EXISTS events CASCADE;
+
 -- Ground truth events (append-only logically)
-CREATE TABLE IF NOT EXISTS events (
+CREATE TABLE events (
   event_id     TEXT PRIMARY KEY,
   ts           TIMESTAMPTZ NOT NULL DEFAULT now(),
   tenant_id    TEXT NOT NULL,
@@ -18,7 +27,12 @@ CREATE TABLE IF NOT EXISTS events (
   sensitivity  TEXT NOT NULL DEFAULT 'none' CHECK (sensitivity IN ('none', 'low', 'high', 'secret')),
   tags         TEXT[] NOT NULL DEFAULT '{}',
   content      JSONB NOT NULL,
-  refs         TEXT[] NOT NULL DEFAULT '{}'
+  refs         TEXT[] NOT NULL DEFAULT '{}',
+  -- Scope + Subject columns (added in migration 006)
+  scope         TEXT CHECK (scope IN ('session', 'user', 'project', 'policy', 'global')),
+  subject_type  TEXT,
+  subject_id    TEXT,
+  project_id    TEXT
 );
 
 -- Indexes for events
@@ -50,7 +64,12 @@ CREATE TABLE IF NOT EXISTS chunks (
   token_est    INT NOT NULL,
   importance   REAL NOT NULL DEFAULT 0.0,
   text         TEXT NOT NULL,
-  tsv          TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', text)) STORED
+  tsv          TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', text)) STORED,
+  -- Scope + Subject columns (added in migration 006)
+  scope         TEXT CHECK (scope IN ('session', 'user', 'project', 'policy', 'global')),
+  subject_type  TEXT,
+  subject_id    TEXT,
+  project_id    TEXT
 );
 
 -- Indexes for chunks
@@ -78,13 +97,17 @@ CREATE TABLE IF NOT EXISTS decisions (
   tenant_id     TEXT NOT NULL,
   ts            TIMESTAMPTZ NOT NULL DEFAULT now(),
   status        TEXT NOT NULL CHECK (status IN ('active', 'superseded')),
-  scope         TEXT NOT NULL CHECK (scope IN ('project', 'user', 'global')),
+  scope         TEXT NOT NULL CHECK (scope IN ('project', 'user', 'global', 'policy', 'session')),
   decision      TEXT NOT NULL,
   rationale     TEXT[] NOT NULL DEFAULT '{}',
   constraints   TEXT[] NOT NULL DEFAULT '{}',
   alternatives  TEXT[] NOT NULL DEFAULT '{}',
   consequences  TEXT[] NOT NULL DEFAULT '{}',
-  refs          TEXT[] NOT NULL DEFAULT '{}'
+  refs          TEXT[] NOT NULL DEFAULT '{}',
+  -- Scope + Subject columns (added in migration 006)
+  subject_type  TEXT,
+  subject_id    TEXT,
+  project_id    TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_decisions_tenant_status_ts
@@ -101,7 +124,12 @@ CREATE TABLE IF NOT EXISTS tasks (
   status      TEXT NOT NULL CHECK (status IN ('open', 'doing', 'done')),
   title       TEXT NOT NULL,
   details     TEXT NOT NULL DEFAULT '',
-  refs        TEXT[] NOT NULL DEFAULT '{}'
+  refs        TEXT[] NOT NULL DEFAULT '{}',
+  -- Scope + Subject columns (added in migration 006)
+  scope         TEXT CHECK (scope IN ('session', 'user', 'project', 'policy', 'global')),
+  subject_type  TEXT,
+  subject_id    TEXT,
+  project_id    TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_tenant_status_ts
