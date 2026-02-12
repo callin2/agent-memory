@@ -56,6 +56,8 @@ export class AuditService {
    * @param action - Action performed
    * @param outcome - Event outcome (success, failure, partial)
    * @param details - Additional event details
+   * @param ip_address - IP address (optional)
+   * @param user_agent - User agent (optional)
    */
   async logEvent(
     tenantId: string,
@@ -65,13 +67,15 @@ export class AuditService {
     outcome: string,
     details: Record<string, any> = {},
     resourceType?: string,
-    resourceId?: string
+    resourceId?: string,
+    ip_address?: string,
+    user_agent?: string
   ): Promise<void> {
     const logId = `audit_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
 
     await this.pool.query(
-      `INSERT INTO audit_logs (log_id, tenant_id, user_id, event_type, resource_type, resource_id, action, outcome, details)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      `INSERT INTO audit_logs (log_id, tenant_id, user_id, event_type, resource_type, resource_id, action, outcome, details, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         logId,
         tenantId,
@@ -82,6 +86,8 @@ export class AuditService {
         action,
         outcome,
         JSON.stringify(details),
+        ip_address,
+        user_agent,
       ]
     );
   }
@@ -103,7 +109,7 @@ export class AuditService {
     details: Record<string, any> = {}
   ): Promise<void> {
     const tenantId = (req as any)?.tenant_id || details.tenant_id || 'unknown';
-    this.extractIP(req);
+    const ipAddress = this.extractIP(req);
     const userAgent = req?.get('user-agent');
 
     const enrichedDetails = {
@@ -120,7 +126,9 @@ export class AuditService {
       outcome,
       enrichedDetails,
       'user',
-      userId
+      userId,
+      ipAddress,
+      userAgent
     );
   }
 
@@ -142,7 +150,7 @@ export class AuditService {
     req?: Request,
     details: Record<string, any> = {}
   ): Promise<void> {
-    this.extractIP(req);
+    const ipAddress = this.extractIP(req);
     const userAgent = req?.get('user-agent');
 
     const enrichedDetails = {
@@ -160,7 +168,9 @@ export class AuditService {
       outcome,
       enrichedDetails,
       'api_key',
-      keyId
+      keyId,
+      ipAddress,
+      userAgent
     );
   }
 
@@ -184,7 +194,7 @@ export class AuditService {
     req?: Request,
     details: Record<string, any> = {}
   ): Promise<void> {
-    this.extractIP(req);
+    const ipAddress = this.extractIP(req);
     const userAgent = req?.get('user-agent');
 
     const enrichedDetails = {
@@ -202,7 +212,9 @@ export class AuditService {
       outcome,
       enrichedDetails,
       'session',
-      sessionId
+      sessionId,
+      ipAddress,
+      userAgent
     );
   }
 

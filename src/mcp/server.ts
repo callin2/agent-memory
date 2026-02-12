@@ -7,12 +7,12 @@
  * Security: Requires authentication via JWT or API key during initialize handshake.
  */
 
-import { Pool } from 'pg';
-import { recordEvent, getEvent } from '../core/recorder.js';
-import { buildACB } from '../core/orchestrator.js';
-import { verifyToken } from '../middleware/auth.js';
-import { APIKeyService } from '../services/api-key-service.js';
-import { AuditService } from '../services/audit-service.js';
+import { Pool } from "pg";
+import { recordEvent, getEvent } from "../core/recorder.js";
+import { buildACB } from "../core/orchestrator.js";
+import { verifyToken } from "../middleware/auth.js";
+import { APIKeyService } from "../services/api-key-service.js";
+import { AuditService } from "../services/audit-service.js";
 
 /**
  * User context from authentication
@@ -30,7 +30,7 @@ export interface InitializeParams {
   protocolVersion?: string;
   capabilities?: any;
   authorization?: {
-    type: 'bearer' | 'api_key';
+    type: "bearer" | "api_key";
     token: string;
   };
   clientInfo?: {
@@ -40,7 +40,7 @@ export interface InitializeParams {
 }
 
 export interface MCPMessage {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id?: number | string;
   method?: string;
   params?: any;
@@ -73,11 +73,42 @@ export class MCPServer {
     this.registerTools();
   }
 
+  private getEnvAuthorization(): {
+    type: "bearer" | "api_key";
+    token: string;
+  } | null {
+    const rawType = (process.env.MCP_AUTH_TYPE || "").trim();
+    const rawToken = (process.env.MCP_AUTH_TOKEN || "").trim();
+
+    if (
+      rawType &&
+      rawToken &&
+      (rawType === "bearer" || rawType === "api_key")
+    ) {
+      return { type: rawType, token: rawToken };
+    }
+
+    const apiKey = (process.env.MCP_API_KEY || "").trim();
+    if (apiKey) {
+      return { type: "api_key", token: apiKey };
+    }
+
+    const bearerToken = (process.env.MCP_BEARER_TOKEN || "").trim();
+    if (bearerToken) {
+      return { type: "bearer", token: bearerToken };
+    }
+
+    return null;
+  }
+
   /**
    * Validate authentication token (JWT or API key)
    */
-  private async validateAuthToken(auth: { type: string; token: string }): Promise<UserContext | null> {
-    if (auth.type === 'bearer') {
+  private async validateAuthToken(auth: {
+    type: string;
+    token: string;
+  }): Promise<UserContext | null> {
+    if (auth.type === "bearer") {
       // Validate JWT token
       const payload = verifyToken(auth.token);
       if (payload) {
@@ -87,7 +118,7 @@ export class MCPServer {
           roles: payload.roles,
         };
       }
-    } else if (auth.type === 'api_key') {
+    } else if (auth.type === "api_key") {
       // Validate API key
       const result = await this.apiKeyService.validateAPIKey(auth.token);
       if (result.valid && result.keyData) {
@@ -107,101 +138,132 @@ export class MCPServer {
   private registerTools(): void {
     this.tools = [
       {
-        name: 'memory_record_event',
+        name: "memory_record_event",
         description:
-          'Record an event (message, tool call, decision, etc.) to the memory system',
+          "Record an event (message, tool call, decision, etc.) to the memory system",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
-            tenant_id: { type: 'string', description: 'Tenant/organization ID' },
-            session_id: { type: 'string', description: 'Session identifier' },
+            tenant_id: {
+              type: "string",
+              description: "Tenant/organization ID",
+            },
+            session_id: { type: "string", description: "Session identifier" },
             channel: {
-              type: 'string',
-              enum: ['private', 'public', 'team', 'agent'],
-              description: 'Channel for the event',
+              type: "string",
+              enum: ["private", "public", "team", "agent"],
+              description: "Channel for the event",
             },
             actor: {
-              type: 'object',
+              type: "object",
               properties: {
-                type: { type: 'string', enum: ['human', 'agent', 'tool'] },
-                id: { type: 'string' },
+                type: { type: "string", enum: ["human", "agent", "tool"] },
+                id: { type: "string" },
               },
-              required: ['type', 'id'],
+              required: ["type", "id"],
             },
             kind: {
-              type: 'string',
-              enum: ['message', 'tool_call', 'tool_result', 'decision', 'task_update'],
+              type: "string",
+              enum: [
+                "message",
+                "tool_call",
+                "tool_result",
+                "decision",
+                "task_update",
+              ],
             },
             sensitivity: {
-              type: 'string',
-              enum: ['none', 'low', 'high'],
-              default: 'none',
+              type: "string",
+              enum: ["none", "low", "high"],
+              default: "none",
             },
             tags: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Tags for categorization',
+              type: "array",
+              items: { type: "string" },
+              description: "Tags for categorization",
             },
-            content: { type: 'object', description: 'Event content' },
+            content: { type: "object", description: "Event content" },
             refs: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'References to other events',
+              type: "array",
+              items: { type: "string" },
+              description: "References to other events",
             },
           },
-          required: ['tenant_id', 'session_id', 'channel', 'actor', 'kind', 'content'],
+          required: [
+            "tenant_id",
+            "session_id",
+            "channel",
+            "actor",
+            "kind",
+            "content",
+          ],
         },
       },
       {
-        name: 'memory_build_acb',
+        name: "memory_build_acb",
         description:
-          'Build an Active Context Bundle for the next LLM call with curated memory',
+          "Build an Active Context Bundle for the next LLM call with curated memory",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
-            tenant_id: { type: 'string', description: 'Tenant/organization ID' },
-            session_id: { type: 'string', description: 'Session identifier' },
-            agent_id: { type: 'string', description: 'Agent identifier' },
+            tenant_id: {
+              type: "string",
+              description: "Tenant/organization ID",
+            },
+            session_id: { type: "string", description: "Session identifier" },
+            agent_id: { type: "string", description: "Agent identifier" },
             channel: {
-              type: 'string',
-              enum: ['private', 'public', 'team', 'agent'],
+              type: "string",
+              enum: ["private", "public", "team", "agent"],
             },
-            intent: { type: 'string', description: 'Current intent/goal' },
-            query_text: { type: 'string', description: 'Query text for retrieval' },
+            intent: { type: "string", description: "Current intent/goal" },
+            query_text: {
+              type: "string",
+              description: "Query text for retrieval",
+            },
             max_tokens: {
-              type: 'number',
+              type: "number",
               default: 65000,
-              description: 'Maximum tokens in context bundle',
+              description: "Maximum tokens in context bundle",
             },
           },
-          required: ['tenant_id', 'session_id', 'agent_id', 'channel', 'intent'],
+          required: [
+            "tenant_id",
+            "session_id",
+            "agent_id",
+            "channel",
+            "intent",
+          ],
         },
       },
       {
-        name: 'memory_get_event',
-        description: 'Get a specific event by ID',
+        name: "memory_get_event",
+        description: "Get a specific event by ID",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
-            event_id: { type: 'string', description: 'Event ID to retrieve' },
+            event_id: { type: "string", description: "Event ID to retrieve" },
           },
-          required: ['event_id'],
+          required: ["event_id"],
         },
       },
       {
-        name: 'memory_query_decisions',
-        description: 'Query decisions in the decision ledger',
+        name: "memory_query_decisions",
+        description: "Query decisions in the decision ledger",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
-            tenant_id: { type: 'string', description: 'Tenant/organization ID' },
+            tenant_id: {
+              type: "string",
+              description: "Tenant/organization ID",
+            },
             status: {
-              type: 'string',
-              enum: ['active', 'superseded'],
-              default: 'active',
+              type: "string",
+              enum: ["active", "superseded"],
+              default: "active",
             },
           },
-          required: ['tenant_id'],
+          required: ["tenant_id"],
         },
       },
     ];
@@ -212,25 +274,25 @@ export class MCPServer {
    */
   async handleMessage(message: MCPMessage): Promise<MCPMessage> {
     const response: MCPMessage = {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       id: message.id,
     };
 
     try {
       switch (message.method) {
-        case 'initialize':
+        case "initialize":
           response.result = await this.initialize(message.params);
           break;
 
-        case 'tools/list':
+        case "tools/list":
           response.result = await this.listTools();
           break;
 
-        case 'tools/call':
+        case "tools/call":
           response.result = await this.callTool(message.params);
           break;
 
-        case 'ping':
+        case "ping":
           response.result = { pong: true };
           break;
 
@@ -243,7 +305,7 @@ export class MCPServer {
     } catch (error: any) {
       response.error = {
         code: -32603,
-        message: error.message || 'Internal error',
+        message: error.message || "Internal error",
         data: error.stack,
       };
     }
@@ -255,14 +317,59 @@ export class MCPServer {
    * Initialize handshake with authentication
    */
   private async initialize(params: InitializeParams): Promise<any> {
-    // Validate authorization
-    if (!params.authorization) {
-      throw new Error('Authentication required: Missing authorization field in initialize params');
+    const authorization = params.authorization ?? this.getEnvAuthorization();
+
+    // Allow local-only auth bypass for clients that can't send initialize.authorization
+    if (!authorization) {
+      if (
+        process.env.MCP_ALLOW_UNAUTHENTICATED === "true" &&
+        process.env.NODE_ENV !== "production"
+      ) {
+        const tenantId =
+          (process.env.MCP_TENANT_ID || "local").trim() || "local";
+        const userId =
+          (process.env.MCP_USER_ID || "opencode").trim() || "opencode";
+
+        this.currentUser = {
+          user_id: userId,
+          tenant_id: tenantId,
+          roles: ["admin"],
+        };
+        this.isInitialized = true;
+
+        await this.auditService.logAuthEvent(
+          userId,
+          "mcp_connection",
+          "success",
+          undefined,
+          {
+            tenant_id: tenantId,
+            client: params.clientInfo,
+            auth: "unauthenticated_env",
+          },
+        );
+
+        return {
+          protocolVersion: "2024-11-05",
+          capabilities: {
+            tools: {},
+            resources: {},
+          },
+          serverInfo: {
+            name: "agent-memory-system",
+            version: "2.0.0",
+          },
+        };
+      }
+
+      throw new Error(
+        "Authentication required: Missing authorization in initialize params (or set MCP_AUTH_* env vars)",
+      );
     }
 
-    const user = await this.validateAuthToken(params.authorization);
+    const user = await this.validateAuthToken(authorization);
     if (!user) {
-      throw new Error('Authentication failed: Invalid token or API key');
+      throw new Error("Authentication failed: Invalid token or API key");
     }
 
     // Store user context for subsequent tool calls
@@ -270,20 +377,26 @@ export class MCPServer {
     this.isInitialized = true;
 
     // Log authentication event
-    await this.auditService.logAuthEvent(user.user_id, 'mcp_connection', 'success', undefined, {
-      tenant_id: user.tenant_id,
-      client: params.clientInfo,
-    });
+    await this.auditService.logAuthEvent(
+      user.user_id,
+      "mcp_connection",
+      "success",
+      undefined,
+      {
+        tenant_id: user.tenant_id,
+        client: params.clientInfo,
+      },
+    );
 
     return {
-      protocolVersion: '2024-11-05',
+      protocolVersion: "2024-11-05",
       capabilities: {
         tools: {},
         resources: {},
       },
       serverInfo: {
-        name: 'agent-memory-system',
-        version: '2.0.0',
+        name: "agent-memory-system",
+        version: "2.0.0",
       },
     };
   }
@@ -303,7 +416,7 @@ export class MCPServer {
   private async callTool(params: any): Promise<any> {
     // Ensure user is authenticated
     if (!this.currentUser || !this.isInitialized) {
-      throw new Error('Not authenticated: Connection not initialized');
+      throw new Error("Not authenticated: Connection not initialized");
     }
 
     const { name, arguments: args } = params;
@@ -315,28 +428,30 @@ export class MCPServer {
     await this.auditService.logEvent(
       this.currentUser.tenant_id,
       this.currentUser.user_id,
-      'mcp_tool_call',
+      "mcp_tool_call",
       name,
-      'success',
+      "success",
       {
         tool_name: name,
-        args: { ...args, content: args.content ? '[REDACTED]' : undefined },
+        args: { ...args, content: args.content ? "[REDACTED]" : undefined },
       },
-      'tool',
-      name
+      "tool",
+      name,
+      undefined, // ip_address
+      undefined, // user_agent
     );
 
     switch (name) {
-      case 'memory_record_event':
+      case "memory_record_event":
         return await this.recordEvent(args);
 
-      case 'memory_build_acb':
+      case "memory_build_acb":
         return await this.buildACB(args);
 
-      case 'memory_get_event':
+      case "memory_get_event":
         return await this.getEvent(args);
 
-      case 'memory_query_decisions':
+      case "memory_query_decisions":
         return await this.queryDecisions(args);
 
       default:
@@ -359,7 +474,7 @@ export class MCPServer {
     return {
       content: [
         {
-          type: 'text',
+          type: "text",
           text: `Event recorded successfully. Event ID: ${result.event_id}, Chunks: ${result.chunk_ids.length}`,
         },
       ],
@@ -397,7 +512,7 @@ export class MCPServer {
     return {
       content: [
         {
-          type: 'text',
+          type: "text",
           text,
         },
       ],
@@ -421,15 +536,17 @@ export class MCPServer {
       await this.auditService.logEvent(
         this.currentUser!.tenant_id,
         this.currentUser!.user_id,
-        'mcp_access_denied',
-        'get_event',
-        'failure',
+        "mcp_access_denied",
+        "get_event",
+        "failure",
         {
           event_id: args.event_id,
-          reason: 'tenant_mismatch',
+          reason: "tenant_mismatch",
         },
-        'event',
-        args.event_id
+        "event",
+        args.event_id,
+        undefined, // ip_address
+        undefined, // user_agent
       );
       throw new Error(`Access denied: Event belongs to different tenant`);
     }
@@ -437,7 +554,7 @@ export class MCPServer {
     return {
       content: [
         {
-          type: 'text',
+          type: "text",
           text: JSON.stringify(event, null, 2),
         },
       ],
@@ -451,23 +568,23 @@ export class MCPServer {
   private async queryDecisions(args: any): Promise<any> {
     // Force tenant_id from authenticated user
     const tenantId = this.currentUser!.tenant_id;
-    const status = args.status || 'active';
+    const status = args.status || "active";
 
     const result = await this.pool.query(
       `SELECT * FROM decisions
        WHERE tenant_id = $1 AND status = $2
        ORDER BY ts DESC
        LIMIT 50`,
-      [tenantId, status]
+      [tenantId, status],
     );
 
     return {
       content: [
         {
-          type: 'text',
+          type: "text",
           text: `Found ${result.rows.length} decisions:\n\n${result.rows
             .map((d: any) => `- ${d.decision} (${d.status})`)
-            .join('\n')}`,
+            .join("\n")}`,
         },
       ],
       isError: false,
@@ -479,35 +596,37 @@ export class MCPServer {
    * Start stdio server
    */
   async startStdioServer(): Promise<void> {
-    process.stdin.setEncoding('utf-8');
+    process.stdin.setEncoding("utf-8");
 
-    let buffer = '';
+    let buffer = "";
 
     for await (const chunk of process.stdin) {
       buffer += chunk;
 
       // Process complete messages (one per line)
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
       for (const line of lines) {
-        if (!line.trim()) {continue;}
+        if (!line.trim()) {
+          continue;
+        }
 
         try {
           const message: MCPMessage = JSON.parse(line);
           const response = await this.handleMessage(message);
-          process.stdout.write(JSON.stringify(response) + '\n');
+          process.stdout.write(JSON.stringify(response) + "\n");
         } catch (error: any) {
           const errorResponse: MCPMessage = {
-            jsonrpc: '2.0',
+            jsonrpc: "2.0",
             id: undefined,
             error: {
               code: -32700,
-              message: 'Parse error',
+              message: "Parse error",
               data: error.message,
             },
           };
-          process.stdout.write(JSON.stringify(errorResponse) + '\n');
+          process.stdout.write(JSON.stringify(errorResponse) + "\n");
         }
       }
     }

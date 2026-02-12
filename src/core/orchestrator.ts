@@ -409,10 +409,10 @@ async function buildCapsulesSection(
 
     // Add capsule content as text item
     let capsuleText = `Capsule ${row.capsule_id}: `;
-    if (chunkCount > 0) capsuleText += `${chunkCount} chunks`;
-    if (decisionCount > 0) capsuleText += `, ${decisionCount} decisions`;
-    if (artifactCount > 0) capsuleText += `, ${artifactCount} artifacts`;
-    if (row.risks.length > 0) capsuleText += `\nRisks: ${row.risks.join(', ')}`;
+    if (chunkCount > 0) { capsuleText += `${chunkCount} chunks`; }
+    if (decisionCount > 0) { capsuleText += `, ${decisionCount} decisions`; }
+    if (artifactCount > 0) { capsuleText += `, ${artifactCount} artifacts`; }
+    if (row.risks.length > 0) { capsuleText += `\nRisks: ${row.risks.join(', ')}`; }
 
     const tokens = 50; // Estimate
     if (tokenUsed + tokens <= maxTokens) {
