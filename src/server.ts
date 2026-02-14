@@ -3,6 +3,7 @@ import { Pool, PoolConfig } from "pg";
 import dotenv from "dotenv";
 import { createAPIRoutes } from "./api/api-routes.js";
 import { createTestHarnessRoutes } from "./api/test-harness-routes.js";
+import { createKnowledgeRoutes } from "./api/knowledge-routes.js";
 import { startMCPServer } from "./mcp/server.js";
 import { applyMcpEnvDefaults } from "./utils/mcp-env.js";
 import { promises as fs } from "fs";
@@ -223,9 +224,11 @@ app.use((req, _res, next) => {
 // API routes
 const apiRoutes = createAPIRoutes(pool);
 const testHarnessRoutes = createTestHarnessRoutes(pool);
+const knowledgeRoutes = createKnowledgeRoutes(pool);
 
 app.use("/api/v1", apiRoutes);
 app.use("/api/v1/test-harness", testHarnessRoutes);
+app.use("/api/v1/knowledge", knowledgeRoutes);
 
 // Static file serving for frontend test harness
 const frontendDistPath = path.join(__dirname, '..', 'web-ui', 'dist');
