@@ -6,8 +6,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/server.ts",
+    "dev:all": "npm run dev & cd web-ui && npm run dev",
     "start": "node dist/server.js",
-    "start:mcp": "tsx src/server.ts --mcp",
+    "network:ips": "node -e \"const os = require('os'); const ifs = os.networkInterfaces(); Object.keys(ifs).forEach(dev => { ifs[dev].forEach(details => { if (details.family === 'IPv4' && !details.internal) console.log(details.address); });});\"",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:scenarios": "vitest run tests/scenarios",
@@ -24,7 +25,12 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "docs:serve": "cd docs && npx serve . -p 8080",
-    "docs:validate": "npx @redocly/cli lint docs/openapi.yaml"
+    "docs:validate": "npx @redocly/cli lint docs/openapi.yaml",
+    "frontend:install": "cd web-ui && npm install",
+    "frontend:dev": "cd web-ui && npm run dev",
+    "frontend:build": "cd web-ui && npm run build",
+    "frontend:serve": "cd web-ui && npm run build && npm start",
+    "frontend:preview": "cd web-ui && npm run preview"
   },
   "keywords": [
     "ai",
@@ -38,15 +44,21 @@
   "license": "MIT",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.6",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.11.3"
+    "lucide-react": "^0.563.0",
+    "pg": "^8.11.3",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^3.0.0",
+    "@types/cors": "^2.8.19",
     "@types/crypto-js": "^4.2.2",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.5",
@@ -55,9 +67,12 @@
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
+    "autoprefixer": "^10.4.24",
     "eslint": "^8.56.0",
+    "postcss": "^8.5.6",
     "prettier": "^3.1.1",
     "supertest": "^6.3.4",
+    "tailwindcss": "^3.4.19",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"

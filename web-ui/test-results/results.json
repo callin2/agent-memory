@@ -1,0 +1,1133 @@
+{
+  "config": {
+    "configFile": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/playwright.config.ts",
+    "rootDir": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 4
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report"
+        }
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "console-errors.spec.ts",
+      "file": "console-errors.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Console Error Monitoring",
+          "file": "console-errors.spec.ts",
+          "line": 22,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should have no console errors on page load",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 1706,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m7\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m7\u001b[39m\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:43:27",
+                        "location": {
+                          "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                          "column": 27,
+                          "line": 43
+                        },
+                        "snippet": "  41 |     }\n  42 |\n> 43 |     expect(errors.length).toBe(0)\n     |                           ^\n  44 |   })\n  45 |\n  46 |   test('should have no console errors when sending messages', async ({ page }) => {"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                            "column": 27,
+                            "line": 43
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m7\u001b[39m\n\n  41 |     }\n  42 |\n> 43 |     expect(errors.length).toBe(0)\n     |                           ^\n  44 |   })\n  45 |\n  46 |   test('should have no console errors when sending messages', async ({ page }) => {\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:43:27"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [
+                        {
+                          "text": "🔴 HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962994084-2t1atof\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/api/v1/events?session_id=session-1770962994084-2t1atof:0\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:36\n"
+                        },
+                        {
+                          "text": "🔴 HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962994084-2t1atof\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/api/v1/events?session_id=session-1770962994084-2t1atof:0\n"
+                        },
+                        {
+                          "text": "🔴 Request failed: GET http://localhost:5173/login - undefined\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:36\n"
+                        },
+                        {
+                          "text": "\n❌ Console errors on page load:\n"
+                        },
+                        {
+                          "text": "  1. [httperror] HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962994084-2t1atof\n"
+                        },
+                        {
+                          "text": "  2. [error] Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "  3. [error] Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "  4. [httperror] HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962994084-2t1atof\n"
+                        },
+                        {
+                          "text": "  5. [error] Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "  6. [requestfailed] Request failed: GET http://localhost:5173/login - undefined\n"
+                        },
+                        {
+                          "text": "  7. [error] Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:09:52.816Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Console-Err-2e31b-console-errors-on-page-load-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Console-Err-2e31b-console-errors-on-page-load-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Console-Err-2e31b-console-errors-on-page-load-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                        "column": 27,
+                        "line": 43
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-73370c49443b1d5fb32c",
+              "file": "console-errors.spec.ts",
+              "line": 23,
+              "column": 3
+            },
+            {
+              "title": "should have no console errors when sending messages",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "timedOut",
+                      "duration": 30786,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                            "column": 29,
+                            "line": 48
+                          },
+                          "message": "Error: locator.fill: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('textarea[placeholder*=\"message\"]')\u001b[22m\n\n\n   at pages/chat.page.ts:48\n\n  46 |\n  47 |     // Type and send message\n> 48 |     await this.messageInput.fill(content)\n     |                             ^\n  49 |     await this.sendButton.click()\n  50 |\n  51 |     // Wait for message to appear\n    at ChatPage.sendMessage (/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts:48:29)\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:54:20"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:09:52.816Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Console-Err-6cb22-rrors-when-sending-messages-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Console-Err-6cb22-rrors-when-sending-messages-chromium/error-context.md"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-850d2c928dadb283d486",
+              "file": "console-errors.spec.ts",
+              "line": 46,
+              "column": 3
+            },
+            {
+              "title": "should detect network errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 1415,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Found 0 network-related errors\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "🔴 Request failed: GET http://localhost:5173/api/v1/events?session_id=session-1770962993884-hf4b5zb - undefined\n"
+                        },
+                        {
+                          "text": "🔴 Request failed: GET http://localhost:5173/api/v1/events?session_id=session-1770962993884-hf4b5zb - undefined\n"
+                        },
+                        {
+                          "text": "⚠️  Browser Console Warning: No routes matched location \"/this-page-does-not-exist\" \n"
+                        },
+                        {
+                          "text": "⚠️  Browser Console Warning: No routes matched location \"/this-page-does-not-exist\" \n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:09:52.846Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-e87d856bc2b14c84dda0",
+              "file": "console-errors.spec.ts",
+              "line": 72,
+              "column": 3
+            },
+            {
+              "title": "should have no errors during navigation",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "failed",
+                      "duration": 1868,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m2\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m2\u001b[39m\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:124:27",
+                        "location": {
+                          "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                          "column": 27,
+                          "line": 124
+                        },
+                        "snippet": "  122 |     }\n  123 |\n> 124 |     expect(errors.length).toBe(0)\n      |                           ^\n  125 |   })\n  126 | })\n  127 |"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                            "column": 27,
+                            "line": 124
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m2\u001b[39m\n\n  122 |     }\n  123 |\n> 124 |     expect(errors.length).toBe(0)\n      |                           ^\n  125 |   })\n  126 | })\n  127 |\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:124:27"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [
+                        {
+                          "text": "🔴 Request failed: GET http://localhost:5173/api/v1/events?session_id=session-1770962994335-bv41g2k - undefined\n"
+                        },
+                        {
+                          "text": "🔴 Request failed: GET http://localhost:5173/api/v1/events?session_id=session-1770962994335-bv41g2k - undefined\n"
+                        },
+                        {
+                          "text": "\n❌ Console errors during navigation:\n"
+                        },
+                        {
+                          "text": "  1. [requestfailed] Request failed: GET http://localhost:5173/api/v1/events?session_id=session-1770962994335-bv41g2k - undefined\n"
+                        },
+                        {
+                          "text": "  2. [requestfailed] Request failed: GET http://localhost:5173/api/v1/events?session_id=session-1770962994335-bv41g2k - undefined\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:09:52.806Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Console-Err-63455-no-errors-during-navigation-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Console-Err-63455-no-errors-during-navigation-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Console-Err-63455-no-errors-during-navigation-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                        "column": 27,
+                        "line": 124
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-9e8d817611eb7027344c",
+              "file": "console-errors.spec.ts",
+              "line": 101,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "API Error Detection",
+          "file": "console-errors.spec.ts",
+          "line": 128,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should detect failed API requests",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "failed",
+                      "duration": 1007,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:150:36",
+                        "location": {
+                          "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                          "column": 36,
+                          "line": 150
+                        },
+                        "snippet": "  148 |\n  149 |     // We expect NO request failures\n> 150 |     expect(requestFailures.length).toBe(0)\n      |                                    ^\n  151 |   })\n  152 |\n  153 |   test('should detect HTTP error responses', async ({ page }) => {"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                            "column": 36,
+                            "line": 150
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  148 |\n  149 |     // We expect NO request failures\n> 150 |     expect(requestFailures.length).toBe(0)\n      |                                    ^\n  151 |   })\n  152 |\n  153 |   test('should detect HTTP error responses', async ({ page }) => {\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:150:36"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [
+                        {
+                          "text": "🔴 HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962995028-kgkdtvk\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/api/v1/events?session_id=session-1770962995028-kgkdtvk:0\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:36\n"
+                        },
+                        {
+                          "text": "🔴 Request failed: GET http://localhost:5173/api/v1/events?session_id=session-1770962995028-kgkdtvk - undefined\n"
+                        },
+                        {
+                          "text": "\n❌ Failed API requests:\n"
+                        },
+                        {
+                          "text": "  1. Request failed: GET http://localhost:5173/api/v1/events?session_id=session-1770962995028-kgkdtvk - undefined\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:09:54.748Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-API-Error-D-67bf2--detect-failed-API-requests-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-API-Error-D-67bf2--detect-failed-API-requests-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-API-Error-D-67bf2--detect-failed-API-requests-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                        "column": 36,
+                        "line": 150
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-435e9740871d60f1e4f6",
+              "file": "console-errors.spec.ts",
+              "line": 129,
+              "column": 3
+            },
+            {
+              "title": "should detect HTTP error responses",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 2135,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m2\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m2\u001b[39m\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:181:38",
+                        "location": {
+                          "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                          "column": 38,
+                          "line": 181
+                        },
+                        "snippet": "  179 |     )\n  180 |\n> 181 |     expect(significantErrors.length).toBe(0)\n      |                                      ^\n  182 |   })\n  183 | })\n  184 |"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                            "column": 38,
+                            "line": 181
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m2\u001b[39m\n\n  179 |     )\n  180 |\n> 181 |     expect(significantErrors.length).toBe(0)\n      |                                      ^\n  182 |   })\n  183 | })\n  184 |\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:181:38"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [
+                        {
+                          "text": "🔴 HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962996645-9vgy7ac\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/api/v1/events?session_id=session-1770962996645-9vgy7ac:0\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:36\n"
+                        },
+                        {
+                          "text": "🔴 HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962996645-9vgy7ac\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/api/v1/events?session_id=session-1770962996645-9vgy7ac:0\n"
+                        },
+                        {
+                          "text": "🔴 Request failed: GET http://localhost:5173/login - undefined\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:36\n"
+                        },
+                        {
+                          "text": "\n❌ HTTP error responses:\n"
+                        },
+                        {
+                          "text": "  1. HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962996645-9vgy7ac\n"
+                        },
+                        {
+                          "text": "  2. HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962996645-9vgy7ac\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:09:55.907Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-API-Error-D-3f81a-detect-HTTP-error-responses-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-API-Error-D-3f81a-detect-HTTP-error-responses-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-API-Error-D-3f81a-detect-HTTP-error-responses-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                        "column": 38,
+                        "line": 181
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-ed8f4658ebb88a363a5a",
+              "file": "console-errors.spec.ts",
+              "line": 153,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "React/Component Error Detection",
+          "file": "console-errors.spec.ts",
+          "line": 185,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should detect React errors",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 3,
+                      "status": "failed",
+                      "duration": 5501,
+                      "error": {
+                        "message": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:193:16",
+                        "location": {
+                          "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                          "column": 16,
+                          "line": 193
+                        },
+                        "snippet": "  191 |\n  192 |     // Wait for React to render\n> 193 |     await page.waitForSelector('h1:has-text(\"Chat Interface\")', { timeout: 5000 })\n      |                ^\n  194 |\n  195 |     // Check for React-specific errors\n  196 |     await page.waitForTimeout(1000)"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                            "column": 16,
+                            "line": 193
+                          },
+                          "message": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n\n\n  191 |\n  192 |     // Wait for React to render\n> 193 |     await page.waitForSelector('h1:has-text(\"Chat Interface\")', { timeout: 5000 })\n      |                ^\n  194 |\n  195 |     // Check for React-specific errors\n  196 |     await page.waitForTimeout(1000)\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:193:16"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [
+                        {
+                          "text": "🔴 HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962996915-8wsxhx3\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/api/v1/events?session_id=session-1770962996915-8wsxhx3:0\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:36\n"
+                        },
+                        {
+                          "text": "🔴 HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770962996915-8wsxhx3\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/api/v1/events?session_id=session-1770962996915-8wsxhx3:0\n"
+                        },
+                        {
+                          "text": "🔴 Request failed: GET http://localhost:5173/login - undefined\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:36\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:09:56.095Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-React-Compo-6b04a--should-detect-React-errors-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-React-Compo-6b04a--should-detect-React-errors-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-React-Compo-6b04a--should-detect-React-errors-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts",
+                        "column": 16,
+                        "line": 193
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-0791f4ded9333eb6a551",
+              "file": "console-errors.spec.ts",
+              "line": 186,
+              "column": 3
+            },
+            {
+              "title": "should handle component lifecycle without errors",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 2,
+                      "status": "failed",
+                      "duration": 5459,
+                      "error": {
+                        "message": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n\n    at ChatPage.goto (/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts:28:21)\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:221:5",
+                        "location": {
+                          "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                          "column": 21,
+                          "line": 28
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39mpages/chat.page.ts:28\n\n  26 |     await super.goto(this.url)\n  27 |     // Wait for page to load\n> 28 |     await this.page.waitForSelector('h1:has-text(\"Chat Interface\")', { timeout: 5000 })\n     |                     ^\n  29 |   }\n  30 |\n  31 |   /**"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                            "column": 21,
+                            "line": 28
+                          },
+                          "message": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n\n\n   at pages/chat.page.ts:28\n\n  26 |     await super.goto(this.url)\n  27 |     // Wait for page to load\n> 28 |     await this.page.waitForSelector('h1:has-text(\"Chat Interface\")', { timeout: 5000 })\n     |                     ^\n  29 |   }\n  30 |\n  31 |   /**\n    at ChatPage.goto (/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts:28:21)\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:221:5"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:09:57.094Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-React-Compo-fc9f6-nt-lifecycle-without-errors-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-React-Compo-fc9f6-nt-lifecycle-without-errors-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                        "column": 21,
+                        "line": 28
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-1e96e08e17110e34164d",
+              "file": "console-errors.spec.ts",
+              "line": 217,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Memory Leak Detection",
+          "file": "console-errors.spec.ts",
+          "line": 253,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should not have excessive event listeners",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5460,
+                      "error": {
+                        "message": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n\n    at ChatPage.goto (/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts:28:21)\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:258:5",
+                        "location": {
+                          "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                          "column": 21,
+                          "line": 28
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39mpages/chat.page.ts:28\n\n  26 |     await super.goto(this.url)\n  27 |     // Wait for page to load\n> 28 |     await this.page.waitForSelector('h1:has-text(\"Chat Interface\")', { timeout: 5000 })\n     |                     ^\n  29 |   }\n  30 |\n  31 |   /**"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                            "column": 21,
+                            "line": 28
+                          },
+                          "message": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n\n\n   at pages/chat.page.ts:28\n\n  26 |     await super.goto(this.url)\n  27 |     // Wait for page to load\n> 28 |     await this.page.waitForSelector('h1:has-text(\"Chat Interface\")', { timeout: 5000 })\n     |                     ^\n  29 |   }\n  30 |\n  31 |   /**\n    at ChatPage.goto (/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts:28:21)\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:258:5"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:09:59.139Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Memory-Leak-256ce-e-excessive-event-listeners-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Memory-Leak-256ce-e-excessive-event-listeners-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Memory-Leak-256ce-e-excessive-event-listeners-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                        "column": 21,
+                        "line": 28
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-3067ab0bb5c4ae1ebcb4",
+              "file": "console-errors.spec.ts",
+              "line": 254,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Real-time Error Monitoring",
+          "file": "console-errors.spec.ts",
+          "line": 290,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should catch errors in real-time during user interaction",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 8,
+                      "parallelIndex": 3,
+                      "status": "failed",
+                      "duration": 5448,
+                      "error": {
+                        "message": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n\n    at ChatPage.goto (/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts:28:21)\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:295:5",
+                        "location": {
+                          "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                          "column": 21,
+                          "line": 28
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39mpages/chat.page.ts:28\n\n  26 |     await super.goto(this.url)\n  27 |     // Wait for page to load\n> 28 |     await this.page.waitForSelector('h1:has-text(\"Chat Interface\")', { timeout: 5000 })\n     |                     ^\n  29 |   }\n  30 |\n  31 |   /**"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                            "column": 21,
+                            "line": 28
+                          },
+                          "message": "TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h1:has-text(\"Chat Interface\")') to be visible\u001b[22m\n\u001b[2m    - waiting for\" http://localhost:5173/login\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5173/login\"\u001b[22m\n\n\n   at pages/chat.page.ts:28\n\n  26 |     await super.goto(this.url)\n  27 |     // Wait for page to load\n> 28 |     await this.page.waitForSelector('h1:has-text(\"Chat Interface\")', { timeout: 5000 })\n     |                     ^\n  29 |   }\n  30 |\n  31 |   /**\n    at ChatPage.goto (/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts:28:21)\n    at /Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/console-errors.spec.ts:295:5"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:10:02.821Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Real-time-E-c9c73-ime-during-user-interaction-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Real-time-E-c9c73-ime-during-user-interaction-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/test-results/console-errors-Real-time-E-c9c73-ime-during-user-interaction-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/callin/Callin_Project/agent_memory_v2/web-ui/e2e/pages/chat.page.ts",
+                        "column": 21,
+                        "line": 28
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-013d09a3c5a280e99a5e",
+              "file": "console-errors.spec.ts",
+              "line": 291,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Error Reporting",
+          "file": "console-errors.spec.ts",
+          "line": 333,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should generate detailed error report",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 9,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 1973,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n📊 Console Error Report:\n"
+                        },
+                        {
+                          "text": "=======================\n"
+                        },
+                        {
+                          "text": "❌ 7 error(s) detected:\n\n"
+                        },
+                        {
+                          "text": "\nhttperror (2):\n"
+                        },
+                        {
+                          "text": "  1. HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770963004459-0xtukrb\n"
+                        },
+                        {
+                          "text": "  2. HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770963004459-0xtukrb\n"
+                        },
+                        {
+                          "text": "\nerror (4):\n"
+                        },
+                        {
+                          "text": "  1. Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "     at: http://localhost:5173/api/v1/events?session_id=session-1770963004459-0xtukrb\n"
+                        },
+                        {
+                          "text": "  2. Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "     at: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034\n"
+                        },
+                        {
+                          "text": "  3. Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "     at: http://localhost:5173/api/v1/events?session_id=session-1770963004459-0xtukrb\n"
+                        },
+                        {
+                          "text": "  4. Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "     at: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034\n"
+                        },
+                        {
+                          "text": "\nrequestfailed (1):\n"
+                        },
+                        {
+                          "text": "  1. Request failed: GET http://localhost:5173/login - undefined\n"
+                        },
+                        {
+                          "text": "\nTest Status: ❌ FAIL\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "🔴 HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770963004459-0xtukrb\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/api/v1/events?session_id=session-1770963004459-0xtukrb:0\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:36\n"
+                        },
+                        {
+                          "text": "🔴 HTTP Error: 401 http://localhost:5173/api/v1/events?session_id=session-1770963004459-0xtukrb\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/api/v1/events?session_id=session-1770963004459-0xtukrb:0\n"
+                        },
+                        {
+                          "text": "🔴 Request failed: GET http://localhost:5173/login - undefined\n"
+                        },
+                        {
+                          "text": "🔴 Browser Console Error: Failed to load messages: Error: No refresh token available\n    at Object.refreshToken (http://localhost:5173/src/services/auth.ts?t=1770962758034:123:13)\n    at http://localhost:5173/src/services/api.ts?t=1770962758034:50:44\n    at async Axios.request (http://localhost:5173/node_modules/.vite/deps/axios.js?v=b25c8ef6:2251:14)\n    at async Object.getEvents (http://localhost:5173/src/services/memory.ts?t=1770962758034:30:22)\n    at async loadMessages (http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:34:24)\n"
+                        },
+                        {
+                          "text": "   Location: http://localhost:5173/src/components/ChatInterface.tsx?t=1770962758034:36\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2026-02-13T06:10:03.838Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7a5bf7e682ebda22706a-70aadecb22e231c68af3",
+              "file": "console-errors.spec.ts",
+              "line": 334,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-02-13T06:09:51.316Z",
+    "duration": 32827.381,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 9,
+    "flaky": 0
+  }
+}

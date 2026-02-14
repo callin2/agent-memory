@@ -167,7 +167,35 @@ npm run build
 npm start
 ```
 
-The server will start on http://localhost:3000
+The server will start on http://localhost:3456
+
+### Local Network Access
+
+To access the server from other devices on your local network:
+
+1. **Find your local IP address:**
+   ```bash
+   npm run network:ips
+   ```
+   This will display all available network IP addresses (e.g., 192.168.1.100)
+
+2. **Server is accessible on all network interfaces:**
+   - The server binds to `0.0.0.0:3456` by default
+   - Access from other devices: `http://YOUR_IP:3456`
+   - Example: `http://192.168.1.100:3456`
+
+3. **Frontend configuration for network access:**
+   ```bash
+   cd web-ui
+   cp .env.example .env
+   # Edit .env and set:
+   # VITE_API_URL=http://192.168.1.100:3456
+   npm run dev
+   ```
+
+4. **Test harness access:**
+   - Same device: http://localhost:5173
+   - Other devices: http://YOUR_IP:5173 (with VITE_API_URL configured)
 
 **Database Switching:** The server uses the `PGDATABASE` environment variable. To switch databases:
 
@@ -197,7 +225,7 @@ docker-compose down
 ### Record Event
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/events \
+curl -X POST http://localhost:3456/api/v1/events \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_id": "acme-corp",
@@ -221,7 +249,7 @@ curl -X POST http://localhost:3000/api/v1/events \
 ### Build Active Context Bundle
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/acb/build \
+curl -X POST http://localhost:3456/api/v1/acb/build \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_id": "acme-corp",

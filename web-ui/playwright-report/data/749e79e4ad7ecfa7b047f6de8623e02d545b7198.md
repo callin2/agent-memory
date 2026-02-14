@@ -1,0 +1,142 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - link "M Memory Test Harness Agent Memory Testing" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e8]: M
+      - generic [ref=e9]:
+        - heading "Memory Test Harness" [level=1] [ref=e10]
+        - paragraph [ref=e11]: Agent Memory Testing
+  - generic [ref=e13]:
+    - complementary [ref=e14]:
+      - navigation [ref=e15]:
+        - link "📊 Dashboard" [ref=e16] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e17]: 📊
+          - generic [ref=e18]: Dashboard
+        - link "💬 Chat" [ref=e19] [cursor=pointer]:
+          - /url: /chat
+          - generic [ref=e20]: 💬
+          - generic [ref=e21]: Chat
+        - link "🔍 Retrieval" [ref=e22] [cursor=pointer]:
+          - /url: /retrieval
+          - generic [ref=e23]: 🔍
+          - generic [ref=e24]: Retrieval
+        - link "📈 Visualization" [ref=e25] [cursor=pointer]:
+          - /url: /visualization
+          - generic [ref=e26]: 📈
+          - generic [ref=e27]: Visualization
+        - link "📉 Metrics" [ref=e28] [cursor=pointer]:
+          - /url: /metrics
+          - generic [ref=e29]: 📉
+          - generic [ref=e30]: Metrics
+      - generic [ref=e32]:
+        - paragraph [ref=e33]: "Version: 0.1.0"
+        - paragraph [ref=e34]: © 2025 Agent Memory
+    - main [ref=e35]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - heading "Performance Metrics" [level=1] [ref=e40]
+            - paragraph [ref=e41]: Monitor and analyze memory system testing performance
+          - generic [ref=e42]:
+            - button "1 Hour" [ref=e43] [cursor=pointer]
+            - button "24 Hours" [ref=e44] [cursor=pointer]
+            - button "7 Days" [ref=e45] [cursor=pointer]
+            - button "30 Days" [ref=e46] [cursor=pointer]
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - generic [ref=e49]:
+              - generic [ref=e50]: Total Tests
+              - img [ref=e52]
+            - generic [ref=e56]: "0"
+          - generic [ref=e57]:
+            - generic [ref=e58]:
+              - generic [ref=e59]: Avg Precision
+              - img [ref=e61]
+            - generic [ref=e67]: 0.00%
+          - generic [ref=e68]:
+            - generic [ref=e69]:
+              - generic [ref=e70]: Avg Recall
+              - img [ref=e72]
+            - generic [ref=e76]: 0.00%
+          - generic [ref=e77]:
+            - generic [ref=e78]:
+              - generic [ref=e79]: Avg F1 Score
+              - img [ref=e81]
+            - generic [ref=e85]: 0.00%
+          - generic [ref=e86]:
+            - generic [ref=e87]:
+              - generic [ref=e88]: Avg Latency
+              - img [ref=e90]
+            - generic [ref=e95]: 0.00ms
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - generic [ref=e99]: P50 Latency
+            - generic [ref=e100]:
+              - generic [ref=e102]: 0.00ms
+              - paragraph [ref=e103]: Median response time
+          - generic [ref=e104]:
+            - generic [ref=e106]: P95 Latency
+            - generic [ref=e107]:
+              - generic [ref=e109]: 0.00ms
+              - paragraph [ref=e110]: 95th percentile response time
+          - generic [ref=e111]:
+            - generic [ref=e113]: P99 Latency
+            - generic [ref=e114]:
+              - generic [ref=e116]: 0.00ms
+              - paragraph [ref=e117]: 99th percentile response time
+        - generic [ref=e118]:
+          - generic [ref=e119]:
+            - generic [ref=e121]: Test Coverage
+            - generic [ref=e122]:
+              - generic [ref=e124]: 0.0%
+              - paragraph [ref=e125]: Percentage of passed tests
+          - generic [ref=e126]:
+            - generic [ref=e127]:
+              - generic [ref=e128]: Helpful Feedback
+              - img [ref=e130]
+            - generic [ref=e132]:
+              - generic [ref=e134]: 0.0%
+              - paragraph [ref=e135]: Positive user feedback
+          - generic [ref=e136]:
+            - generic [ref=e137]:
+              - generic [ref=e138]: Not Helpful
+              - img [ref=e140]
+            - generic [ref=e142]:
+              - generic [ref=e144]: 0.0%
+              - paragraph [ref=e145]: Negative user feedback
+        - generic [ref=e146]:
+          - generic [ref=e147]:
+            - generic [ref=e149]: Total Tokens
+            - generic [ref=e150]:
+              - generic [ref=e152]: "0"
+              - paragraph [ref=e153]: Across 0 tests
+          - generic [ref=e154]:
+            - generic [ref=e156]: Avg Tokens per Query
+            - generic [ref=e157]:
+              - generic [ref=e159]: "0"
+              - paragraph [ref=e160]: Token efficiency ratio
+        - generic [ref=e161]:
+          - tablist [ref=e162]:
+            - tab "Trend Analysis" [selected] [ref=e163] [cursor=pointer]
+            - tab "Test Run Comparison" [ref=e164] [cursor=pointer]
+            - tab "Recent Test Runs" [ref=e165] [cursor=pointer]
+          - tabpanel "Trend Analysis" [ref=e166]:
+            - generic [ref=e167]:
+              - button "PRECISION" [ref=e168] [cursor=pointer]
+              - button "RECALL" [ref=e169] [cursor=pointer]
+              - button "F1" [ref=e170] [cursor=pointer]
+              - button "LATENCY" [ref=e171] [cursor=pointer]
+            - generic [ref=e172]:
+              - generic [ref=e174]:
+                - generic [ref=e175]: F1 Score Trend
+                - generic [ref=e176]:
+                  - button "1 Hour" [ref=e177] [cursor=pointer]
+                  - button "24 Hours" [ref=e178] [cursor=pointer]
+                  - button "7 Days" [ref=e179] [cursor=pointer]
+                  - button "30 Days" [ref=e180] [cursor=pointer]
+              - generic [ref=e182]: No data available for the selected time range
+```

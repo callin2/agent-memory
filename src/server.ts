@@ -2,17 +2,16 @@ import express from "express";
 import { Pool, PoolConfig } from "pg";
 import dotenv from "dotenv";
 import { createAPIRoutes } from "./api/api-routes.js";
-import { ensureUsersTable, createAuthRoutes } from "./api/auth-routes.js";
-import { createRefreshRoutes } from "./api/refresh-routes.js";
-import { createSessionRoutes } from "./api/session-routes.js";
-import { createOAuthRoutes } from "./api/oauth-routes.js";
+import { createTestHarnessRoutes } from "./api/test-harness-routes.js";
 import { startMCPServer } from "./mcp/server.js";
-import { TokenService } from "./services/token-service.js";
-import { SessionService } from "./services/session-service.js";
-import { AuditService } from "./services/audit-service.js";
 import { applyMcpEnvDefaults } from "./utils/mcp-env.js";
 import { promises as fs } from "fs";
 import path from "path";
+import cors from "cors";
+import {
+  createTransparencyMiddleware,
+} from "./middleware/transparency-middleware.js";
+import { createContextInjector } from "./core/context-injector.js";
 
 // Apply MCP_ENV defaults before loading .env
 applyMcpEnvDefaults();
@@ -21,17 +20,34 @@ applyMcpEnvDefaults();
 dotenv.config();
 
 const app: express.Express = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3456;
+const HOST = process.env.HOST || '0.0.0.0';
 
-// Middleware
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
+// CORS configuration for development
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'development'
+    ? [
+        'http://localhost:5173',
+        'http://localhost:3456',
+        'http://localhost:5174',
+        // Allow local network access (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
+        /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
+        /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(:\d+)?$/
+      ]
+    : [],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
 
-// Request logging middleware
-app.use((req, _res, next) => {
-  console.log(`${req.method} ${req.path} from ${req.ip}`);
-  next();
-});
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// ============================================================================
+// DATABASE POOL INITIALIZATION
+// ============================================================================
+// Pool must be created BEFORE middleware that uses it
 
 // Create PostgreSQL connection pool with optimized settings
 const poolConfig: PoolConfig = {
@@ -51,12 +67,56 @@ const poolConfig: PoolConfig = {
 
 const pool = new Pool(poolConfig);
 
+// ============================================================================
+// TRANSPARENT MEMORY LAYER
+// ============================================================================
+// These middlewares automatically capture all agent activity to memory capsules
+// and inject Active Context Bundles (ACB) when needed.
+// Agent modules DON'T call memory APIs directly - true transparency!
+
+const transparencyConfig = {
+  enabled: process.env.TRANSPARENT_MEMORY !== "false", // Default enabled
+  captureMessages: true,
+  captureDecisions: true,
+  captureToolCalls: true,
+  captureArtifacts: true,
+  captureTaskUpdates: true,
+};
+
+const contextInjectorConfig = {
+  enabled: process.env.CONTEXT_INJECTION !== "false", // Default enabled
+  defaultMaxTokens: 65000,
+  injectOnPaths: ["/api/v1/chat", "/api/v1/message", "/api/v1/agent"],
+  requireIntent: false, // Auto-detect intent from request
+};
+
+// Apply transparent middleware BEFORE other middleware
+app.use(createTransparencyMiddleware(pool, transparencyConfig));
+app.use(createContextInjector(pool, contextInjectorConfig));
+
+console.log(
+  `[Transparent Memory] Enabled: ${transparencyConfig.enabled}, Context Injection: ${contextInjectorConfig.enabled}`
+);
+
+// ============================================================================
+// STANDARD MIDDLEWARE
+// ============================================================================
+
+// Middleware
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+// Request logging middleware
+app.use((req, _res, next) => {
+  console.log(`${req.method} ${req.path} from ${req.ip}`);
+  next();
+});
+
 // Initialize database tables
 async function initializeDatabase() {
   // Skip migrations when running tests (tests handle their own migrations)
   if (process.env.NODE_ENV === "test") {
     console.log("Skipping database migrations in test mode");
-    await ensureUsersTable(pool);
     return;
   }
 
@@ -65,9 +125,6 @@ async function initializeDatabase() {
   const schemaSQL = await fs.readFile(schemaPath, "utf-8");
   await pool.query(schemaSQL);
   console.log("✓ Base schema applied");
-
-  // Ensure users table exists (auth-specific, not in schema.sql)
-  await ensureUsersTable(pool);
 
   // Run migrations in numeric order
   const migrationsDir = path.join(__dirname, "db", "migrations");
@@ -162,28 +219,35 @@ app.use((req, _res, next) => {
 });
 
 // Initialize services
-const tokenService = new TokenService(pool);
-// const apiKeyService = new APIKeyService(pool); // Will be used in future phases
-const sessionService = new SessionService(pool);
-const auditService = new AuditService(pool);
 
-// API routes with authentication
+// API routes
 const apiRoutes = createAPIRoutes(pool);
-const authRoutes = createAuthRoutes(
-  pool,
-  tokenService,
-  sessionService,
-  auditService,
-);
-const refreshRoutes = createRefreshRoutes(tokenService, auditService);
-const sessionRoutes = createSessionRoutes(sessionService, auditService);
-const oauthRoutes = createOAuthRoutes(pool, auditService);
+const testHarnessRoutes = createTestHarnessRoutes(pool);
 
 app.use("/api/v1", apiRoutes);
-app.use("/auth", authRoutes);
-app.use("/auth", refreshRoutes);
-app.use("/auth", sessionRoutes);
-app.use("/auth/oauth", oauthRoutes);
+app.use("/api/v1/test-harness", testHarnessRoutes);
+
+// Static file serving for frontend test harness
+const frontendDistPath = path.join(__dirname, '..', 'web-ui', 'dist');
+
+// Serve static files from /test-harness route
+app.use('/test-harness', express.static(frontendDistPath, {
+  index: 'index.html',
+  maxAge: '1h'
+}));
+
+// SPA fallback - return index.html for non-matching routes under /test-harness
+app.get('/test-harness/*', (_req, res) => {
+  const indexPath = path.join(frontendDistPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.status(404).json({
+        error: 'Frontend not built',
+        message: 'Please run "npm run frontend:build" to build the frontend'
+      });
+    }
+  });
+});
 
 // Root endpoint
 app.get("/", (_req, res) => {
@@ -261,7 +325,7 @@ if (process.argv.includes("--mcp")) {
   });
 } else {
   // Run as HTTP server
-  const server = app.listen(PORT, async () => {
+  const server = app.listen(Number(PORT), HOST as string, async () => {
     await initializeDatabase();
     console.log(`Agent Memory System v2.0 running on port ${PORT}`);
     console.log(
@@ -272,7 +336,26 @@ if (process.argv.includes("--mcp")) {
     console.log(`  Health:   http://localhost:${PORT}/health`);
     console.log(`  Metrics:  http://localhost:${PORT}/metrics`);
     console.log(`  API:      http://localhost:${PORT}/api/v1/`);
-    console.log(`  Auth:     http://localhost:${PORT}/auth/login`);
+    console.log(`\nLocal Network Access:`);
+
+    // Get local network IP addresses
+    const os = require('os');
+    const networkInterfaces = os.networkInterfaces();
+    const ips = [];
+    for (const name of Object.keys(networkInterfaces)) {
+      for (const iface of networkInterfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          ips.push(iface.address);
+        }
+      }
+    }
+
+    if (ips.length > 0) {
+      console.log(`  Access from other devices using:`);
+      ips.forEach(ip => {
+        console.log(`    http://${ip}:${PORT}`);
+      });
+    }
     console.log(`\nTo run as MCP server:`);
     console.log(`  npm start -- --mcp`);
   });

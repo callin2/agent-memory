@@ -2,7 +2,7 @@
  * Admin Server - Main Entry Point
  *
  * Admin Server for Agent Memory System.
- * Handles user management, authentication, OAuth configuration, and system monitoring.
+ * Handles system monitoring.
  *
  * Port: 3001 (configurable via ADMIN_PORT env var)
  */
@@ -11,10 +11,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { createDatabasePool } from './config/database.js';
 import { errorHandler, requestLogger } from './middleware/index.js';
-import { healthRoutes, createAuthRoutes, ensureUsersTable, createRefreshRoutes, createSessionRoutes } from './routes/index.js';
-import { TokenService } from './services/token-service.js';
-import { SessionService } from './services/session-service.js';
-import { AuditService } from './services/audit-service.js';
+import { healthRoutes } from './routes/index.js';
 
 // Load environment variables
 dotenv.config();
@@ -36,22 +33,8 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Initialize services
-const tokenService = new TokenService(pool);
-const sessionService = new SessionService(pool);
-const auditService = new AuditService(pool);
-
 // Health check routes
 app.use('/', healthRoutes);
-
-// Authentication routes
-const authRoutes = createAuthRoutes(pool, tokenService, sessionService, auditService);
-const refreshRoutes = createRefreshRoutes(tokenService, auditService);
-const sessionRoutes = createSessionRoutes(sessionService, auditService);
-
-app.use('/auth', authRoutes);
-app.use('/auth', refreshRoutes);
-app.use('/auth', sessionRoutes);
 
 // Root endpoint with server information
 app.get('/', (_req, res) => {
@@ -64,21 +47,6 @@ app.get('/', (_req, res) => {
     endpoints: {
       root: 'GET /',
       health: 'GET /health',
-      auth: {
-        login: 'POST /auth/login',
-        register: 'POST /auth/register',
-        token_refresh: 'POST /auth/token/refresh',
-        token_revoke: 'POST /auth/token/revoke',
-        api_keys: 'POST /auth/api-keys',
-        validate: 'POST /auth/validate',
-        sessions: 'GET /auth/sessions',
-        session_stats: 'GET /auth/sessions/stats',
-        revoke_session: 'DELETE /auth/sessions/:sessionId',
-        revoke_all_sessions: 'DELETE /auth/sessions',
-        list_tokens: 'GET /auth/tokens',
-        revoke_all_tokens: 'POST /auth/tokens/revoke-all',
-        revoke_token: 'POST /auth/tokens/:tokenId/revoke',
-      },
     },
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Combined API routes with authentication
+ * API routes (no authentication)
  */
 
 import { Router, Request, Response } from "express";
@@ -16,7 +16,6 @@ import {
   logSecurityEvent,
   detectSuspiciousInput,
 } from "../core/security.js";
-import { authenticate, authenticateAny } from "../middleware/auth.js";
 
 export function createAPIRoutes(pool: Pool): Router {
   const apiRouter = Router();
@@ -40,16 +39,12 @@ export function createAPIRoutes(pool: Pool): Router {
     next();
   });
 
-  // Note: Authentication routes are handled separately in server.ts
-  // They are mounted at /auth while API routes are at /api/v1
-
   /**
    * POST /api/v1/events
-   * Record an event - requires authentication
+   * Record an event
    */
   apiRouter.post(
     "/events",
-    authenticateAny, // Can use JWT or API key
     rateLimiter(eventRateLimiter, (req) => req.ip || "unknown"),
     async (req: Request, res: Response) => {
       try {
@@ -60,7 +55,6 @@ export function createAPIRoutes(pool: Pool): Router {
           logSecurityEvent("Event validation failed", {
             errors: validation.errors,
             ip: req.ip,
-            tenant_id: req.tenant_id,
           });
           return res.status(400).json({
             error: "Validation failed",
@@ -74,20 +68,13 @@ export function createAPIRoutes(pool: Pool): Router {
           logSecurityEvent("Suspicious input detected", {
             input: bodyStr.substring(0, 500),
             ip: req.ip,
-            tenant_id: req.tenant_id,
           });
           return res.status(400).json({
             error: "Suspicious input detected",
           });
         }
 
-        // Override tenant_id from authenticated user
-        const eventInput = {
-          ...validation.sanitized!,
-          tenant_id: req.tenant_id!,
-        };
-
-        const result = await recordEvent(pool, eventInput);
+        const result = await recordEvent(pool, validation.sanitized!);
         return res.status(201).json(result);
       } catch (error: any) {
         console.error("Error recording event:", error);
@@ -102,11 +89,10 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /api/v1/events/:event_id
-   * Get a specific event by ID - requires authentication
+   * Get a specific event by ID
    */
   apiRouter.get(
     "/events/:event_id",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const eventId = req.params.event_id;
@@ -120,14 +106,6 @@ export function createAPIRoutes(pool: Pool): Router {
 
         if (!event) {
           return res.status(404).json({ error: "Event not found" });
-        }
-
-        // Enforce tenant isolation
-        if (event.tenant_id !== req.tenant_id) {
-          return res.status(403).json({
-            error: "Forbidden",
-            message: "Cannot access event from different tenant",
-          });
         }
 
         return res.json(event);
@@ -144,18 +122,17 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /api/v1/events
-   * Get events by session - requires authentication
+   * Get events by session
    */
   apiRouter.get(
     "/events",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
-        const { session_id, limit = 100 } = req.query;
+        const { session_id, tenant_id, limit = 100 } = req.query;
 
-        if (!session_id) {
+        if (!session_id || !tenant_id) {
           return res.status(400).json({
-            error: "Missing required parameter: session_id",
+            error: "Missing required parameters: session_id, tenant_id",
           });
         }
 
@@ -166,7 +143,7 @@ export function createAPIRoutes(pool: Pool): Router {
          WHERE tenant_id = $1 AND session_id = $2
          ORDER BY ts DESC
          LIMIT $3`,
-          [req.tenant_id, session_id, limitNum],
+          [tenant_id, session_id, limitNum],
         );
 
         return res.json(result.rows);
@@ -183,15 +160,15 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * POST /api/v1/acb/build
-   * Build an Active Context Bundle - requires authentication
+   * Build an Active Context Bundle
    */
   apiRouter.post(
     "/acb/build",
-    authenticate,
     rateLimiter(acbRateLimiter, (req) => req.ip || "unknown"),
     async (req: Request, res: Response) => {
       try {
         const {
+          tenant_id,
           session_id,
           agent_id,
           channel,
@@ -200,10 +177,10 @@ export function createAPIRoutes(pool: Pool): Router {
           max_tokens,
         } = req.body;
 
-        if (!session_id || !agent_id || !channel || !intent) {
+        if (!tenant_id || !session_id || !agent_id || !channel || !intent) {
           return res.status(400).json({
             error:
-              "Missing required fields: session_id, agent_id, channel, intent",
+              "Missing required fields: tenant_id, session_id, agent_id, channel, intent",
           });
         }
 
@@ -222,7 +199,7 @@ export function createAPIRoutes(pool: Pool): Router {
         }
 
         const acb = await buildACB(pool, {
-          tenant_id: req.tenant_id!,
+          tenant_id,
           session_id,
           agent_id,
           channel,
@@ -245,11 +222,10 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /api/v1/chunks/:chunk_id
-   * Get a specific chunk - requires authentication
+   * Get a specific chunk
    */
   apiRouter.get(
     "/chunks/:chunk_id",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const chunkId = req.params.chunk_id;
@@ -268,13 +244,6 @@ export function createAPIRoutes(pool: Pool): Router {
           return res.status(404).json({ error: "Chunk not found" });
         }
 
-        // Enforce tenant isolation
-        if (result.rows[0].tenant_id !== req.tenant_id) {
-          return res.status(403).json({
-            error: "Forbidden",
-          });
-        }
-
         return res.json(result.rows[0]);
       } catch (error: any) {
         console.error("Error getting chunk:", error);
@@ -289,11 +258,10 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /api/v1/artifacts/:artifact_id
-   * Get an artifact - requires authentication
+   * Get an artifact
    */
   apiRouter.get(
     "/artifacts/:artifact_id",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const artifactId = req.params.artifact_id;
@@ -312,13 +280,6 @@ export function createAPIRoutes(pool: Pool): Router {
           return res.status(404).json({ error: "Artifact not found" });
         }
 
-        // Enforce tenant isolation
-        if (result.rows[0].tenant_id !== req.tenant_id) {
-          return res.status(403).json({
-            error: "Forbidden",
-          });
-        }
-
         const artifact = result.rows[0];
         res.setHeader("Content-Type", "application/octet-stream");
         return res.send(artifact.bytes);
@@ -335,14 +296,14 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * POST /api/v1/decisions
-   * Create a decision - requires authentication
+   * Create a decision
    */
   apiRouter.post(
     "/decisions",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const {
+          tenant_id,
           decision,
           rationale = [],
           constraints = [],
@@ -352,9 +313,9 @@ export function createAPIRoutes(pool: Pool): Router {
           scope = "project",
         } = req.body;
 
-        if (!decision) {
+        if (!tenant_id || !decision) {
           return res.status(400).json({
-            error: "Missing required field: decision",
+            error: "Missing required fields: tenant_id, decision",
           });
         }
 
@@ -373,7 +334,7 @@ export function createAPIRoutes(pool: Pool): Router {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           [
             decision_id,
-            req.tenant_id,
+            tenant_id,
             "active",
             scope,
             decision,
@@ -399,14 +360,19 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /api/v1/decisions
-   * Query decisions - requires authentication
+   * Query decisions
    */
   apiRouter.get(
     "/decisions",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
-        const { status = "active" } = req.query;
+        const { tenant_id, status = "active" } = req.query;
+
+        if (!tenant_id) {
+          return res.status(400).json({
+            error: "Missing required parameter: tenant_id",
+          });
+        }
 
         if (!["active", "superseded"].includes(status as string)) {
           return res.status(400).json({
@@ -419,7 +385,7 @@ export function createAPIRoutes(pool: Pool): Router {
           `SELECT * FROM decisions
          WHERE tenant_id = $1 AND status = $2
          ORDER BY ts DESC`,
-          [req.tenant_id, status],
+          [tenant_id, status],
         );
 
         return res.json(result.rows);
@@ -436,15 +402,14 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /health
-   * Health check - no authentication required
+   * Health check
    */
-  apiRouter.get("/health", async (req: Request, res: Response) => {
+  apiRouter.get("/health", async (_req: Request, res: Response) => {
     try {
       await pool.query("SELECT 1");
       res.json({
         status: "healthy",
         timestamp: new Date().toISOString(),
-        authenticated: !!req.user,
       });
     } catch (error) {
       res.status(503).json({ status: "unhealthy" });
@@ -453,7 +418,7 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /metrics
-   * Get metrics in Prometheus format - no authentication required (monitoring)
+   * Get metrics in Prometheus format
    */
   apiRouter.get("/metrics", (_req: Request, res: Response) => {
     res.set("Content-Type", "text/plain");
@@ -462,11 +427,131 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /metrics/json
-   * Get metrics as JSON - no authentication required (monitoring)
+   * Get metrics as JSON
    */
   apiRouter.get("/metrics/json", (_req: Request, res: Response) => {
     res.json(metricsService.getSnapshot());
   });
+
+  // ========================================================================
+  // Session API Routes
+  // ========================================================================
+
+  /**
+   * POST /api/v1/sessions
+   * Create a new session
+   */
+  apiRouter.post(
+    "/sessions",
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req.headers["x-user-id"] as string) || "default";
+        const tenantId = (req.headers["x-tenant-id"] as string) || "default";
+
+        // Import session service
+        const { SessionService } = await import("../services/session-service.js");
+        const sessionService = new SessionService(pool);
+
+        const sessionId = await sessionService.createSession(
+          userId,
+          tenantId,
+          req.body.device_info || {},
+          req.ip,
+          req.get("user-agent"),
+        );
+
+        return res.status(201).json({
+          session_id: sessionId,
+          user_id: userId,
+          tenant_id: tenantId,
+          title: req.body.title || `Session ${new Date().toLocaleString()}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      } catch (error: any) {
+        console.error("Create session error:", error);
+        return res.status(500).json({
+          error: "Failed to create session",
+          message:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/sessions
+   * List all sessions for a user
+   */
+  apiRouter.get(
+    "/sessions",
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req.headers["x-user-id"] as string) || "default";
+
+        // Import session service
+        const { SessionService } = await import("../services/session-service.js");
+        const sessionService = new SessionService(pool);
+
+        const sessions = await sessionService.listUserSessions(userId);
+
+        // Transform SessionData to match frontend Session interface
+        const transformedSessions = sessions.map((session) => ({
+          id: session.session_id,
+          user_id: session.user_id,
+          tenant_id: session.tenant_id,
+          title: `Session ${new Date(session.created_at).toLocaleString()}`,
+          created_at: session.created_at.toISOString(),
+          updated_at: session.last_activity_at.toISOString(),
+          message_count: 0, // Could be calculated from events table
+          is_active: session.is_active,
+          expires_at: session.expires_at.toISOString(),
+        }));
+
+        return res.status(200).json({ sessions: transformedSessions });
+      } catch (error: any) {
+        console.error("List sessions error:", error);
+        return res.status(500).json({
+          error: "Failed to list sessions",
+          message:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/v1/sessions/:id
+   * Delete a specific session
+   */
+  apiRouter.delete(
+    "/sessions/:id",
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req.headers["x-user-id"] as string) || "default";
+        const sessionId = req.params.id as string;
+
+        // Import session service
+        const { SessionService } = await import("../services/session-service.js");
+        const sessionService = new SessionService(pool);
+
+        const deleted = await sessionService.revokeSession(sessionId, userId);
+
+        if (deleted) {
+          return res.status(200).json({ success: true });
+        } else {
+          return res.status(404).json({ error: "Session not found" });
+        }
+      } catch (error: any) {
+        console.error("Delete session error:", error);
+        return res.status(500).json({
+          error: "Failed to delete session",
+          message:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+      }
+    },
+  );
 
   // ========================================================================
   // Capsule API Routes
@@ -474,14 +559,14 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * POST /api/v1/capsules
-   * Create a capsule with curated memory items - requires authentication
+   * Create a capsule with curated memory items
    */
   apiRouter.post(
     "/capsules",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const {
+          tenant_id,
           author_agent_id,
           subject_type,
           subject_id,
@@ -495,6 +580,7 @@ export function createAPIRoutes(pool: Pool): Router {
 
         // Validation
         if (
+          !tenant_id ||
           !author_agent_id ||
           !subject_type ||
           !subject_id ||
@@ -504,7 +590,7 @@ export function createAPIRoutes(pool: Pool): Router {
         ) {
           return res.status(400).json({
             error:
-              "Missing required fields: author_agent_id, subject_type, subject_id, scope, audience_agent_ids, items",
+              "Missing required fields: tenant_id, author_agent_id, subject_type, subject_id, scope, audience_agent_ids, items",
           });
         }
 
@@ -539,7 +625,7 @@ export function createAPIRoutes(pool: Pool): Router {
         const capsuleService = new CapsuleService(pool);
 
         const capsule = await capsuleService.createCapsule({
-          tenant_id: req.tenant_id!,
+          tenant_id,
           author_agent_id,
           subject_type,
           subject_id,
@@ -569,11 +655,10 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /api/v1/capsules
-   * Query available capsules for an agent - requires authentication
+   * Query available capsules for an agent
    */
   apiRouter.get(
     "/capsules",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const { tenant_id, agent_id, subject_type, subject_id } = req.query;
@@ -581,13 +666,6 @@ export function createAPIRoutes(pool: Pool): Router {
         if (!tenant_id || !agent_id) {
           return res.status(400).json({
             error: "Missing required query parameters: tenant_id, agent_id",
-          });
-        }
-
-        if (tenant_id !== req.tenant_id) {
-          return res.status(403).json({
-            error: "Forbidden",
-            message: "Cannot access capsules from different tenant",
           });
         }
 
@@ -619,11 +697,10 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * GET /api/v1/capsules/:capsule_id
-   * Get a specific capsule - requires authentication
+   * Get a specific capsule
    */
   apiRouter.get(
     "/capsules/:capsule_id",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const { agent_id } = req.query;
@@ -646,14 +723,7 @@ export function createAPIRoutes(pool: Pool): Router {
         if (!capsule) {
           return res
             .status(404)
-            .json({ error: "Capsule not found or access denied" });
-        }
-
-        // Enforce tenant isolation
-        if (capsule.tenant_id !== req.tenant_id) {
-          return res.status(403).json({
-            error: "Forbidden",
-          });
+            .json({ error: "Capsule not found" });
         }
 
         return res.json(capsule);
@@ -670,11 +740,10 @@ export function createAPIRoutes(pool: Pool): Router {
 
   /**
    * DELETE /api/v1/capsules/:capsule_id
-   * Revoke a capsule - requires authentication
+   * Revoke a capsule
    */
   apiRouter.delete(
     "/capsules/:capsule_id",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const { tenant_id } = req.body;
@@ -682,13 +751,6 @@ export function createAPIRoutes(pool: Pool): Router {
         if (!tenant_id) {
           return res.status(400).json({
             error: "Missing required field: tenant_id",
-          });
-        }
-
-        if (tenant_id !== req.tenant_id) {
-          return res.status(403).json({
-            error: "Forbidden",
-            message: "Cannot revoke capsule from different tenant",
           });
         }
 
@@ -731,7 +793,6 @@ export function createAPIRoutes(pool: Pool): Router {
    */
   apiRouter.post(
     "/edits",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const {
@@ -747,6 +808,7 @@ export function createAPIRoutes(pool: Pool): Router {
         } = req.body;
 
         if (
+          !tenant_id ||
           !target_type ||
           !target_id ||
           !op ||
@@ -755,14 +817,7 @@ export function createAPIRoutes(pool: Pool): Router {
         ) {
           return res.status(400).json({
             error:
-              "Missing required fields: target_type, target_id, op, reason, patch",
-          });
-        }
-
-        if (tenant_id && tenant_id !== req.tenant_id) {
-          return res.status(403).json({
-            error: "Forbidden",
-            message: "Cannot create edits for different tenant",
+              "Missing required fields: tenant_id, target_type, target_id, op, reason, patch",
           });
         }
 
@@ -771,7 +826,7 @@ export function createAPIRoutes(pool: Pool): Router {
         const memoryEditService = new MemoryEditService(pool);
 
         const edit = await memoryEditService.createMemoryEdit({
-          tenant_id: req.tenant_id!,
+          tenant_id,
           target_type,
           target_id,
           op,
@@ -798,20 +853,13 @@ export function createAPIRoutes(pool: Pool): Router {
    * GET /api/v1/edits
    * List edits with filters
    */
-  apiRouter.get("/edits", authenticate, async (req: Request, res: Response) => {
+  apiRouter.get("/edits", async (req: Request, res: Response) => {
     try {
       const { tenant_id, status, target_type, proposed_by, limit } = req.query;
 
       if (!tenant_id) {
         return res.status(400).json({
           error: "Missing required query parameter: tenant_id",
-        });
-      }
-
-      if (tenant_id !== req.tenant_id) {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "Cannot list edits for different tenant",
         });
       }
 
@@ -843,7 +891,6 @@ export function createAPIRoutes(pool: Pool): Router {
    */
   apiRouter.get(
     "/edits/:edit_id",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const { MemoryEditService } =
@@ -853,10 +900,6 @@ export function createAPIRoutes(pool: Pool): Router {
         const edit = await memoryEditService.getEdit(req.params.edit_id);
         if (!edit) {
           return res.status(404).json({ error: "Edit not found" });
-        }
-
-        if (edit.tenant_id !== req.tenant_id) {
-          return res.status(403).json({ error: "Forbidden" });
         }
 
         return res.json(edit);
@@ -877,7 +920,6 @@ export function createAPIRoutes(pool: Pool): Router {
    */
   apiRouter.put(
     "/edits/:edit_id/approve",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const { approved_by } = req.body;
@@ -901,10 +943,6 @@ export function createAPIRoutes(pool: Pool): Router {
             .json({ error: "Edit not found or not pending" });
         }
 
-        if (edit.tenant_id !== req.tenant_id) {
-          return res.status(403).json({ error: "Forbidden" });
-        }
-
         return res.json(edit);
       } catch (error: any) {
         console.error("Error approving edit:", error);
@@ -923,7 +961,6 @@ export function createAPIRoutes(pool: Pool): Router {
    */
   apiRouter.put(
     "/edits/:edit_id/reject",
-    authenticate,
     async (req: Request, res: Response) => {
       try {
         const { MemoryEditService } =
@@ -935,10 +972,6 @@ export function createAPIRoutes(pool: Pool): Router {
           return res
             .status(404)
             .json({ error: "Edit not found or not pending" });
-        }
-
-        if (edit.tenant_id !== req.tenant_id) {
-          return res.status(403).json({ error: "Forbidden" });
         }
 
         return res.json(edit);

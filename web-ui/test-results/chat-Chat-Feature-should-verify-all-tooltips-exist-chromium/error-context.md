@@ -1,0 +1,76 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - link "M Memory Test Harness Agent Memory Testing" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e8]: M
+      - generic [ref=e9]:
+        - heading "Memory Test Harness" [level=1] [ref=e10]
+        - paragraph [ref=e11]: Agent Memory Testing
+  - generic [ref=e13]:
+    - complementary [ref=e14]:
+      - navigation [ref=e15]:
+        - link "📊 Dashboard" [ref=e16] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e17]: 📊
+          - generic [ref=e18]: Dashboard
+        - link "💬 Chat" [ref=e19] [cursor=pointer]:
+          - /url: /chat
+          - generic [ref=e20]: 💬
+          - generic [ref=e21]: Chat
+        - link "🔍 Retrieval" [ref=e22] [cursor=pointer]:
+          - /url: /retrieval
+          - generic [ref=e23]: 🔍
+          - generic [ref=e24]: Retrieval
+        - link "📈 Visualization" [ref=e25] [cursor=pointer]:
+          - /url: /visualization
+          - generic [ref=e26]: 📈
+          - generic [ref=e27]: Visualization
+        - link "📉 Metrics" [ref=e28] [cursor=pointer]:
+          - /url: /metrics
+          - generic [ref=e29]: 📉
+          - generic [ref=e30]: Metrics
+      - generic [ref=e32]:
+        - paragraph [ref=e33]: "Version: 0.1.0"
+        - paragraph [ref=e34]: © 2025 Agent Memory
+    - main [ref=e35]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - heading "Dashboard" [level=1] [ref=e39]
+          - paragraph [ref=e40]: Overview of memory test operations
+        - generic [ref=e41]:
+          - generic [ref=e42]:
+            - generic [ref=e43]:
+              - generic [ref=e44]: Total Tests
+              - generic [ref=e45]: 📊
+            - generic [ref=e46]:
+              - generic [ref=e47]: "0"
+              - paragraph [ref=e48]: No tests run yet
+          - generic [ref=e49]:
+            - generic [ref=e50]:
+              - generic [ref=e51]: Success Rate
+              - generic [ref=e52]: ✅
+            - generic [ref=e53]:
+              - generic [ref=e54]: "-"
+              - paragraph [ref=e55]: No data available
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - generic [ref=e58]: Memory Capsules
+              - generic [ref=e59]: 💾
+            - generic [ref=e60]:
+              - generic [ref=e61]: "0"
+              - paragraph [ref=e62]: No capsules stored
+          - generic [ref=e63]:
+            - generic [ref=e64]: Active Sessions
+            - generic [ref=e66]: 🔐
+            - generic [ref=e67]:
+              - generic [ref=e68]: "0"
+              - paragraph [ref=e69]: No active sessions
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - generic [ref=e72]: Quick Actions
+            - generic [ref=e73]: Common operations and shortcuts
+          - paragraph [ref=e75]: Quick actions will be added here.
+```

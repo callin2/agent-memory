@@ -12,7 +12,7 @@
 import { Router, Request, Response } from 'express';
 import { SessionService } from '../services/session-service.js';
 import { AuditService } from '../services/audit-service.js';
-import { authenticate } from '@agent-memory/auth';
+import { authenticate } from '../middleware/auth.js';
 
 export function createSessionRoutes(
   sessionService: SessionService,

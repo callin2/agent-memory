@@ -25,8 +25,6 @@ import {
 } from "../../../src/utils/id-generator.js";
 import request from "supertest";
 import { app } from "../../../src/server.js";
-import { ensureUsersTable } from "../../../src/api/auth-routes.js";
-import { generateToken } from "../../../src/middleware/auth.js";
 
 describe("SPEC-MEMORY-002 Acceptance Tests", () => {
   let pool: Pool;
