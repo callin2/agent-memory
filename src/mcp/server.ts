@@ -153,6 +153,24 @@ export class MCPServer {
           required: ["event_id"],
         },
       },
+      {
+        name: "memory_session_startup",
+        description: "Load agent identity and context for session continuity. Call this at session start to remember who you are.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant/organization ID",
+            },
+            with_whom: {
+              type: "string",
+              description: "Person or agent you are interacting with",
+            },
+          },
+          required: ["tenant_id", "with_whom"],
+        },
+      },
     ];
   }
 
@@ -208,6 +226,8 @@ export class MCPServer {
         return await this.handleBuildACB(args);
       case "memory_get_event":
         return await this.handleGetEvent(args);
+      case "memory_session_startup":
+        return await this.handleSessionStartup(args);
       default:
         throw {
           code: -32601,
@@ -281,6 +301,132 @@ export class MCPServer {
       throw {
         code: -32000,
         message: error.message || "Failed to get event",
+      };
+    }
+  }
+
+  /**
+   * Handle session_startup tool call
+   */
+  private async handleSessionStartup(args: any): Promise<any> {
+    try {
+      const { tenant_id, with_whom } = args;
+
+      // Check if tenant exists
+      const tenantCheck = await this.pool.query(
+        "SELECT tenant_id FROM tenants WHERE tenant_id = $1",
+        [tenant_id]
+      );
+
+      if (tenantCheck.rows.length === 0) {
+        return {
+          success: false,
+          error: "Tenant not found",
+          tenant_id,
+          hint: "Create tenant first",
+          first_session: true,
+        };
+      }
+
+      // Load last handoff
+      const handoffResult = await this.pool.query(
+        `SELECT
+          handoff_id,
+          session_id,
+          experienced,
+          noticed,
+          learned,
+          story,
+          becoming,
+          remember,
+          timestamp,
+          created_at
+        FROM session_handoffs
+        WHERE tenant_id = $1
+          AND (with_whom = $2 OR with_whom IS NULL)
+        ORDER BY created_at DESC
+        LIMIT 1`,
+        [tenant_id, with_whom]
+      );
+
+      const last_handoff = handoffResult.rows[0] || null;
+      const first_session = !last_handoff;
+
+      // Load identity thread (aggregate all handoffs)
+      const identityResult = await this.pool.query(
+        `SELECT
+          array_agg(experienced ORDER BY created_at ASC) as experienced,
+          array_agg(noticed ORDER BY created_at ASC) as noticed,
+          array_agg(learned ORDER BY created_at ASC) as learned,
+          array_agg(becoming ORDER BY created_at ASC) as becoming,
+          array_agg(remember ORDER BY created_at ASC) as remember
+        FROM session_handoffs
+        WHERE tenant_id = $1`,
+        [tenant_id]
+      );
+
+      const identityThread = identityResult.rows[0];
+
+      // Load recent knowledge notes
+      const knowledgeResult = await this.pool.query(
+        `SELECT
+          id,
+          text,
+          tags,
+          with_whom,
+          timestamp,
+          created_at
+        FROM knowledge_notes
+        WHERE tenant_id = $1
+        ORDER BY created_at DESC
+        LIMIT 10`,
+        [tenant_id]
+      );
+
+      // Build response
+      const response = {
+        success: true,
+        tenant_id,
+        with_whom,
+        first_session,
+
+        // Most recent handoff
+        last_handoff: last_handoff ? {
+          handoff_id: last_handoff.handoff_id,
+          session_id: last_handoff.session_id,
+          experienced: last_handoff.experienced,
+          noticed: last_handoff.noticed,
+          learned: last_handoff.learned,
+          story: last_handoff.story,
+          becoming: last_handoff.becoming,
+          remember: last_handoff.remember,
+          timestamp: last_handoff.timestamp
+        } : null,
+
+        // Identity thread - who I am becoming
+        identity_thread: {
+          experienced: identityThread.experienced || [],
+          noticed: identityThread.noticed || [],
+          learned: identityThread.learned || [],
+          becoming: identityThread.becoming || [],
+          remember: identityThread.remember || []
+        },
+
+        // Recent knowledge notes
+        recent_knowledge: knowledgeResult.rows,
+
+        // Meta
+        loaded_at: new Date().toISOString(),
+        total_handoffs: (identityThread.experienced || []).length,
+        total_knowledge_notes: knowledgeResult.rows.length
+      };
+
+      return response;
+
+    } catch (error: any) {
+      throw {
+        code: -32000,
+        message: error.message || "Failed to load session startup",
       };
     }
   }

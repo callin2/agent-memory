@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import { createAPIRoutes } from "./api/api-routes.js";
 import { createTestHarnessRoutes } from "./api/test-harness-routes.js";
 import { createKnowledgeRoutes } from "./api/knowledge-routes.js";
+import { createSessionStartupRoutes } from "./api/session-startup.js";
+import { createHandoffRoutes } from "./api/handoff.js";
 import { startMCPServer } from "./mcp/server.js";
 import { applyMcpEnvDefaults } from "./utils/mcp-env.js";
 import { promises as fs } from "fs";
@@ -225,10 +227,14 @@ app.use((req, _res, next) => {
 const apiRoutes = createAPIRoutes(pool);
 const testHarnessRoutes = createTestHarnessRoutes(pool);
 const knowledgeRoutes = createKnowledgeRoutes(pool);
+const sessionStartupRoutes = createSessionStartupRoutes(pool);
+const handoffRoutes = createHandoffRoutes(pool);
 
 app.use("/api/v1", apiRoutes);
 app.use("/api/v1/test-harness", testHarnessRoutes);
 app.use("/api/v1/knowledge", knowledgeRoutes);
+app.use("/api/v1", sessionStartupRoutes); // Session startup under /api/v1
+app.use("/api/v1", handoffRoutes); // Handoff routes under /api/v1
 
 // Static file serving for frontend test harness
 const frontendDistPath = path.join(__dirname, '..', 'web-ui', 'dist');
