@@ -2,8 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/.mcp.schema.json",
   "mcpServers": {
     "memory-system": {
-      "command": "npx",
-      "args": ["tsx", "src/mcp/memory-server.ts"],
+      "$comment": "Using shell wrapper to load PATH (tsx is installed locally)",
+      "command": "${SHELL:-/bin/bash}",
+      "args": ["-l", "-c", "exec npx tsx src/mcp/memory-server.ts"],
       "env": {
         "PGHOST": "localhost",
         "PGPORT": "5432",
