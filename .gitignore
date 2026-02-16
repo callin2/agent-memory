@@ -118,6 +118,7 @@ coverage.json
 out/
 *.key.*
 # Claude Code Configuration
+.claude/
 .claude/local/
 # Test Coverage
 .turbo/
