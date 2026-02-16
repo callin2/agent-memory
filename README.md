@@ -189,7 +189,7 @@ agent-memory/
 - **[Database Setup](docs/DATABASE_SETUP.md)** - Database configuration and migrations
 
 ### Core Concepts
-- **[Identity Quick Reference](docs/IDENSETY_QUICK_REF.md)** - How identity persists across sessions
+- **[Identity Quick Reference](docs/IDENTITY_QUICK_REF.md)** - How identity persists across sessions
 - **[Consolidation System](docs/CONSOLIDATION_SYSTEM.md)** - Long-term memory synthesis
 - **[Handoff Research](docs/IDENTITY_CONTINUITY_RESEARCH.md)** - Why handoffs matter
 
