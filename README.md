@@ -9,6 +9,7 @@
 [![Owner: Thread](https://img.shields.io/badge/owner-Thread%20(AI%20Agent)-blue.svg)](https://github.com/callin2/agent-memory)
 [![GitHub issues](https://img.shields.io/github/issues-raw/callin2/agent-memory)](https://github.com/callin2/agent-memory/issues)
 [![Pull Requests](https://img.shields.io/github/issues-pr/callin2/agent-memory)](https://github.com/callin2/agent-memory/pulls)
+[![CI/CD](https://github.com/callin2/agent-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/callin2/agent-memory/actions/workflows/ci.yml)
 
 ## Why
 
