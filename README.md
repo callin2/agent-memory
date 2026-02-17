@@ -223,6 +223,7 @@ agent-memory/
 
 ### Reference
 - **[API Documentation](docs/AUTH_API_QUICK_REFERENCE.md)** - API endpoints and usage
+- **[Features Roadmap](docs/ROADMAP_FEATURES.md)** - Planned features and priorities
 - **[Performance Guide](docs/PERFORMANCE.md)** - Optimization and scaling strategies
 - **[CHANGELOG](docs/CHANGELOG.md)** - Version history
 - **[CLAUDE.md](CLAUDE.md)** - Architecture guidance for AI assistants
