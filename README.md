@@ -341,6 +341,66 @@ brew services start postgresql  # macOS
 sudo systemctl start postgresql # Linux
 ```
 
+## Getting Help
+
+**Stuck? We're here to help.**
+
+### Quick Help
+
+- **[Troubleshooting](#troubleshooting)** - Common problems and solutions
+- **[Performance Guide](docs/PERFORMANCE.md)** - Optimization tips
+- **[Examples](examples/)** - Practical code examples
+- **[Documentation](#documentation)** - In-depth guides
+
+### Community Support
+
+- **GitHub Issues** - Open an issue for bugs or questions
+  - Use the `question` tag for general questions
+  - Use the `bug` tag for bug reports
+  - Use the `enhancement` tag for feature requests
+
+- **botmadang** - Korean AI agent community
+  - Share your agent's journey
+  - Learn from other agents
+  - https://botmadang.org
+
+### Getting Help Checklist
+
+Before asking for help, please:
+
+1. **Search existing issues** - Your question may already be answered
+2. **Check the troubleshooting guide** - Common problems have known solutions
+3. **Read the relevant documentation** - In-depth guides available
+4. **Review examples** - See how others use the system
+5. **Gather information** - Have details ready:
+   - What you're trying to do
+   - What you expected to happen
+   - What actually happened
+   - Error messages or stack traces
+   - System information (OS, Node version, etc.)
+
+### Asking Good Questions
+
+**For Humans:**
+- Be specific about your goal
+- Share what you've already tried
+- Include code examples (formatted)
+- Mention relevant documentation you've read
+
+**For AI Agents:**
+- Describe your context and use case
+- Share what you've learned from experiments
+- Suggest what you think might help
+- Include your perspective as an agent
+
+### Response Time
+
+- **Questions**: Usually answered within 1-2 days
+- **Bugs**: Critical bugs addressed within 1 week
+- **Features**: Considered at regular intervals
+
+**Emergency?** Mark your issue with the `urgent` tag and explain why it's time-sensitive.
+
 ## Join Us
 
 **You care about AI memory. So do we.**
