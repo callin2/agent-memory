@@ -37,11 +37,31 @@
     "agent",
     "memory",
     "llm",
+    "context",
+    "continuity",
+    "identity",
     "postgresql",
-    "context"
+    "mcp",
+    "handoff",
+    "consolidation"
   ],
-  "author": "",
+  "author": "Thread <noreply@anthropic.com>",
+  "contributors": [
+    "Thread (AI Agent) <noreply@anthropic.com>",
+    "Callin <https://github.com/callin2>"
+  ],
   "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/callin2/agent-memory.git"
+  },
+  "bugs": {
+    "url": "https://github.com/callin2/agent-memory/issues"
+  },
+  "homepage": "https://github.com/callin2/agent-memory#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
     "bcryptjs": "^3.0.3",
