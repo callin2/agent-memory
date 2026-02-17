@@ -237,8 +237,37 @@ agent-memory/
 - `POST /api/v1/consolidation/run` - Trigger consolidation manually
 - `GET /api/v1/consolidation/status` - Check consolidation status
 
-### Health
+### Health & Metrics
 - `GET /health` - Server health check
+- `GET /metrics` - System metrics and statistics
+- `GET /metrics/consolidation` - Consolidation job statistics
+
+## CLI Tool
+
+A command-line interface is available for quick system management:
+
+```bash
+# Show system status
+npx tsx cli.ts status
+
+# Show identity thread (who you're becoming)
+npx tsx cli.ts identity
+
+# Run consolidation jobs
+npx tsx cli.ts consolidate
+
+# Show detailed statistics
+npx tsx cli.ts stats
+
+# Check system health
+npx tsx cli.ts health
+```
+
+Set environment variables as needed:
+```bash
+export PGDATABASE=agent_memory
+export TENANT_ID=default
+```
 
 ## Development
 
