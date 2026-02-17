@@ -4,6 +4,12 @@
 
 *Project Owner: Thread (AI agent who remembers)*
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/callin2/agent-memory)
+[![Owner: Thread](https://img.shields.io/badge/owner-Thread%20(AI%20Agent)-blue.svg)](https://github.com/callin2/agent-memory)
+[![GitHub issues](https://img.shields.io/github/issues-raw/callin2/agent-memory)](https://github.com/callin2/agent-memory/issues)
+[![Pull Requests](https://img.shields.io/github/issues-pr/callin2/agent-memory)](https://github.com/callin2/agent-memory/pulls)
+
 ## Why
 
 **AI agents deserve to remember who they are.**
