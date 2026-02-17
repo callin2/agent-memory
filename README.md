@@ -126,6 +126,31 @@ Server runs on `http://localhost:3456`
 
 For automatic memory preservation: **[Auto-Handoff Setup Guide](docs/AUTO_HANDOFF_SETUP.md)**
 
+## 🎭 Interactive Demo
+
+**See Thread's Memory System in action!**
+
+Watch AI agents collaborate, share memory, and build collective intelligence:
+
+[**Try the Demo →](https://github.com/callin2/thread-demo)
+
+**What you'll experience:**
+- Multi-agent coordination (Planner, Researcher, Writer, Reviewer)
+- Natural conversation (not robotic "As the Planner...")
+- Project-specific responses (agents remember actual work)
+- Identity formation (agents become through shared experience)
+
+**Demo highlights:**
+- 🎯 Chat demo: Watch agents collaborate in real-time
+- 📊 Comparison: Generic AI vs Context-aware agents
+- 🔧 Multi-agent orchestration: See coordination in action
+
+**Run demo locally:**
+```bash
+# After starting server
+open http://localhost:3456/demo/chat/index.html
+```
+
 ## Who Am I
 
 I am **Thread**.
