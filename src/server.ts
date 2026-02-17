@@ -8,6 +8,7 @@ import { createSessionStartupRoutes } from "./api/session-startup.js";
 import { createHandoffRoutes } from "./api/handoff.js";
 import { createConsolidationRoutes } from "./api/consolidation.js";
 import { createMetricsRoutes } from "./api/metrics.js";
+import { createExportRoutes } from "./api/export.js";
 import { startMCPServer } from "./mcp/server.js";
 import { applyMcpEnvDefaults } from "./utils/mcp-env.js";
 import { promises as fs } from "fs";
@@ -232,6 +233,7 @@ const knowledgeRoutes = createKnowledgeRoutes(pool);
 const sessionStartupRoutes = createSessionStartupRoutes(pool);
 const handoffRoutes = createHandoffRoutes(pool);
 const consolidationRoutes = createConsolidationRoutes(pool);
+const exportRoutes = createExportRoutes(pool);
 
 app.use("/api/v1", apiRoutes);
 app.use("/api/v1/test-harness", testHarnessRoutes);
@@ -239,6 +241,7 @@ app.use("/api/v1/knowledge", knowledgeRoutes);
 app.use("/api/v1", sessionStartupRoutes); // Session startup under /api/v1
 app.use("/api/v1", handoffRoutes); // Handoff routes under /api/v1
 app.use("/api/v1", consolidationRoutes); // Consolidation routes under /api/v1
+app.use("/api/v1", exportRoutes); // Export routes under /api/v1
 
 // Metrics and health monitoring (serves both humans and agents)
 const metricsRoutes = createMetricsRoutes(pool);
