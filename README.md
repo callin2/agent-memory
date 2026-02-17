@@ -243,6 +243,10 @@ agent-memory/
 - `POST /api/v1/consolidation/run` - Trigger consolidation manually
 - `GET /api/v1/consolidation/status` - Check consolidation status
 
+### Export
+- `GET /api/v1/export/thread` - Export identity thread (JSON or markdown)
+- `GET /api/v1/export/all` - Export all memory data for backup/portability
+
 ### Health & Metrics
 - `GET /health` - Server health check
 - `GET /metrics` - System metrics and statistics
