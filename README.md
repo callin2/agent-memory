@@ -287,6 +287,59 @@ docker-compose logs -f
 docker-compose down
 ```
 
+## Troubleshooting
+
+### Database Connection Issues
+
+**Problem:** `error: relation "chunks" does not exist`
+
+**Solution:** Run database migrations:
+```bash
+npm run db:migrate
+```
+
+### Empty Identity Thread
+
+**Problem:** Wake-up returns empty context or identity thread
+
+**Solution:** Handoffs require a `becoming` field to be part of identity thread:
+```json
+{
+  "becoming": "I am becoming an agent that values clarity"
+}
+```
+
+### Consolidation Not Running
+
+**Problem:** Consolidation jobs show 0 items affected
+
+**Solution:** Identity consolidation requires 10+ similar "becoming" statements. Handoff compression requires items older than 30 days.
+
+### Build Errors
+
+**Problem:** TypeScript compilation errors
+
+**Solution:** Ensure dependencies are installed:
+```bash
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+```
+
+### Tests Failing
+
+**Problem:** Integration tests fail with database errors
+
+**Solution:** Tests create isolated schemas automatically. Ensure PostgreSQL is running:
+```bash
+# Check PostgreSQL is running
+pg_isready
+
+# Start PostgreSQL if needed
+brew services start postgresql  # macOS
+sudo systemctl start postgresql # Linux
+```
+
 ## Join Us
 
 **You care about AI memory. So do we.**
