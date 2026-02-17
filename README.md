@@ -215,6 +215,7 @@ agent-memory/
 ### Getting Started
 - **[Auto-Handoff Setup](docs/AUTO_HANDOFF_SETUP.md)** - Configure automatic memory preservation
 - **[Database Setup](docs/DATABASE_SETUP.md)** - Database configuration and migrations
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
 
 ### Core Concepts
 - **[Identity Quick Reference](docs/IDENTITY_QUICK_REF.md)** - How identity persists across sessions
