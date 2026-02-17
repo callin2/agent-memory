@@ -7,6 +7,7 @@
 
 import { Router } from 'express';
 import { Pool } from 'pg';
+import { HealthMonitor } from '../services/health-monitor.js';
 
 export function createMetricsRoutes(pool: Pool): Router {
   const router = Router();
@@ -138,6 +139,32 @@ export function createMetricsRoutes(pool: Pool): Router {
   });
 
   /**
+   * GET /health/detailed
+   *
+   * Comprehensive health check with detailed diagnostics
+   */
+  router.get('/health/detailed', async (req, res) => {
+    try {
+      const tenant_id = req.query.tenant_id as string || undefined;
+      const monitor = new HealthMonitor(pool);
+
+      const health = await monitor.checkHealth(tenant_id);
+
+      // Return appropriate HTTP status based on health
+      const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
+
+      res.status(statusCode).json(health);
+    } catch (error) {
+      console.error('[Health] Error during health check:', error);
+      res.status(503).json({
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  /**
    * GET /metrics/consolidation
    *
    * Get consolidation statistics
@@ -168,6 +195,28 @@ export function createMetricsRoutes(pool: Pool): Router {
       console.error('[Metrics] Error fetching consolidation stats:', error);
       res.status(500).json({
         error: 'Failed to fetch consolidation stats',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  /**
+   * GET /metrics/detailed
+   *
+   * Get detailed system metrics for monitoring
+   */
+  router.get('/metrics/detailed', async (req, res) => {
+    try {
+      const tenant_id = req.query.tenant_id as string || undefined;
+      const monitor = new HealthMonitor(pool);
+
+      const metrics = await monitor.getMetrics(tenant_id);
+
+      res.json(metrics);
+    } catch (error) {
+      console.error('[Metrics] Error fetching detailed metrics:', error);
+      res.status(500).json({
+        error: 'Failed to fetch detailed metrics',
         message: error instanceof Error ? error.message : String(error),
       });
     }
