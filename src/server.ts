@@ -7,6 +7,7 @@ import { createKnowledgeRoutes } from "./api/knowledge-routes.js";
 import { createSessionStartupRoutes } from "./api/session-startup.js";
 import { createHandoffRoutes } from "./api/handoff.js";
 import { createConsolidationRoutes } from "./api/consolidation.js";
+import { createMetricsRoutes } from "./api/metrics.js";
 import { startMCPServer } from "./mcp/server.js";
 import { applyMcpEnvDefaults } from "./utils/mcp-env.js";
 import { promises as fs } from "fs";
@@ -238,6 +239,11 @@ app.use("/api/v1/knowledge", knowledgeRoutes);
 app.use("/api/v1", sessionStartupRoutes); // Session startup under /api/v1
 app.use("/api/v1", handoffRoutes); // Handoff routes under /api/v1
 app.use("/api/v1", consolidationRoutes); // Consolidation routes under /api/v1
+
+// Metrics and health monitoring (serves both humans and agents)
+const metricsRoutes = createMetricsRoutes(pool);
+app.use("/metrics", metricsRoutes);
+app.use("/health", metricsRoutes); // Also register at /health for convenience
 
 // Static file serving for frontend test harness
 const frontendDistPath = path.join(__dirname, '..', 'web-ui', 'dist');
