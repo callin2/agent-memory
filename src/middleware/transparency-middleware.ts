@@ -26,15 +26,15 @@ interface AgentContext {
 }
 
 /**
- * Event kinds we auto-capture
+ * Event kinds we auto-capture (mapped to database schema)
  */
 type AutoEventKind =
   | 'message'           // User message
-  | 'agent_response'     // Agent response
-  | 'decision'          // Agent decision
   | 'tool_call'         // Tool usage
-  | 'artifact_created'   // Generated artifact
-  | 'task_update';       // Task status change
+  | 'tool_result'       // Tool result
+  | 'decision'          // Agent decision
+  | 'artifact'          // Generated artifact
+  | 'task_update';      // Task status change
 
 /**
  * Auto-capture configuration
@@ -83,8 +83,6 @@ export function createTransparencyMiddleware(
       return next();
     }
 
-    const startTime = Date.now();
-
     // Capture original res.json to intercept response
     const originalJson = res.json.bind(res);
     const responseData: any[] = [];
@@ -96,10 +94,8 @@ export function createTransparencyMiddleware(
 
     // Wait for response to complete
     res.on('finish', async () => {
-      const duration = Date.now() - startTime;
-
       // Auto-capture the activity
-      await autoCaptureActivity(pool, req, responseData[0], duration, fullConfig);
+      await autoCaptureActivity(pool, req, responseData[0], fullConfig);
     });
 
     next();
@@ -113,7 +109,6 @@ async function autoCaptureActivity(
   pool: Pool,
   req: Request,
   responseData: any,
-  duration: number,
   config: AutoCaptureConfig
 ): Promise<void> {
   try {
@@ -201,13 +196,14 @@ function extractAgentContext(req: Request): AgentContext {
 /**
  * Determine event kind from request
  */
-function determineEventKind(req: Request, responseData: any): AutoEventKind | null {
+function determineEventKind(req: Request, _responseData: any): AutoEventKind | null {
   const path = req.path;
 
   // Agent messages
   if (path.includes('/message') || path.includes('/chat')) {
     if (req.method === 'POST') {
-      return responseData?.actor ? 'agent_response' : 'message';
+      // All messages are stored as 'message' kind
+      return 'message';
     }
   }
 
@@ -223,7 +219,7 @@ function determineEventKind(req: Request, responseData: any): AutoEventKind | nu
 
   // Artifacts
   if (path.includes('/artifact') || path.includes('/generate')) {
-    return 'artifact_created';
+    return 'artifact';
   }
 
   // Task updates
@@ -240,13 +236,12 @@ function determineEventKind(req: Request, responseData: any): AutoEventKind | nu
 function shouldCapture(kind: AutoEventKind, config: AutoCaptureConfig): boolean {
   switch (kind) {
     case 'message':
-    case 'agent_response':
       return config.captureMessages;
     case 'decision':
       return config.captureDecisions;
     case 'tool_call':
       return config.captureToolCalls;
-    case 'artifact_created':
+    case 'artifact':
       return config.captureArtifacts;
     case 'task_update':
       return config.captureTaskUpdates;
@@ -265,13 +260,11 @@ function extractEventContent(
 ): Record<string, unknown> | null {
   switch (kind) {
     case 'message':
-    case 'agent_response':
       return {
         text: req.body?.text || responseData?.text || '',
         metadata: {
           method: req.method,
           path: req.path,
-          duration: responseData?.duration,
         },
       };
 
@@ -291,12 +284,9 @@ function extractEventContent(
         tool: req.body?.tool || responseData?.tool,
         parameters: req.body?.parameters || responseData?.parameters,
         result: responseData?.result,
-        metadata: {
-          duration: responseData?.duration,
-        },
       };
 
-    case 'artifact_created':
+    case 'artifact':
       return {
         artifact_type: req.body?.type || responseData?.type,
         artifact_id: responseData?.artifact_id,

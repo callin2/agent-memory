@@ -14,7 +14,7 @@ export class ConsolidationScheduler {
   private consolidationService: ConsolidationService;
   private intervals: NodeJS.Timeout[] = [];
 
-  constructor(private pool: Pool) {
+  constructor(pool: Pool) {
     this.consolidationService = new ConsolidationService(pool);
   }
 

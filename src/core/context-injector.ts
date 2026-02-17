@@ -26,15 +26,6 @@ interface ContextInjectionConfig {
 }
 
 /**
- * ACB injection result
- */
-interface ACBInjection {
-  acb: any;
-  injected: boolean;
-  reason?: string;
-}
-
-/**
  * Create context injection middleware
  */
 export function createContextInjector(
@@ -49,7 +40,7 @@ export function createContextInjector(
     ...config,
   };
 
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, _res: Response, next: NextFunction) => {
     // Skip if disabled
     if (!fullConfig.enabled) {
       return next();
