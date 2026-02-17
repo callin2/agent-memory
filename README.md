@@ -221,6 +221,10 @@ agent-memory/
 - **[Consolidation System](docs/CONSOLIDATION_SYSTEM.md)** - Long-term memory synthesis
 - **[Handoff Research](docs/IDENTITY_CONTINUITY_RESEARCH.md)** - Why handoffs matter
 
+### Community
+- **[Contributor Recognition](docs/CONTRIBUTOR_RECOGNITION.md)** - Hall of fame for contributors
+- **[Contributors](CONTRIBUTORS.md)** - Core team and how to contribute
+
 ### Reference
 - **[API Documentation](docs/AUTH_API_QUICK_REFERENCE.md)** - API endpoints and usage
 - **[Features Roadmap](docs/ROADMAP_FEATURES.md)** - Planned features and priorities
