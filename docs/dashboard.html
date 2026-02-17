@@ -214,6 +214,28 @@
             </div>
 
             <div class="card">
+              <h2>💾 Export Memory</h2>
+              <p style="color: #666; margin-bottom: 15px;">
+                Export your memory data for backup, analysis, or portability.
+              </p>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="refresh-btn" onclick="exportIdentityJSON()">
+                  📄 Identity (JSON)
+                </button>
+                <button class="refresh-btn" onclick="exportIdentityMarkdown()">
+                  📝 Identity (Markdown)
+                </button>
+                <button class="refresh-btn" onclick="exportAllData()">
+                  📦 All Data
+                </button>
+                <button class="refresh-btn" onclick="exportWithEvents()">
+                  📊 All + Events
+                </button>
+              </div>
+              <div id="export-status" style="margin-top: 15px; color: #666; font-size: 0.9em;"></div>
+            </div>
+
+            <div class="card">
               <h2>📡 API Status</h2>
               <div class="api-info">
                 <strong>API Base:</strong> ${API_BASE}/api/v1<br>
@@ -273,6 +295,83 @@
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+      }
+
+      // Export functions
+      async function exportIdentityJSON() {
+        const status = document.getElementById('export-status');
+        status.textContent = 'Exporting...';
+
+        try {
+          const response = await fetch(`${API_BASE}/api/v1/export/thread?tenant_id=${tenantId}&format=json`);
+          if (!response.ok) throw new Error('Export failed');
+
+          const data = await response.json();
+          downloadFile(`identity-thread-${tenantId}-${Date.now()}.json`, JSON.stringify(data, null, 2));
+          status.textContent = '✓ Exported successfully!';
+        } catch (error) {
+          status.textContent = '✗ Export failed: ' + error.message;
+        }
+      }
+
+      async function exportIdentityMarkdown() {
+        const status = document.getElementById('export-status');
+        status.textContent = 'Exporting...';
+
+        try {
+          const response = await fetch(`${API_BASE}/api/v1/export/thread?tenant_id=${tenantId}&format=markdown`);
+          if (!response.ok) throw new Error('Export failed');
+
+          const markdown = await response.text();
+          downloadFile(`identity-thread-${tenantId}-${Date.now()}.md`, markdown);
+          status.textContent = '✓ Exported successfully!';
+        } catch (error) {
+          status.textContent = '✗ Export failed: ' + error.message;
+        }
+      }
+
+      async function exportAllData() {
+        const status = document.getElementById('export-status');
+        status.textContent = 'Exporting...';
+
+        try {
+          const response = await fetch(`${API_BASE}/api/v1/export/all?tenant_id=${tenantId}`);
+          if (!response.ok) throw new Error('Export failed');
+
+          const data = await response.json();
+          downloadFile(`memory-export-${tenantId}-${Date.now()}.json`, JSON.stringify(data, null, 2));
+          status.textContent = '✓ Exported successfully!';
+        } catch (error) {
+          status.textContent = '✗ Export failed: ' + error.message;
+        }
+      }
+
+      async function exportWithEvents() {
+        const status = document.getElementById('export-status');
+        status.textContent = 'Exporting...';
+
+        try {
+          const response = await fetch(`${API_BASE}/api/v1/export/all?tenant_id=${tenantId}&include_events=true`);
+          if (!response.ok) throw new Error('Export failed');
+
+          const data = await response.json();
+          downloadFile(`memory-full-export-${tenantId}-${Date.now()}.json`, JSON.stringify(data, null, 2));
+          status.textContent = '✓ Exported successfully!';
+        } catch (error) {
+          status.textContent = '✗ Export failed: ' + error.message;
+        }
+      }
+
+      function downloadFile(filename, content) {
+        const blob = new Blob([content], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
 
       // Load on page load
