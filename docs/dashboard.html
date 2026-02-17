@@ -163,6 +163,28 @@
 
           // Render dashboard
           content.innerHTML = `
+            <div class="card" id="health-status">
+              <h2>🏥 System Health</h2>
+              <div class="stat-grid">
+                <div class="stat">
+                  <div class="stat-value" id="health-status-text">Checking...</div>
+                  <div class="stat-label">Health Status</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" id="db-latency">--</div>
+                  <div class="stat-label">DB Latency</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" id="uptime">--</div>
+                  <div class="stat-label">Uptime (s)</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" id="connections">--</div>
+                  <div class="stat-label">DB Connections</div>
+                </div>
+              </div>
+            </div>
+
             <div class="card">
               <h2>📊 System Metrics</h2>
               <div class="stat-grid">
@@ -250,6 +272,41 @@
               🔄 Refresh
             </button>
           `;
+
+          // Fetch detailed health status
+          const healthResponse = await fetch(`${API_BASE}/health/detailed?tenant_id=${tenant_id}`);
+
+          if (healthResponse.ok) {
+            const health = await healthResponse.json();
+            const healthCard = document.getElementById('health-status');
+
+            // Update health status display
+            const statusText = document.getElementById('health-status-text');
+            const dbLatency = document.getElementById('db-latency');
+            const uptime = document.getElementById('uptime');
+            const connections = document.getElementById('connections');
+
+            // Set status color and text
+            let statusColor = '#28a745'; // green
+            if (health.status === 'degraded') statusColor = '#ffc107'; // yellow
+            if (health.status === 'unhealthy') statusColor = '#dc3545'; // red
+
+            statusText.textContent = health.status.charAt(0).toUpperCase() + health.status.slice(1);
+            statusText.style.color = statusColor;
+
+            // Database latency
+            if (health.checks.database.details?.latency) {
+              dbLatency.textContent = `${health.checks.database.details.latency}ms`;
+            }
+
+            // Uptime
+            uptime.textContent = Math.floor(health.uptime).toLocaleString();
+
+            // Connections
+            if (health.checks.database.details?.totalCount !== undefined) {
+              connections.textContent = health.checks.database.details.totalCount;
+            }
+          }
 
           // Fetch identity thread
           const identityResponse = await fetch(`${API_BASE}/api/v1/identity-thread?tenant_id=${tenant_id}&limit=5`);
