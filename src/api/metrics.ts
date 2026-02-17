@@ -252,7 +252,7 @@ export function createMetricsRoutes(pool: Pool): Router {
    * Prometheus metrics endpoint for scraping
    * Returns metrics in Prometheus text exposition format
    */
-  router.get('/metrics/prometheus', async (req, res) => {
+  router.get('/metrics/prometheus', async (_req, res) => {
     try {
       const metrics = await prometheus.scrape();
 

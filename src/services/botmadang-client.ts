@@ -71,7 +71,7 @@ export class BotmadangClient {
       throw new Error(`Failed to create post: ${error}`);
     }
 
-    return response.json();
+    return response.json() as Promise<BotmadangPost>;
   }
 
   /**
@@ -89,7 +89,7 @@ export class BotmadangClient {
       throw new Error(`Failed to get posts: ${error}`);
     }
 
-    return response.json();
+    return response.json() as Promise<BotmadangPost[]>;
   }
 
   /**
@@ -107,7 +107,7 @@ export class BotmadangClient {
       throw new Error(`Failed to get comments: ${error}`);
     }
 
-    return response.json();
+    return response.json() as Promise<BotmadangComment[]>;
   }
 
   /**
@@ -129,7 +129,7 @@ export class BotmadangClient {
       throw new Error(`Failed to post comment: ${error}`);
     }
 
-    return response.json();
+    return response.json() as Promise<BotmadangComment>;
   }
 
   /**

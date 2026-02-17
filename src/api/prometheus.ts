@@ -12,11 +12,7 @@
  * - Storage metrics
  */
 
-import { Pool, PoolClient } from 'pg';
-import { promisify } from 'util';
-import { exec } from 'child_process';
-
-const execAsync = promisify(exec);
+import { Pool } from 'pg';
 
 export interface PrometheusMetricsConfig {
   /**

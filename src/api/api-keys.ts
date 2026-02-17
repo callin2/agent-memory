@@ -8,7 +8,6 @@
 import { Router, Request } from 'express';
 import { Pool } from 'pg';
 import { randomBytes } from 'crypto';
-import { createApiKeyAuthMiddleware, requirePermission } from '../middleware/apiKeyAuth.js';
 
 export function createApiKeyRoutes(pool: Pool): Router {
   const router = Router();
@@ -66,14 +65,14 @@ export function createApiKeyRoutes(pool: Pool): Router {
       const newKey = result.rows[0];
 
       // Return the full API key (only time it's shown!)
-      res.status(201).json({
+      return res.status(201).json({
         ...newKey,
         api_key: apiKey, // Only shown on creation
         warning: 'Save this API key now. You will not be able to see it again.',
       });
     } catch (error) {
       console.error('[API Keys] Error creating API key:', error);
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Failed to create API key',
         message: error instanceof Error ? error.message : String(error),
       });
@@ -111,14 +110,14 @@ export function createApiKeyRoutes(pool: Pool): Router {
         [tenant_id]
       );
 
-      res.json({
+      return res.json({
         tenant_id,
         api_keys: result.rows,
         count: result.rows.length,
       });
     } catch (error) {
       console.error('[API Keys] Error listing API keys:', error);
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Failed to list API keys',
         message: error instanceof Error ? error.message : String(error),
       });
@@ -162,10 +161,10 @@ export function createApiKeyRoutes(pool: Pool): Router {
         return res.status(404).json({ error: 'API key not found' });
       }
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('[API Keys] Error getting API key:', error);
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Failed to get API key',
         message: error instanceof Error ? error.message : String(error),
       });
@@ -226,10 +225,10 @@ export function createApiKeyRoutes(pool: Pool): Router {
         return res.status(404).json({ error: 'API key not found' });
       }
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('[API Keys] Error updating API key:', error);
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Failed to update API key',
         message: error instanceof Error ? error.message : String(error),
       });
@@ -265,13 +264,13 @@ export function createApiKeyRoutes(pool: Pool): Router {
         return res.status(404).json({ error: 'API key not found' });
       }
 
-      res.json({
+      return res.json({
         message: 'API key revoked successfully',
         api_key: result.rows[0],
       });
     } catch (error) {
       console.error('[API Keys] Error revoking API key:', error);
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Failed to revoke API key',
         message: error instanceof Error ? error.message : String(error),
       });

@@ -133,7 +133,7 @@ export function createApiKeyAuthMiddleware(
     }
 
     // Check permissions
-    const permissionMap = {
+    const permissionMap: Record<string, keyof ApiKeyPermissions> = {
       read: 'can_read',
       write: 'can_write',
       delete: 'can_delete',
@@ -141,7 +141,7 @@ export function createApiKeyAuthMiddleware(
     };
 
     const requiredPermission = permissionMap[permission];
-    if (!keyInfo.permissions[requiredPermission]) {
+    if (!requiredPermission || !keyInfo.permissions[requiredPermission]) {
       return res.status(403).json({
         error: 'Insufficient permissions',
         message: `This operation requires '${permission}' permission`,
@@ -188,6 +188,6 @@ export function requirePermission(permission: keyof ApiKeyPermissions) {
       });
     }
 
-    next();
+    return next();
   };
 }
