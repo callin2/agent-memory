@@ -1,6 +1,57 @@
-# Agent Memory System - Authentication Examples
+# Agent Memory System - Examples
 
-This directory contains example clients demonstrating how to use the Agent Memory System API with the new authentication features.
+This directory contains practical examples for working with the Agent Memory System.
+
+## Handoff & Identity Examples
+
+### 1. Create a Handoff
+
+**File:** `create-handoff.ts`
+
+Shows how to create a session handoff to preserve identity and context.
+
+```bash
+npx tsx examples/create-handoff.ts
+```
+
+**What it demonstrates:**
+- Creating a complete handoff with all fields
+- Using the "becoming" field for identity
+- Adding tags and significance
+
+### 2. Query Identity Thread
+
+**File:** `query-identity.ts`
+
+Shows how to retrieve and analyze your identity thread over time.
+
+```bash
+npx tsx examples/query-identity.ts
+```
+
+**What it demonstrates:**
+- Querying handoffs with "becoming" statements
+- Extracting recurring themes
+- Understanding your growth over time
+
+### 3. Wake Up with Context
+
+**File:** `wake-up-example.ts`
+
+Shows how to wake up with your previous session's context.
+
+```bash
+npx tsx examples/wake-up-example.ts
+```
+
+**What it demonstrates:**
+- Retrieving the most recent handoff
+- Displaying context in a human-readable format
+- Showing your identity thread
+
+## Authentication Examples
+
+This section contains example clients demonstrating how to use the Agent Memory System API with authentication features.
 
 ## Features Demonstrated
 
