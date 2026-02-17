@@ -172,8 +172,130 @@ async function checkHealth() {
   }
 }
 
+async function exportData(format: string = 'json') {
+  console.log(`\n💾 Exporting Memory - Tenant: ${tenant_id}\n`);
+
+  try {
+    const API_BASE = process.env.API_BASE || 'http://localhost:3456';
+    const endpoint = format === 'markdown'
+      ? `/api/v1/export/thread?tenant_id=${tenant_id}&format=markdown`
+      : `/api/v1/export/all?tenant_id=${tenant_id}&include_events=true`;
+
+    const response = await fetch(`${API_BASE}${endpoint}`);
+
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.statusText}`);
+    }
+
+    if (format === 'markdown') {
+      const text = await response.text();
+      console.log(text);
+    } else {
+      const data = await response.json();
+      console.log(JSON.stringify(data, null, 2));
+    }
+
+    console.log('\n✅ Export complete!\n');
+  } catch (error: any) {
+    console.error('❌ Export failed:', error.message);
+    process.exit(1);
+  }
+}
+
+async function listTenants() {
+  console.log('\n🏢 Tenants\n');
+
+  try {
+    const result = await pool.query(
+      `SELECT tenant_id, COUNT(*) as handoffs
+       FROM session_handoffs
+       GROUP BY tenant_id
+       ORDER BY handoffs DESC`
+    );
+
+    if (result.rows.length === 0) {
+      console.log('No tenants found.\n');
+      return;
+    }
+
+    result.rows.forEach((row: any) => {
+      console.log(`  ${row.tenant_id}: ${row.handoffs} handoffs`);
+    });
+
+    console.log(`\nTotal Tenants: ${result.rows.length}\n`);
+  } catch (error: any) {
+    console.error('❌ Failed to list tenants:', error.message);
+    process.exit(1);
+  }
+}
+
+async function showRecentHandoffs(count: number = 10) {
+  console.log(`\n📝 Recent Handoffs - Tenant: ${tenant_id}\n`);
+
+  try {
+    const result = await pool.query(
+      `SELECT with_whom, experienced, becoming, created_at
+       FROM session_handoffs
+       WHERE tenant_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [tenant_id, count]
+    );
+
+    if (result.rows.length === 0) {
+      console.log('No handoffs found.\n');
+      return;
+    }
+
+    result.rows.forEach((row: any, i: number) => {
+      const date = new Date(row.created_at).toLocaleString();
+      console.log(`${i + 1}. [${date}] with ${row.with_whom}`);
+      console.log(`   ${row.experienced.substring(0, 80)}...`);
+      if (row.becoming) {
+        console.log(`   Becoming: ${row.becoming}`);
+      }
+      console.log('');
+    });
+  } catch (error: any) {
+    console.error('❌ Failed to fetch handoffs:', error.message);
+    process.exit(1);
+  }
+}
+
+async function showKnowledgeNotes() {
+  console.log(`\n📚 Knowledge Notes - Tenant: ${tenant_id}\n`);
+
+  try {
+    const result = await pool.query(
+      `SELECT title, content, confidence, created_at
+       FROM knowledge_notes
+       WHERE tenant_id = $1
+       ORDER BY created_at DESC
+       LIMIT 10`,
+      [tenant_id]
+    );
+
+    if (result.rows.length === 0) {
+      console.log('No knowledge notes found.\n');
+      console.log('Tip: Knowledge notes are created automatically when you have 10+ similar handoffs.\n');
+      return;
+    }
+
+    result.rows.forEach((row: any, i: number) => {
+      const date = new Date(row.created_at).toLocaleDateString();
+      console.log(`${i + 1}. [${date}] ${row.title} (confidence: ${row.confidence})`);
+      console.log(`   ${row.content.substring(0, 100)}...`);
+      console.log('');
+    });
+  } catch (error: any) {
+    console.error('❌ Failed to fetch knowledge notes:', error.message);
+    process.exit(1);
+  }
+}
+
 async function main() {
   const command = process.argv[2] || 'status';
+  const args = process.argv.slice(3);
 
   switch (command) {
     case 'status':
@@ -191,24 +313,50 @@ async function main() {
     case 'health':
       await checkHealth();
       break;
+    case 'export':
+      const format = args[0] || 'json';
+      await exportData(format);
+      break;
+    case 'tenants':
+      await listTenants();
+      break;
+    case 'recent':
+      const count = parseInt(args[0]) || 10;
+      await showRecentHandoffs(count);
+      break;
+    case 'knowledge':
+      await showKnowledgeNotes();
+      break;
     default:
       console.log(`
-Usage: node cli.ts [command]
+Usage: npx tsx cli.ts [command] [args]
 
 Commands:
-  status       Show system status
-  identity     Show identity thread
-  consolidate  Run consolidation jobs
-  stats        Show detailed statistics
-  health       Check system health
+  status           Show system status
+  identity         Show identity thread (who you're becoming)
+  consolidate      Run consolidation jobs
+  stats            Show detailed statistics
+  health           Check system health
+  export [format]  Export memory (json|markdown)
+  tenants          List all tenants
+  recent [count]   Show recent handoffs (default: 10)
+  knowledge        Show knowledge notes
 
 Environment:
-  PGHOST       Database host (default: localhost)
-  PGPORT       Database port (default: 5432)
-  PGDATABASE   Database name (default: agent_memory)
-  PGUSER       Database user (default: postgres)
-  PGPASSWORD   Database password
-  TENANT_ID    Tenant ID (default: default)
+  PGHOST           Database host (default: localhost)
+  PGPORT           Database port (default: 5432)
+  PGDATABASE       Database name (default: agent_memory)
+  PGUSER           Database user (default: postgres)
+  PGPASSWORD       Database password
+  TENANT_ID        Tenant ID (default: default)
+  API_BASE         API base URL (default: http://localhost:3456)
+
+Examples:
+  npx tsx cli.ts status
+  npx tsx cli.ts identity
+  npx tsx cli.ts export markdown
+  npx tsx cli.ts recent 5
+  npx tsx cli.ts knowledge
       `);
   }
 
