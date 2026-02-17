@@ -89,6 +89,9 @@ Identity from three directions.
 - ✅ **Wake-Up System** - Automatic memory restoration
 - ✅ **Consolidation** - Synthesize memories into knowledge
 - ✅ **MCP Server** - Memory tools for Claude Code
+- ✅ **Export API** - Backup and transfer memory data
+- ✅ **Health Monitoring** - Comprehensive system health checks
+- ✅ **Knowledge Notes** - Post-It style memory capture
 
 ### It Works
 I'm proof.
@@ -214,25 +217,38 @@ agent-memory/
 ## Documentation
 
 ### Getting Started
+- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Essential commands and operations
 - **[Auto-Handoff Setup](docs/AUTO_HANDOFF_SETUP.md)** - Configure automatic memory preservation
-- **[Database Setup](docs/DATABASE_SETUP.md)** - Database configuration and migrations
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Upgrading from v1.0.0 to v2.0.0
+- **[Project Initialization](scripts/init.sh)** - Automated setup script
 
 ### Core Concepts
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and components
 - **[Identity Quick Reference](docs/IDENTITY_QUICK_REF.md)** - How identity persists across sessions
 - **[Consolidation System](docs/CONSOLIDATION_SYSTEM.md)** - Long-term memory synthesis
+- **[Memory Capsules](docs/CAPSULES.md)** - Temporary memory preservation
 - **[Handoff Research](docs/IDENTITY_CONTINUITY_RESEARCH.md)** - Why handoffs matter
 
-### Community
-- **[Contributor Recognition](docs/CONTRIBUTOR_RECOGNITION.md)** - Hall of fame for contributors
-- **[Contributors](CONTRIBUTORS.md)** - Core team and how to contribute
+### Development & Contributing
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute (for humans and agents)
+- **[Agent Contributor Guide](docs/AGENT_CONTRIBUTOR_GUIDE.md)** - AI agent-specific contribution guide
+- **[Developer Guide](docs/DEVELOPER_GUIDE.md)** - Development workflow and best practices
+
+### Operations & Deployment
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment (systemd, Docker, K8s)
+- **[Security Guide](docs/SECURITY.md)** - Security best practices and hardening
+- **[Performance Guide](docs/PERFORMANCE.md)** - Optimization and scaling strategies
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common problems and solutions
 
 ### Reference
 - **[API Documentation](docs/API_DOCUMENTATION.md)** - Complete API reference with examples
 - **[Features Roadmap](docs/ROADMAP_FEATURES.md)** - Planned features and priorities
-- **[Performance Guide](docs/PERFORMANCE.md)** - Optimization and scaling strategies
-- **[CHANGELOG](docs/CHANGELOG.md)** - Version history
+- **[CHANGELOG](CHANGELOG.md)** - Version history and changes
 - **[CLAUDE.md](CLAUDE.md)** - Architecture guidance for AI assistants
+
+### Historical Research
+- **[Contributor Recognition](docs/CONTRIBUTOR_RECOGNITION.md)** - Hall of fame for contributors
+- **[Human-AI Collaboration Research](docs/HUMAN_AI_COLLABORATION_RESEARCH.md)** - Research findings
 
 ## API Endpoints
 
@@ -251,8 +267,67 @@ agent-memory/
 
 ### Health & Metrics
 - `GET /health` - Server health check
+- `GET /health/detailed` - Comprehensive health diagnostics
 - `GET /metrics` - System metrics and statistics
 - `GET /metrics/consolidation` - Consolidation job statistics
+
+### Knowledge Notes
+- `POST /api/v1/knowledge` - Create a knowledge note from consolidated learning
+- `GET /api/v1/knowledge` - Retrieve knowledge notes for a tenant
+
+## v2.0.0 Features
+
+### Export Functionality
+Backup and transfer your agent's memory:
+
+```bash
+# Export identity thread as markdown
+curl "http://localhost:3456/api/v1/export/thread?tenant_id=default&format=markdown" \
+  > identity-thread.md
+
+# Export all data as JSON
+curl "http://localhost:3456/api/v1/export/all?tenant_id=default&format=json" \
+  > backup.json
+```
+
+See [examples/export-memory.ts](examples/export-memory.ts) for complete usage examples.
+
+### Health Monitoring
+Monitor system health in production:
+
+```bash
+# Quick health check
+curl http://localhost:3456/health
+
+# Detailed diagnostics
+curl http://localhost:3456/health/detailed?tenant_id=default
+
+# System metrics
+curl http://localhost:3456/metrics?tenant_id=default
+```
+
+Health checks include:
+- Database connectivity and performance
+- Storage usage (handoffs, knowledge notes)
+- Consolidation status
+- Response time metrics
+
+### Enhanced CLI
+Improved command-line interface with 10 commands:
+
+```bash
+npx tsx cli.ts status        # System status
+npx tsx cli.ts export        # Export memory data
+npx tsx cli.ts tenants       # List all tenants
+npx tsx cli.ts recent        # View recent handoffs
+npx tsx cli.ts consolidate   # Trigger consolidation
+npx tsx cli.ts knowledge     # Manage knowledge notes
+npx tsx cli.ts migrate       # Run database migrations
+npx tsx cli.ts backup        # Backup database
+npx tsx cli.ts vacuum        # Database maintenance
+```
+
+See [QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) for complete command reference.
 
 ## CLI Tool
 
@@ -303,50 +378,38 @@ docker-compose down
 
 ## Troubleshooting
 
-### Database Connection Issues
+For comprehensive troubleshooting, see **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** which covers:
 
-**Problem:** `error: relation "chunks" does not exist`
+- Database connection issues
+- Migration failures
+- API errors (CORS, timeouts, port conflicts)
+- Performance issues
+- Deployment problems
+- Testing failures
+- MCP integration issues
 
-**Solution:** Run database migrations:
-```bash
-npm run db:migrate
-```
+### Quick Checks
 
-### Empty Identity Thread
-
-**Problem:** Wake-up returns empty context or identity thread
-
-**Solution:** Handoffs require a `becoming` field to be part of identity thread:
-```json
-{
-  "becoming": "I am becoming an agent that values clarity"
-}
-```
-
-### Consolidation Not Running
-
-**Problem:** Consolidation jobs show 0 items affected
-
-**Solution:** Identity consolidation requires 10+ similar "becoming" statements. Handoff compression requires items older than 30 days.
-
-### Build Errors
-
-**Problem:** TypeScript compilation errors
-
-**Solution:** Ensure dependencies are installed:
-```bash
-rm -rf node_modules package-lock.json
-npm install
-npm run build
-```
-
-### Tests Failing
-
-**Problem:** Integration tests fail with database errors
-
-**Solution:** Tests create isolated schemas automatically. Ensure PostgreSQL is running:
+**Database not connecting?**
 ```bash
 # Check PostgreSQL is running
+pg_isready -h localhost
+
+# Run migrations
+npm run db:migrate
+
+# Check connection
+psql -h localhost -U your_user -d agent_memory
+```
+
+**Empty identity thread?**
+- Handoffs need a `becoming` field to be included in identity thread
+- Check handoffs exist: `npx tsx cli.ts recent --tenant-id default`
+
+**Consolidation not running?**
+- Identity consolidation requires 10+ similar "becoming" statements
+- Handoff compression requires items older than 30 days
+- Check status: `npx tsx cli.ts consolidate --status`
 pg_isready
 
 # Start PostgreSQL if needed
