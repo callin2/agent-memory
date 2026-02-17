@@ -115,10 +115,30 @@ export function createMetricsRoutes(pool: Pool): Router {
   });
 
   /**
-   * GET /health
+   * GET /health (when mounted at /health) or GET / (when mounted at root)
    *
    * Simple health check endpoint
    */
+  router.get('/', async (_req, res) => {
+    try {
+      // Basic database connectivity check
+      await pool.query('SELECT 1');
+
+      res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+      });
+    } catch (error) {
+      res.status(503).json({
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Also support /health for backward compatibility when mounted at /metrics
   router.get('/health', async (_req, res) => {
     try {
       // Basic database connectivity check
