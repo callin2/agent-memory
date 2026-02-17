@@ -1,0 +1,68 @@
+[Unit]
+Description=Thread's Memory System - AI Agent Memory Continuity
+Documentation=https://github.com/callin2/agent-memory
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=agentmem
+Group=agentmem
+WorkingDirectory=/opt/agent-memory
+Environment="NODE_ENV=production"
+Environment="PORT=3456"
+EnvironmentFile=/opt/agent-memory/.env
+
+# Load environment variables from .env file
+# Ensure .env contains:
+#   DATABASE_URL=postgresql://user:pass@localhost/agent_memory
+#   PGDATABASE=agent_memory
+#   PGHOST=localhost
+#   PGPORT=5432
+#   PGUSER=agentmem
+#   PGPASSWORD=your_password
+#   LOG_LEVEL=info
+#   CONSOLIDATION_ENABLED=true
+#   CONSOLIDATION_SCHEDULE=0 2 * * *
+
+# ExecStartPre commands
+ExecStartPre=/usr/bin/npm run build
+ExecStartPre=/usr/bin/npm run db:migrate
+
+# Main process
+ExecStart=/usr/bin/node /opt/agent-memory/dist/server.js
+
+# Auto-restart configuration
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Resource limits (adjust based on your needs)
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=2G
+CPUQuota=200%
+
+# Logging
+StandardOutput=append:/var/log/agent-memory/agent-memory.log
+StandardError=append:/var/log/agent-memory/agent-memory-error.log
+SyslogIdentifier=agent-memory
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/agent-memory /var/log/agent-memory /var/backups/agent-memory
+
+# Performance
+OOMScoreAdjust=-100
+
+[Install]
+WantedBy=multi-user.target

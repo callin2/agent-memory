@@ -136,35 +136,68 @@ default_pool_size = 25
 
 ### Option 1: Systemd Service (Recommended for Linux)
 
-Create `/etc/systemd/system/agent-memory.service`:
+**Quick Deployment (Automated):**
 
-```ini
-[Unit]
-Description=Thread's Memory System
-After=network.target postgresql.service
+Use the production deployment script for automated setup:
 
-[Service]
-Type=simple
-User=agentmemory
-WorkingDirectory=/opt/agent-memory
-Environment="NODE_ENV=production"
-EnvironmentFile=/opt/agent-memory/.env.production
-ExecStart=/usr/bin/node /opt/agent-memory/dist/server.js
-Restart=on-failure
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
+```bash
+# Clone repository
+git clone https://github.com/callin2/agent-memory.git /opt/agent-memory
+cd /opt/agent-memory
 
-[Install]
-WantedBy=multi-user.target
+# Run deployment script (interactive)
+sudo ./scripts/deploy-production.sh
 ```
 
-Enable and start:
+The deployment script will:
+- Create service user (`agentmem`)
+- Install dependencies and build
+- Setup PostgreSQL database
+- Configure environment variables
+- Install systemd service
+- Setup logging and log rotation
+- Create backup directories
+- Start the service
+
+**Manual Deployment:**
+
+If you prefer manual setup, use the provided systemd service file:
+
 ```bash
+# Copy service file
+sudo cp agent-memory.service /etc/systemd/system/
+
+# Edit environment configuration
+sudo nano /etc/systemd/system/agent-memory.service
+
+# Reload and start
+sudo systemctl daemon-reload
 sudo systemctl enable agent-memory
 sudo systemctl start agent-memory
-sudo systemctl status agent-memory
 ```
+
+**Service Management:**
+
+```bash
+# Check status
+sudo systemctl status agent-memory
+
+# View logs
+sudo journalctl -u agent-memory -f
+
+# Restart service
+sudo systemctl restart agent-memory
+
+# Stop service
+sudo systemctl stop agent-memory
+```
+
+The service file includes:
+- Automatic restart on failure
+- Resource limits (memory, CPU, file handles)
+- Security hardening (no new privileges, private tmp)
+- Log rotation setup
+- Health monitoring
 
 ### Option 2: Docker
 
@@ -309,42 +342,67 @@ spec:
 
 ### Reverse Proxy (Nginx)
 
+A comprehensive nginx configuration is provided in the repository:
+
+```bash
+# Copy the nginx configuration
+sudo cp nginx-example.conf /etc/nginx/sites-available/agent-memory
+
+# Edit server_name and SSL certificate paths
+sudo nano /etc/nginx/sites-available/agent-memory
+
+# Enable the site
+sudo ln -s /etc/nginx/sites-available/agent-memory /etc/nginx/sites-enabled/
+
+# Test configuration
+sudo nginx -t
+
+# Reload nginx
+sudo systemctl reload nginx
+```
+
+**The nginx configuration includes:**
+- HTTP to HTTPS redirect
+- SSL/TLS configuration
+- Security headers
+- Rate limiting for API endpoints
+- Extended timeouts for export/consolidation
+- Separate monitoring endpoint (internal access)
+- Static asset caching
+- Health check endpoint
+
+**Obtain SSL certificates:**
+
+```bash
+# Install certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Obtain certificate
+sudo certbot --nginx -d your-domain.com
+
+# Certbot will auto-renew certificates
+```
+
+**Alternative: Basic Configuration**
+
+For a simple setup, you can use this minimal configuration:
+
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name memory.example.com;
+    server_name your-domain.com;
 
-    ssl_certificate /etc/ssl/certs/memory.example.com.crt;
-    ssl_certificate_key /etc/ssl/private/memory.example.com.key;
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Strict-Transport-Security "max-age=31536000" always;
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
 
     location / {
         proxy_pass http://localhost:3456;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Rate limiting
-        limit_req zone=api burst=20 nodelay;
     }
-
-    # Limit upload size
-    client_max_body_size 10M;
-}
-
-# Rate limiting
-http {
-    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
 }
 ```
 
@@ -462,30 +520,46 @@ For hosting multiple organizations:
 
 ### Automated Backups
 
+A comprehensive backup script is provided:
+
 ```bash
-#!/bin/bash
-# backup.sh - Daily backup script
+# Run backup manually
+/opt/agent-memory/scripts/backup.sh
 
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="/backups"
-DB_NAME="agent_memory"
-
-# Database dump
-pg_dump -h $PGHOST -U $PGUSER $DB_NAME | gzip > \
-  $BACKUP_DIR/agent_memory_$DATE.sql.gz
-
-# Export all tenant data
-curl -s "http://localhost:3456/api/v1/export/all?tenant_id=default&include_events=true" | \
-  gzip > $BACKUP_DIR/export_$DATE.json.gz
-
-# Keep only last 30 days
-find $BACKUP_DIR -name "*.gz" -mtime +30 -delete
+# Options
+./scripts/backup.sh --database        # Database only
+./scripts/backup.sh --exports         # Exports only
+./scripts/backup.sh --tenant default  # Specific tenant
 ```
 
-Add to crontab:
-```cron
+**Environment variables:**
+```bash
+export BACKUP_DIR=/var/backups/agent-memory
+export RETENTION_DAYS=30
+export API_BASE=http://localhost:3456
+export DEFAULT_TENANT=default
+```
+
+**Setup cron jobs:**
+```bash
+# Edit crontab
+sudo crontab -e
+
+# Daily full backup at 2 AM
 0 2 * * * /opt/agent-memory/scripts/backup.sh
+
+# Hourly export backups (for recent data)
+0 * * * * /opt/agent-memory/scripts/backup.sh --exports
+
+# Weekly backup on Sunday at 3 AM
+0 3 * * 0 /opt/agent-memory/scripts/backup.sh --database
 ```
+
+**Backup contents:**
+- PostgreSQL database dump (compressed)
+- All tenant data exports (JSON format, compressed)
+- Backup manifest with metadata
+- Automatic cleanup of old backups (configurable retention)
 
 ### Recovery Procedure
 
