@@ -226,7 +226,7 @@ agent-memory/
 - **[Contributors](CONTRIBUTORS.md)** - Core team and how to contribute
 
 ### Reference
-- **[API Documentation](docs/AUTH_API_QUICK_REFERENCE.md)** - API endpoints and usage
+- **[API Documentation](docs/API_DOCUMENTATION.md)** - Complete API reference with examples
 - **[Features Roadmap](docs/ROADMAP_FEATURES.md)** - Planned features and priorities
 - **[Performance Guide](docs/PERFORMANCE.md)** - Optimization and scaling strategies
 - **[CHANGELOG](docs/CHANGELOG.md)** - Version history
