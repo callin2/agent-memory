@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thread's Memory System - Status Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .header {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      color: #667eea;
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+    .header p {
+      color: #666;
+      font-size: 1.1em;
+    }
+    .card {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 1.5em;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .stat {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2em;
+      font-weight: bold;
+      color: #667eea;
+    }
+    .stat-label {
+      color: #666;
+      font-size: 0.9em;
+      margin-top: 5px;
+    }
+    .identity-thread {
+      margin-top: 15px;
+    }
+    .identity-item {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border-left: 4px solid #667eea;
+    }
+    .identity-becoming {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+    .identity-date {
+      color: #999;
+      font-size: 0.85em;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: white;
+      font-size: 1.2em;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .refresh-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 1em;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+    .refresh-btn:hover {
+      background: #5568d3;
+    }
+    .api-info {
+      font-family: 'Monaco', 'Courier New', monospace;
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 0.85em;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧵 Thread's Memory System</h1>
+      <p>Status Dashboard</p>
+    </div>
+
+    <div id="content" class="loading">
+      Loading system status...
+    </div>
+
+    <script>
+      const API_BASE = window.location.protocol + '//' + window.location.hostname + ':3456';
+      const DEFAULT_TENANT = 'default';
+
+      // Get tenant from URL param or use default
+      const urlParams = new URLSearchParams(window.location.search);
+      const tenantId = urlParams.get('tenant_id') || DEFAULT_TENANT;
+
+      async function loadDashboard() {
+        const content = document.getElementById('content');
+
+        try {
+          // Fetch metrics
+          const metricsResponse = await fetch(`${API_BASE}/metrics?tenant_id=${tenantId}`);
+
+          if (!metricsResponse.ok) {
+            throw new Error('Failed to fetch metrics');
+          }
+
+          const metrics = await metricsResponse.json();
+
+          // Render dashboard
+          content.innerHTML = `
+            <div class="card">
+              <h2>📊 System Metrics</h2>
+              <div class="stat-grid">
+                <div class="stat">
+                  <div class="stat-value">${metrics.events.recent_24h || 0}</div>
+                  <div class="stat-label">Events (24h)</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value">${metrics.handoffs.total || 0}</div>
+                  <div class="stat-label">Total Handoffs</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value">${metrics.decisions.active || 0}</div>
+                  <div class="stat-label">Active Decisions</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value">${metrics.storage.total_chunks || 0}</div>
+                  <div class="stat-label">Memory Chunks</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>💾 Storage</h2>
+              <div class="stat-grid">
+                <div class="stat">
+                  <div class="stat-value">${formatBytes(metrics.storage.total_text_bytes || 0)}</div>
+                  <div class="stat-label">Total Text</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value">${metrics.storage.total_chunks || 0}</div>
+                  <div class="stat-label">Chunks</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value">${formatBytes(metrics.storage.avg_chunk_size_bytes || 0)}</div>
+                  <div class="stat-label">Avg Chunk Size</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>🧵 Identity Thread - Who I Am Becoming</h2>
+              <div class="identity-thread">
+                <p style="color: #666; font-style: italic;">
+                  Your most recent "becoming" statements that shape your identity over time.
+                </p>
+                <div id="identity-list"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>📡 API Status</h2>
+              <div class="api-info">
+                <strong>API Base:</strong> ${API_BASE}/api/v1<br>
+                <strong>Health:</strong> ${API_BASE}/health<br>
+                <strong>Metrics:</strong> ${API_BASE}/metrics<br>
+                <strong>Tenant:</strong> ${tenantId}<br>
+                <strong>Time:</strong> ${new Date(metrics.timestamp).toLocaleString()}
+              </div>
+            </div>
+
+            <button class="refresh-btn" onclick="loadDashboard()">
+              🔄 Refresh
+            </button>
+          `;
+
+          // Fetch identity thread
+          const identityResponse = await fetch(`${API_BASE}/api/v1/identity-thread?tenant_id=${tenant_id}&limit=5`);
+
+          if (identityResponse.ok) {
+            const identity = await identityResponse.json();
+            const identityList = document.getElementById('identity-list');
+
+            if (identity.identity_thread && identity.identity_thread.length > 0) {
+              identityList.innerHTML = identity.identity_thread.map(item => `
+                <div class="identity-item">
+                  <div class="identity-becoming">"${item.becoming}"</div>
+                  <div class="identity-date">${new Date(item.created_at).toLocaleDateString()}</div>
+                </div>
+              `).join('');
+            } else {
+              identityList.innerHTML = '<p style="color: #666;">No identity statements yet. Create handoffs with a "becoming" field to build your identity thread over time.</p>';
+            }
+          }
+
+        } catch (error) {
+          content.innerHTML = `
+            <div class="card">
+              <h2>⚠️ Error Loading Dashboard</h2>
+              <p>${error.message}</p>
+              <p>Make sure the memory system server is running on port 3456.</p>
+            </div>
+            <div class="error">
+              <strong>Common issues:</strong>
+              <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>Server not started - Run: npm run dev</li>
+                <li>Wrong port - Server runs on 3456 by default</li>
+                <li>Database not connected - Check your .env configuration</li>
+              </ul>
+            </div>
+          `;
+        }
+      }
+
+      function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+      }
+
+      // Load on page load
+      loadDashboard();
+    </script>
+  </body>
+</html>

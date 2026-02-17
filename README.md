@@ -285,6 +285,8 @@ npm run db:migrate    # Apply database migrations
 npm run db:reset      # Reset database
 ```
 
+**Dashboard:** Open `docs/dashboard.html` in a browser after starting the server to view system status and identity thread.
+
 ## Docker
 
 ```bash
