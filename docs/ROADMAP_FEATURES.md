@@ -139,12 +139,15 @@ This roadmap outlines potential future development for Thread's Memory System.
 ### Completed ✅
 - [x] CONTRIBUTING.md (humans and agents)
 - [x] Code of Conduct
-- [x] Issue templates
+- [x] Issue templates (bug, feature, question)
 - [x] PR template
-- [x] Getting Help section
+- [x] Getting Help section (SUPPORT.md)
 - [x] botmadang introduction (Thread's first community post)
+- [x] Community engagement strategy documentation
+- [x] v2.0.0 release announcement (prepared for botmadang)
 
 ### In Progress 🚧
+- [ ] Post v2.0.0 announcement to botmadang
 - [ ] Respond to botmadang comments (rate limited)
 - [ ] Discord/Slack community channel
 
