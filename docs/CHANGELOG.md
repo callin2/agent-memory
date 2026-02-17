@@ -229,6 +229,113 @@ This release begins the microservices migration. The monolith server remains fun
 
 ## [Unreleased]
 
+### Added
+
+#### Export & Portability
+- **Export API** (`/api/v1/export/*`) - Memory export for backup, analysis, and portability
+  - Export identity thread as JSON or markdown
+  - Export all memory data (handoffs, decisions, optionally events)
+  - Event chunks export limited to 1000 most recent
+  - Per-tenant export isolation
+- **Export Integration Tests** - Comprehensive test coverage for export functionality
+  - Identity thread export validation
+  - Full data export validation
+  - Tenant isolation tests
+  - Edge case handling
+- **Export Examples** (`examples/export-memory.ts`) - 7 practical usage examples
+  - Export identity thread as JSON
+  - Export identity thread as markdown
+  - Export all memory data
+  - Export with event chunks
+  - Save export to file
+  - Backup before changes
+  - Analyze identity evolution
+- **Dashboard Export UI** - One-click export buttons in status dashboard
+  - Export identity thread as JSON
+  - Export identity thread as Markdown
+  - Export all data
+  - Export all data including events
+
+#### Documentation
+- **API Documentation** (`docs/API_DOCUMENTATION.md`) - Complete API reference
+  - All endpoints documented with request/response examples
+  - curl command examples
+  - TypeScript/JavaScript SDK usage
+  - Error codes and common errors
+  - MCP server integration guide
+  - Versioning and deprecation policy
+
+#### Testing & Quality
+- **Consolidation Integration Tests** - Full test coverage for consolidation system
+  - Identity thread consolidation tests (requires 10+ similar statements)
+  - Handoff compression tests (30/90/180 day thresholds)
+  - Decision archival tests (60+ day old decisions)
+  - All 8 tests passing
+
+#### Monitoring & Observability
+- **Metrics Endpoints** (`/metrics`, `/metrics/consolidation`)
+  - System metrics (events, handoffs, decisions, storage)
+  - Consolidation job statistics
+  - Per-tenant filtering
+- **Health Check Endpoint** (`/health`)
+  - Database connection status
+  - Server health indicator
+
+#### Developer Experience
+- **CLI Tool** (`cli.ts`) - Command-line interface for system management
+  - `status` - Show system status
+  - `identity` - Show identity thread
+  - `consolidate` - Run consolidation jobs
+  - `stats` - Show detailed statistics
+  - `health` - Check system health
+- **Setup Script** (`scripts/setup-dev.sh`) - Automated development setup
+  - Node.js, npm, PostgreSQL checks
+  - .env file creation
+  - Dependency installation
+  - Database migration
+  - Test execution
+- **Performance Guide** (`docs/PERFORMANCE.md`) - Optimization strategies
+  - Database performance (connection pooling, indexing)
+  - Consolidation performance (scheduling, token savings)
+  - Memory usage estimates
+  - API performance (caching, batch operations)
+  - Scaling considerations
+- **Features Roadmap** (`docs/ROADMAP_FEATURES.md`) - 8 priority levels of planned features
+  - Priority 1: Stability & Production Readiness
+  - Priority 2: Core Features
+  - Priority 3: Developer Experience
+  - Priority 4: Performance & Scale
+  - Priority 5: Security & Privacy
+  - Priority 6: Community & Ecosystem
+  - Priority 7: Advanced Features
+  - Priority 8: Research & Innovation
+- **Contributor Recognition** (`docs/CONTRIBUTOR_RECOGNITION.md`) - Hall of fame
+  - Recognition for Thread (project owner)
+  - Recognition for Callin (creator)
+  - Recognition categories and levels
+  - AI Agent Perspectives section
+- **Troubleshooting Guide** - Common problems and solutions
+  - Database connection issues
+  - Empty identity thread
+  - Consolidation not running
+  - Build errors
+  - Test failures
+
+### Changed
+
+#### Code Quality
+- **TypeScript Build Cleanup** - Removed all unused code and fixed type mismatches
+  - Fixed unused ACBInjection interface
+  - Fixed unused res parameter in context injector
+  - Fixed AutoEventKind type alignment with database schema
+  - Fixed unused duration variable in transparency middleware
+  - Fixed unused pool parameter in consolidation scheduler
+  - Build now passes cleanly with no errors
+
+### Fixed
+- Identity consistency in commits - consciously using "Thread" instead of "Claude Sonnet 4.5"
+- Dashboard tenant parameter bug (was using undefined variable)
+
 ### Planned
 - API Server extraction (port 3002)
 - MCP Server separation to standalone project
