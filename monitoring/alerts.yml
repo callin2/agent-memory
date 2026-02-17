@@ -1,0 +1,201 @@
+# Alert Rules for Thread's Memory System
+#
+# These rules define when alerts should be triggered based on metrics.
+# Add this to your prometheus.yml:
+#   rule_files:
+#     - 'alerts.yml'
+
+groups:
+  - name: agent_memory_critical
+    interval: 30s
+    rules:
+      # System is completely down
+      - alert: AgentMemorySystemDown
+        expr: agent_memory_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Agent Memory System is down"
+          description: "Instance {{ $labels.instance }} has been down for more than 1 minute."
+          runbook_url: "https://github.com/callin2/agent-memory/docs/TROUBLESHOOTING.md"
+
+      # Service not responding
+      - alert: AgentMemoryUnhealthy
+        expr: agent_memory_up != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Agent Memory System health check failing"
+          description: "Health check has been failing for 2 minutes"
+
+  - name: agent_memory_warnings
+    interval: 30s
+    rules:
+      # High memory usage (>90%)
+      - alert: HighMemoryUsage
+        expr: |
+          (agent_memory_memory_bytes{type="heap_used"} /
+           agent_memory_memory_bytes{type="heap_total"}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanizePercentage }} for {{ $labels.instance }}"
+
+      # Memory usage critical (>95%)
+      - alert: CriticalMemoryUsage
+        expr: |
+          (agent_memory_memory_bytes{type="heap_used"} /
+           agent_memory_memory_bytes{type="heap_total"}) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }}. Service may crash soon."
+
+      # Database connection pool exhausted
+      - alert: DatabasePoolExhausted
+        expr: agent_memory_db_pool_connections{state="waiting"} > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool exhausted"
+          description: "{{ $value }} connections are waiting for database pool"
+
+      # Database pool utilization high
+      - alert: HighDatabasePoolUtilization
+        expr: |
+          100 * (1 - (agent_memory_db_pool_connections{state="idle"} /
+                     agent_memory_db_pool_connections{state="total"})) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database pool utilization"
+          description: "Database pool utilization is {{ $value }}%"
+
+      # High HTTP error rate (>5%)
+      - alert: HighHTTPErrorRate
+        expr: |
+          sum(rate(agent_memory_http_requests_total{status=~"5.."}[5m])) /
+          sum(rate(agent_memory_http_requests_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP 5xx error rate"
+          description: "{{ $value | humanizePercentage }} of requests are failing with 5xx errors"
+
+      # Critical HTTP error rate (>10%)
+      - alert: CriticalHTTPErrorRate
+        expr: |
+          sum(rate(agent_memory_http_requests_total{status=~"5.."}[5m])) /
+          sum(rate(agent_memory_http_requests_total[5m])) > 0.10
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical HTTP error rate"
+          description: "{{ $value | humanizePercentage }} of requests are failing"
+
+      # Slow API responses (p95 > 1s)
+      - alert: SlowAPIResponses
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(agent_memory_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow API responses detected"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Very slow API responses (p95 > 5s)
+      - alert: VerySlowAPIResponses
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(agent_memory_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Very slow API responses"
+          description: "95th percentile latency is {{ $value }}s. Performance severely degraded."
+
+  - name: agent_memory_info
+    interval: 1m
+    rules:
+      # Storage growing rapidly (>1MB/s)
+      - alert: RapidStorageGrowth
+        expr: rate(agent_memory_storage_bytes{type="text"}[1h]) > 1000000
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Storage growing rapidly"
+          description: "Storage growing at {{ $value | humanize }}B/s"
+
+      # Service restarted
+      - alert: ServiceRestarted
+        expr: agent_memory_uptime_seconds < 300
+        labels:
+          severity: info
+        annotations:
+          summary: "Service has restarted"
+          description: "Service uptime is {{ $value | humanizeDuration }}"
+
+      # Low event capture rate (possible issue)
+      - alert: LowEventCaptureRate
+        expr: |
+          rate(agent_memory_events_total{kind="all"}[5m]) < 0.1
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low event capture rate"
+          description: "Event capture rate is {{ $value }} events/sec. This may indicate low activity or a problem."
+
+      # Consolidation not running
+      - alert: ConsolidationNotRunning
+        expr: |
+          time() - max(agent_memory_consolidation_jobs_total) > 86400
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Consolidation hasn't run in 24 hours"
+          description: "Last consolidation was {{ $value | humanizeDuration }} ago. Consolidation may be disabled or failing."
+
+  - name: agent_memory_trends
+    interval: 5m
+    rules:
+      # Memory growing trend (memory leak detection)
+      - alert: MemoryLeakSuspected
+        expr: |
+          predict_linear(agent_memory_memory_bytes{type="heap_used"}[1h], 3600) >
+          1.5 * agent_memory_memory_bytes{type="heap_total"}
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Possible memory leak detected"
+          description: "Heap memory is growing trend suggests possible memory leak. Predicted to exhaust heap in 1 hour."
+
+      # Storage will fill in 7 days
+      - alert: StorageWillFillSoon
+        expr: |
+          predict_linear(agent_memory_storage_bytes{type="text"}[3d], 604800) > 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage will fill in 7 days"
+          description: "At current growth rate, storage will be exhausted in approximately 7 days"

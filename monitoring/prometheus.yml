@@ -1,0 +1,116 @@
+# Prometheus Configuration for Thread's Memory System
+#
+# This configuration scrapes metrics from the agent-memory system
+# and optionally from other services.
+#
+# Usage:
+#   prometheus --config.file=/path/to/prometheus.yml
+
+global:
+  # How often to scrape targets
+  scrape_interval: 15s
+
+  # How often to evaluate rules
+  evaluation_interval: 15s
+
+  # External labels applied to all metrics
+  external_labels:
+    cluster: 'agent-memory'
+    environment: 'production'
+    monitor: 'agent-memory-monitor'
+
+# Alertmanager configuration (optional)
+# Uncomment if you want to use Alertmanager for alert routing
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['localhost:9093']
+
+# Load rule files
+# Rule files define alerting and recording rules
+rule_files:
+  # - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Agent Memory System - API Metrics
+  - job_name: 'agent-memory'
+    # How often to scrape
+    scrape_interval: 10s
+    # Scrape timeout
+    scrape_timeout: 10s
+
+    # Metrics path
+    metrics_path: '/metrics/prometheus'
+
+    static_configs:
+      - targets: ['host.docker.internal:3456']
+        labels:
+          service: 'agent-memory-api'
+          component: 'api'
+
+  # Alternative: If running agent-memory on localhost (not in Docker)
+  # - job_name: 'agent-memory'
+  #   scrape_interval: 10s
+  #   metrics_path: '/metrics/prometheus'
+  #   static_configs:
+  #     - targets: ['localhost:3456']
+  #       labels:
+  #         service: 'agent-memory-api'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Node Exporter (optional - for host metrics)
+  # Install node_exporter to monitor CPU, memory, disk of the host
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['localhost:9100']
+  #       labels:
+  #         service: 'node-exporter'
+
+  # PostgreSQL Exporter (optional - for database metrics)
+  # Install postgres_exporter to monitor database performance
+  # - job_name: 'postgresql'
+  #   static_configs:
+  #     - targets: ['localhost:9187']
+  #       labels:
+  #         service: 'postgres'
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: instance
+  #       replacement: 'localhost:5432'
+
+  # Grafana monitoring (optional)
+  # - job_name: 'grafana'
+  #   static_configs:
+  #     - targets: ['localhost:3000']
+  #       labels:
+  #         service: 'grafana'
+
+# Storage configuration
+# (can also be set via command line flags)
+# storage:
+#   tsdb:
+#     path: /prometheus
+#     retention.time: 15d
+#     retention.size: 10GB
+
+# Remote write configuration (optional)
+# For sending metrics to remote storage (e.g., Grafana Cloud, Cortex)
+# remote_write:
+#   - url: "https://your-remote-storage/api/v1/write"
+#     basic_auth:
+#       username: "your-username"
+#       password: "your-password"
+
+# Tracing configuration (optional - experimental)
+# tracing:
+#   endpoint: "localhost:4318"
+#   client_type: "grpc"
+#   headers:
+#     X-Trace-Header: "value"

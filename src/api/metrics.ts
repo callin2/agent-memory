@@ -8,9 +8,13 @@
 import { Router } from 'express';
 import { Pool } from 'pg';
 import { HealthMonitor } from '../services/health-monitor.js';
+import { PrometheusMetrics } from './prometheus.js';
 
 export function createMetricsRoutes(pool: Pool): Router {
   const router = Router();
+
+  // Initialize Prometheus metrics
+  const prometheus = new PrometheusMetrics(pool);
 
   /**
    * GET /metrics
@@ -239,6 +243,27 @@ export function createMetricsRoutes(pool: Pool): Router {
         error: 'Failed to fetch detailed metrics',
         message: error instanceof Error ? error.message : String(error),
       });
+    }
+  });
+
+  /**
+   * GET /metrics/prometheus
+   *
+   * Prometheus metrics endpoint for scraping
+   * Returns metrics in Prometheus text exposition format
+   */
+  router.get('/metrics/prometheus', async (req, res) => {
+    try {
+      const metrics = await prometheus.scrape();
+
+      res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+      res.send(metrics);
+    } catch (error) {
+      console.error('[Prometheus] Error scraping metrics:', error);
+      res.status(500).set('Content-Type', 'text/plain').send(
+        '# Error scraping metrics\n' +
+        `# ${error instanceof Error ? error.message : String(error)}\n`
+      );
     }
   });
 
