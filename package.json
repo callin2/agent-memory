@@ -11,6 +11,7 @@
     "network:ips": "node -e \"const os = require('os'); const ifs = os.networkInterfaces(); Object.keys(ifs).forEach(dev => { ifs[dev].forEach(details => { if (details.family === 'IPv4' && !details.internal) console.log(details.address); });});\"",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
     "test:scenarios": "vitest run tests/scenarios",
     "test:scenario": "vitest run",
     "test:performance": "vitest run tests/performance",
