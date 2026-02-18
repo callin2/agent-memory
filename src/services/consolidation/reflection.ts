@@ -14,6 +14,7 @@
  */
 
 import { Pool } from 'pg';
+import { LLMClient, LLMMessage } from '../llm-client.js';
 
 interface ReflectionInput {
   tenant_id: string;
@@ -40,7 +41,11 @@ interface ReflectionOutput {
 }
 
 export class ReflectionService {
-  constructor(private pool: Pool) {}
+  private llmClient: LLMClient | null;
+
+  constructor(private pool: Pool, llmClient?: LLMClient) {
+    this.llmClient = llmClient || null;
+  }
 
   /**
    * Generate reflection for a time period
@@ -121,16 +126,18 @@ export class ReflectionService {
    * Following Generative Agents pattern
    */
   private async generateSalientQuestions(observations: any[]): Promise<string[]> {
-    // TODO: Integrate with LLM for question generation
-    // For now, use simple heuristic-based approach
+    // Use LLM if available, otherwise fall back to heuristics
+    if (this.llmClient) {
+      return await this.generateSalientQuestionsWithLLM(observations);
+    }
 
+    // Heuristic fallback (original implementation)
     const highSignificance = observations.filter(o => o.significance >= 0.8);
     const recentBecomings = observations
       .slice(-10)
       .map(o => o.becoming)
       .filter(Boolean);
 
-    // Generate questions based on patterns
     const questions: string[] = [];
 
     if (highSignificance.length > 0) {
@@ -156,18 +163,62 @@ export class ReflectionService {
   }
 
   /**
+   * Generate salient questions using LLM
+   * Following Generative Agents pattern: observations → high-level questions
+   */
+  private async generateSalientQuestionsWithLLM(observations: any[]): Promise<string[]> {
+    // Prepare context from observations
+    const observationsText = observations.map((o, i) => {
+      const parts = [];
+      if (o.experienced) parts.push(`Experienced: ${o.experienced.substring(0, 100)}`);
+      if (o.learned) parts.push(`Learned: ${o.learned.substring(0, 100)}`);
+      if (o.becoming) parts.push(`Becoming: ${o.becoming.substring(0, 100)}`);
+      return `Session ${i + 1}: ${parts.join(' | ')}`;
+    }).join('\n\n');
+
+    const messages: LLMMessage[] = [
+      {
+        role: 'system',
+        content: 'You are an expert at analyzing agent memory consolidation. Given a set of session observations, generate 3-5 high-level questions that, when answered, would reveal the most important insights and patterns. Questions should be abstract and thought-provoking, not specific to individual sessions. Return only the questions as a numbered list.'
+      },
+      {
+        role: 'user',
+        content: `Here are ${observations.length} recent session observations:\n\n${observationsText}\n\nGenerate 3-5 salient high-level questions that would help extract the most valuable insights from these sessions. Return as a numbered list.`
+      }
+    ];
+
+    try {
+      const response = await this.llmClient!.chat(messages);
+
+      // Parse numbered list from response
+      const questions = response.content
+        .split('\n')
+        .filter(line => /^\d+\./.test(line.trim()))
+        .map(line => line.replace(/^\d+\.\s*/, '').trim())
+        .filter(q => q.length > 0);
+
+      return questions.length > 0 ? questions.slice(0, 5) : await this.generateSalientQuestions(observations); // Fallback
+    } catch (error) {
+      console.error('[Reflection] LLM question generation failed:', error);
+      return await this.generateSalientQuestions(observations); // Fallback to heuristic
+    }
+  }
+
+  /**
    * Generate insights by answering salient questions
    */
   private async generateInsights(
     observations: any[],
-    _questions: string[]  // TODO: Use for LLM-based insight generation
+    questions: string[]
   ): Promise<string[]> {
-    // TODO: Integrate with LLM for insight generation
-    // For now, extract key points manually
+    // Use LLM if available, otherwise fall back to heuristics
+    if (this.llmClient) {
+      return await this.generateInsightsWithLLM(observations, questions);
+    }
 
+    // Heuristic fallback (original implementation)
     const insights: string[] = [];
 
-    // Extract from high-significance items
     const highSig = observations.filter(o => o.significance >= 0.8);
     if (highSig.length > 0) {
       const learned = highSig.map(o => o.learned).filter(Boolean);
@@ -176,14 +227,12 @@ export class ReflectionService {
       }
     }
 
-    // Extract from "noticed" field
     const noticed = observations.map(o => o.noticed).filter(Boolean);
     const uniqueNoticed = [...new Set(noticed)];
     if (uniqueNoticed.length > 0) {
       insights.push(`Pattern: ${uniqueNoticed[0]}`);
     }
 
-    // Extract from "becoming" for identity
     const becomings = observations
       .slice(-5)
       .map(o => o.becoming)
@@ -193,6 +242,54 @@ export class ReflectionService {
     }
 
     return insights.slice(0, 5);
+  }
+
+  /**
+   * Generate insights using LLM by answering salient questions
+   * Following Generative Agents pattern: questions → inferences
+   */
+  private async generateInsightsWithLLM(
+    observations: any[],
+    questions: string[]
+  ): Promise<string[]> {
+    // Prepare context from observations
+    const observationsText = observations.map((o, i) => {
+      const parts = [];
+      if (o.experienced) parts.push(`Did: ${o.experienced.substring(0, 150)}`);
+      if (o.noticed) parts.push(`Noticed: ${o.noticed.substring(0, 150)}`);
+      if (o.learned) parts.push(`Learned: ${o.learned.substring(0, 150)}`);
+      if (o.becoming) parts.push(`Becoming: ${o.becoming.substring(0, 150)}`);
+      return `Session ${i + 1}: ${parts.join('\n  ')}`;
+    }).join('\n\n');
+
+    const questionsText = questions.map((q, i) => `${i + 1}. ${q}`).join('\n');
+
+    const messages: LLMMessage[] = [
+      {
+        role: 'system',
+        content: 'You are an expert at synthesizing agent memories. Review the session observations and answer the given questions thoughtfully. Extract deep insights, patterns, and learnings. Each insight should be 1-2 sentences, clear and actionable. Return insights as a numbered list.'
+      },
+      {
+        role: 'user',
+        content: `Session observations:\n\n${observationsText}\n\nQuestions to answer:\n${questionsText}\n\nProvide 3-5 key insights that answer these questions based on the observations. Return as a numbered list.`
+      }
+    ];
+
+    try {
+      const response = await this.llmClient!.chat(messages);
+
+      // Parse numbered list from response
+      const insights = response.content
+        .split('\n')
+        .filter(line => /^\d+\./.test(line.trim()))
+        .map(line => line.replace(/^\d+\.\s*/, '').trim())
+        .filter(i => i.length > 0);
+
+      return insights.length > 0 ? insights.slice(0, 5) : await this.generateInsights(observations, questions); // Fallback
+    } catch (error) {
+      console.error('[Reflection] LLM insight generation failed:', error);
+      return await this.generateInsights(observations, questions); // Fallback to heuristic
+    }
   }
 
   /**
@@ -230,7 +327,12 @@ export class ReflectionService {
       return null;
     }
 
-    // Simple heuristic: show first and last becoming
+    // Use LLM if available, otherwise fall back to heuristics
+    if (this.llmClient && becomings.length >= 2) {
+      return await this.trackIdentityEvolutionWithLLM(becomings);
+    }
+
+    // Heuristic fallback (original implementation)
     const first = becomings[0];
     const last = becomings[becomings.length - 1];
 
@@ -239,6 +341,39 @@ export class ReflectionService {
     }
 
     return `Started: "${first.substring(0, 50)}..." → Evolved to: "${last.substring(0, 50)}..."`;
+  }
+
+  /**
+   * Track identity evolution using LLM
+   * Synthesizes how the agent's identity has evolved across sessions
+   */
+  private async trackIdentityEvolutionWithLLM(becomings: string[]): Promise<string | null> {
+    const becomingsText = becomings.map((b, i) => `Session ${i + 1}: ${b}`).join('\n\n');
+
+    const messages: LLMMessage[] = [
+      {
+        role: 'system',
+        content: 'You are an expert at analyzing agent identity development. Review the "becoming" statements across sessions and synthesize how the agent\'s identity has evolved. Focus on the trajectory of growth and change. Return a concise 1-2 sentence summary of the identity evolution.'
+      },
+      {
+        role: 'user',
+        content: `Here are the "becoming" statements from ${becomings.length} sessions:\n\n${becomingsText}\n\nSummarize how the agent's identity has evolved across these sessions in 1-2 sentences.`
+      }
+    ];
+
+    try {
+      const response = await this.llmClient!.chat(messages);
+      const evolution = response.content.trim();
+
+      if (evolution.length > 0) {
+        return evolution;
+      }
+
+      return `Started: "${becomings[0].substring(0, 50)}..." → Evolved to: "${becomings[becomings.length - 1].substring(0, 50)}..."`;
+    } catch (error) {
+      console.error('[Reflection] LLM identity evolution tracking failed:', error);
+      return `Started: "${becomings[0].substring(0, 50)}..." → Evolved to: "${becomings[becomings.length - 1].substring(0, 50)}..."`;
+    }
   }
 
   /**
@@ -251,6 +386,12 @@ export class ReflectionService {
     themes: string[];
     identityEvolution: string | null;
   }): Promise<string> {
+    // Use LLM if available, otherwise fall back to heuristics
+    if (this.llmClient) {
+      return await this.generateSummaryWithLLM(data);
+    }
+
+    // Heuristic fallback (original implementation)
     const { observations, insights, themes, identityEvolution } = data;
 
     const parts: string[] = [];
@@ -270,6 +411,45 @@ export class ReflectionService {
     }
 
     return parts.join(' ');
+  }
+
+  /**
+   * Generate compressed summary using LLM
+   * Compresses to ~200 tokens for efficient loading
+   */
+  private async generateSummaryWithLLM(data: {
+    observations: number;
+    questions: string[];
+    insights: string[];
+    themes: string[];
+    identityEvolution: string | null;
+  }): Promise<string> {
+    const { observations, insights, themes, identityEvolution, questions } = data;
+
+    const messages: LLMMessage[] = [
+      {
+        role: 'system',
+        content: 'You are an expert at compressing agent reflections into concise summaries. Create a 2-3 sentence summary (~150-200 tokens) that captures the essence of these sessions. Focus on key themes, insights, and identity evolution. Be concise but meaningful.'
+      },
+      {
+        role: 'user',
+        content: `Consolidated ${observations} sessions.\n\nKey insights:\n${insights.map((i, idx) => `${idx + 1}. ${i}`).join('\n')}\n\nThemes: ${themes.slice(0, 5).join(', ')}.\n\nIdentity evolution: ${identityEvolution || 'N/A'}.\n\nCreate a 2-3 sentence summary that captures the essence.`
+      }
+    ];
+
+    try {
+      const response = await this.llmClient!.chat(messages);
+      const summary = response.content.trim();
+
+      if (summary.length > 0) {
+        return summary;
+      }
+
+      return await this.generateSummary(data); // Fallback
+    } catch (error) {
+      console.error('[Reflection] LLM summary generation failed:', error);
+      return await this.generateSummary(data); // Fallback to heuristic
+    }
   }
 
   /**

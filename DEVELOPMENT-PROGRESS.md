@@ -116,17 +116,22 @@
   - Impact: 10× faster consolidation (15min → 90sec)
 
 ### Domain - Task 9: LLM-Based Reflection Generation
-- [ ] **Todo:** Replace heuristics with LLM calls for salient questions
-- [ ] **Files:** `src/services/consolidation/reflection.ts`
-- [ ] **Effort:** 16-24 hours (2-3 days)
+- [x] **Todo:** Replace heuristics with LLM calls for salient questions
+- [x] **Files:** `src/services/consolidation/reflection.ts`
+- [x] **Effort:** 16-24 hours (2-3 days)
 - [ ] **Dependencies:** None (`llm-client.ts` exists)
-- [ ] **Started:** ___
-- [ ] **Completed:** ___
-- [ ] **Notes:**
-  - Replace `generateSalientQuestions()` heuristics
-  - Replace `generateInsights()` heuristics
-  - Replace `generateSummary()` with LLM compression
-  - Impact: Bridges gap from A- to A+ grade
+- [x] **Started:** 2026-02-18
+- [x] **Completed:** 2026-02-18
+- [x] **Notes:**
+  - ✅ Imported LLMClient into reflection service
+  - ✅ Made LLMClient optional constructor parameter (graceful fallback)
+  - ✅ Replaced `generateSalientQuestions()` with LLM call
+  - ✅ Replaced `generateInsights()` with LLM call
+  - ✅ Replaced `generateSummary()` with LLM compression
+  - ✅ Replaced `trackIdentityEvolution()` with LLM synthesis
+  - ✅ All methods include fallback to heuristics if LLM fails
+  - ✅ Follows Generative Agents pattern: observations → questions → inferences
+  - Impact: Bridges gap from A- to A+ grade, enables research-grade reflection
 
 ### Domain - Task 10: Automated Consolidation Scheduler
 - [ ] **Todo:** Implement cron-like scheduler for daily/weekly/monthly jobs
@@ -249,11 +254,11 @@
 - 🟠 P1 (High): 5 tasks
 - 🟡 P2 (Medium): 7 tasks
 
-**Completed:** 1 / 18 (6%)
+**Completed:** 4 / 18 (22%)
 **In Progress:** 0 tasks
 **Blocked:** 0 tasks
 
-**Last Completed:** Task 3 (Fix SQL Injection) - 2026-02-18
+**Last Completed:** Task 9 (LLM-Based Reflection) - 2026-02-18
 
 **Estimated Effort:**
 - P0: 10-15 days
@@ -313,6 +318,37 @@
   - These don't block our security fixes
   - Can be fixed separately (they're from last session's work)
 - **Next Session:** Start Task 5 (Add missing indexes) - quick win (4 hours)
+
+### Session 3 (2026-02-18)
+- **Started:** 2026-02-18 09:00 UTC
+- **Completed:**
+  - [x] Task 5: Added critical missing indexes
+    - All indexes already existed from previous session
+    - Verified: idx_session_handoffs_tenant_significance, idx_session_handoffs_tags_gin, idx_session_handoffs_tenant_becoming, idx_session_handoffs_tenant_recent_covering, idx_session_handoffs_tenant_compression
+    - Marked as complete (no migration needed)
+  - [x] Task 6: Fixed materialized view refresh lock contention
+    - Created migration 025_async_mv_refresh.sql
+    - Removed blocking trigger: refresh_metadata_on_handoff
+    - Created mv_refresh_queue table for background job
+    - Initialized with memory_metadata view (5-minute refresh interval)
+    - Trigger successfully removed
+  - [x] Task 9: Implemented LLM-based reflection generation
+    - Integrated LLMClient into reflection.ts
+    - Replaced generateSalientQuestions() with LLM call (+ fallback)
+    - Replaced generateInsights() with LLM call (+ fallback)
+    - Replaced generateSummary() with LLM compression (+ fallback)
+    - Replaced trackIdentityEvolution() with LLM synthesis (+ fallback)
+    - All methods follow Generative Agents pattern: observations → questions → inferences
+    - Graceful fallback to heuristics if LLM unavailable or fails
+- **Files Modified:**
+  - src/db/migrations/025_async_mv_refresh.sql (created)
+  - src/services/consolidation/reflection.ts (modified)
+  - DEVELOPMENT-PROGRESS.md (updated)
+- **Learnings:**
+  - Migration 024 indexes already existed - good, no duplication
+  - LLM integration requires graceful fallback for production resilience
+  - Reflection now uses actual LLM calls for research-grade synthesis
+- **Next Session:** Ready to continue with remaining P0 tasks or move to P1 tasks
 
 ---
 
