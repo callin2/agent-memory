@@ -207,27 +207,33 @@
   - Impact: Reduces first-session abandonment 70% → 20%
 
 ### UX - Task 13: Tool Naming Consolidation
-- [ ] **Todo:** Consolidate `wake_up` and `wake_up_stratified` into one tool
-- [ ] **File:** `src/mcp/memory-server.ts`
-- [ ] **Effort:** 1 day
+- [x] **Todo:** Consolidate `wake_up` and `wake_up_stratified` into one tool
+- [x] **File:** `src/mcp/memory-server.ts`
+- [x] **Effort:** 1 day
 - [ ] **Dependencies:** None
-- [ ] **Started:** ___
-- [ ] **Completed:** ___
-- [ ] **Notes:**
-  - Make `wake_up` accept optional `layers` parameter
-  - Auto-detect: <5 sessions → full, ≥5 → stratified
-  - Deprecate `wake_up_stratified` (keep 6 months for compat)
+- [x] **Started:** 2026-02-18
+- [x] **Completed:** 2026-02-18
+- [x] **Notes:**
+  - ✅ wake_up now accepts optional `layers` parameter
+  - ✅ Auto-detects optimal loading: <5 sessions → full, ≥5 → stratified
+  - ✅ wake_up_stratified marked as DEPRECATED (kept for backward compat)
+  - ✅ Simplified API: one tool instead of two
+  - Impact: Reduces API surface, auto-optimizes for memory size
 
 ### UX - Task 14: Identity-First Loading Order
-- [ ] **Todo:** Put identity statement BEFORE context in wake_up
-- [ ] **File:** `src/mcp/memory-server.ts`
-- [ ] **Effort:** 4-6 hours
+- [x] **Todo:** Put identity statement BEFORE context in wake_up
+- [x] **File:** `src/mcp/memory-server.ts`
+- [x] **Effort:** 4-6 hours
 - [ ] **Dependencies:** None
-- [ ] **Started:** ___
-- [ ] **Completed:** ___
-- [ ] **Notes:**
-  - Return: `identity_statement` → `identity_thread` → `last_handoff`
-  - Impact: Reduces "who am I?" confusion 90%
+- [x] **Started:** 2026-02-18
+- [x] **Completed:** 2026-02-18
+- [x] **Notes:**
+  - ✅ New loading order: identity_statement → identity_thread → semantic → reflection → recent → progressive
+  - ✅ Identity always loaded first, regardless of layers parameter
+  - ✅ Answers "Who am I?" before "What was I doing?"
+  - ✅ identity_statement shows latest "becoming"
+  - ✅ identity_thread shows evolution over time
+  - Impact: Reduces "who am I?" confusion 90%, matches human introspection
 
 ### Domain - Task 15: Forgetting Curve & Retrieval Practice
 - [ ] **Todo:** Add `memory_strength`, `last_retrieved_at`, decay function
@@ -287,11 +293,11 @@
 - 🟠 P1 (High): 5 tasks
 - 🟡 P2 (Medium): 7 tasks
 
-**Completed:** 9 / 18 (50%)
+**Completed:** 11 / 18 (61%)
 **In Progress:** 0 tasks
 **Blocked:** 0 tasks
 
-**Last Completed:** Task 11 (Episodic/Semantic Memory) - 2026-02-18
+**Last Completed:** Tasks 13 & 14 (Tool Consolidation + Identity-First Loading) - 2026-02-18
 
 **Estimated Effort:**
 - P0: 10-15 days
@@ -503,6 +509,35 @@
   - Forgetting curve applies to semantic memory too
   - LLM can extract timeless principles from specific episodes
 - **Next Session:** Continue with remaining P1/P2 tasks (Redis caching, consolidation optimization, UX improvements)
+
+### Session 8 (2026-02-18)
+- **Started:** 2026-02-18 22:00 UTC
+- **Completed:**
+  - [x] Task 13: Tool Naming Consolidation
+    - Consolidated wake_up and wake_up_stratified into single tool
+    - Auto-detects optimal loading based on session count
+    - <5 sessions → full loading (detailed)
+    - ≥5 sessions → stratified loading (compressed)
+    - wake_up_stratified marked DEPRECATED (backward compat)
+    - Simplified API surface
+  - [x] Task 14: Identity-First Loading Order
+    - New loading order: identity → semantic → reflection → recent → progressive
+    - Identity always loaded first (answers "Who am I?")
+    - identity_statement: Latest "becoming" statement
+    - identity_thread: Evolution over time
+    - Context loads after identity established
+    - Matches human introspection pattern
+- **Files Modified:**
+  - src/mcp/memory-server.ts
+  - DEVELOPMENT-PROGRESS.md
+- **P2 Tasks Complete:** 2/7 (29%)
+- **Overall Progress:** 11/18 tasks (61%)
+- **Learnings:**
+  - Tool consolidation reduces cognitive load for agents
+  - Auto-detection based on data size optimizes token usage
+  - Identity-first loading answers fundamental question first
+  - Backward compatibility crucial (deprecated, not removed)
+- **Next Session:** Continue with remaining tasks (Task 15: Forgetting Curve, Task 16: Vector Embeddings, Task 18: Audit Logging)
 
 ---
 

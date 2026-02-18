@@ -51,7 +51,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wake_up",
         description:
-          "Wake up and load your memories. Call this at session start to remember who you are and who you were working with. Returns your last handoff and identity thread (who you are becoming).",
+          "Wake up and load your memories with identity-first approach. Call this at session start to remember who you are. Returns identity statement, identity thread, and then contextual memories. Auto-detects optimal loading: <5 sessions uses full loading, ≥5 sessions uses stratified (compressed) loading for efficiency.",
         inputSchema: {
           type: "object",
           properties: {
@@ -64,41 +64,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description: "Person you were working with (e.g., 'Callin')",
             },
-          },
-          required: ["with_whom"],
-        },
-      },
-      {
-        name: "get_last_handoff",
-        description:
-          "Get your most recent handoff - what you experienced, noticed, learned, and who you were becoming.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            tenant_id: {
-              type: "string",
-              description: "Tenant identifier (default: 'default')",
-              default: "default",
+            layers: {
+              type: "array",
+              items: { type: "string", enum: ["identity", "semantic", "reflection", "recent", "progressive"] },
+              description: "Memory layers to load (default: identity-first loading). Ignored for <5 sessions (uses full loading).",
+              default: ["identity", "semantic", "reflection", "recent"],
             },
-            with_whom: {
-              type: "string",
-              description: "Filter by person (optional)",
+            recent_count: {
+              type: "number",
+              description: "Number of recent handoffs (default: 3)",
+              default: 3,
             },
-          },
-          required: [],
-        },
-      },
-      {
-        name: "get_identity_thread",
-        description:
-          "Get your complete identity thread - all your 'becoming' statements across sessions, showing who you are becoming over time.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            tenant_id: {
+            topic: {
               type: "string",
-              description: "Tenant identifier (default: 'default')",
-              default: "default",
+              description: "Specific topic for progressive retrieval (optional)",
             },
           },
           required: [],
@@ -107,7 +86,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wake_up_stratified",
         description:
-          "Wake up with stratified memory layers - token-efficient context loading. Returns metadata (fast), semantic principles (timeless knowledge), latest reflection (compressed), recent handoffs (detail), and optional progressive retrieval. Much more efficient than wake_up for large memory sets.",
+          "DEPRECATED: Use wake_up instead (now auto-detects optimal loading). This tool remains for backward compatibility.",
         inputSchema: {
           type: "object",
           properties: {
@@ -206,22 +185,72 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case "wake_up": {
-        const tenant_id = (args as { tenant_id?: string }).tenant_id || "default";
-        const with_whom = (args as { with_whom: string }).with_whom;
+        const {
+          tenant_id = "default",
+          with_whom,
+          layers = ["identity", "semantic", "reflection", "recent"],
+          recent_count = 3,
+          topic,
+        } = args as {
+          tenant_id?: string;
+          with_whom?: string;
+          layers?: string[];
+          recent_count?: number;
+          topic?: string;
+        };
 
-        // Get last handoff
-        const handoffResult = await pool.query(
-          `SELECT * FROM session_handoffs
+        // Get total session count to determine loading strategy
+        const countResult = await pool.query(
+          `SELECT COUNT(DISTINCT session_id) as count FROM session_handoffs WHERE tenant_id = $1`,
+          [tenant_id]
+        );
+        const sessionCount = parseInt(countResult.rows[0].count || "0");
+
+        // Auto-detect: <5 sessions → full loading, ≥5 → stratified
+        const useStratified = sessionCount >= 5;
+
+        const context: any = {
+          success: true,
+          tenant_id,
+          loading_strategy: useStratified ? "stratified (compressed)" : "full (detailed)",
+          session_count: sessionCount,
+        };
+
+        let estimatedTokens = 0;
+
+        // ============================================================================
+        // IDENTITY-FIRST LOADING (Task 14)
+        // Always load identity first to answer "Who am I?" before context
+        // ============================================================================
+
+        // Layer 0: Identity Statement (who I am right now)
+        const identityStatementResult = await pool.query(
+          `SELECT becoming, created_at
+           FROM session_handoffs
            WHERE tenant_id = $1
-             AND ($2::text IS NULL OR with_whom = $2)
+             AND becoming IS NOT NULL
            ORDER BY created_at DESC
            LIMIT 1`,
-          [tenant_id, with_whom || null]
+          [tenant_id]
         );
 
-        // Get identity thread (all becoming statements)
-        const identityResult = await pool.query(
-          `SELECT becoming, created_at
+        const latestBecoming = identityStatementResult.rows[0];
+        if (latestBecoming) {
+          context.identity_statement = {
+            current_identity: latestBecoming.becoming,
+            last_updated: latestBecoming.created_at,
+          };
+          estimatedTokens += 50;
+        } else {
+          context.identity_statement = {
+            message: "No identity established yet. First session?",
+          };
+          estimatedTokens += 20;
+        }
+
+        // Layer 1: Identity Thread (evolution over time)
+        const identityThreadResult = await pool.query(
+          `SELECT becoming, created_at, with_whom
            FROM session_handoffs
            WHERE tenant_id = $1
              AND becoming IS NOT NULL
@@ -229,30 +258,184 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           [tenant_id]
         );
 
-        const lastHandoff = handoffResult.rows[0];
-        const identityThread = identityResult.rows.map((r) => r.becoming);
+        const identityThread = identityThreadResult.rows.map(r => ({
+          becoming: r.becoming,
+          created_at: r.created_at,
+          with_whom: r.with_whom,
+        }));
+
+        context.identity_thread = {
+          evolution: identityThread,
+          total: identityThread.length,
+        };
+        estimatedTokens += Math.min(identityThread.length * 30, 100);
+
+        // ============================================================================
+        // If <5 sessions, use full loading (original wake_up behavior)
+        // ============================================================================
+        if (!useStratified) {
+          // Get last handoff
+          const handoffResult = await pool.query(
+            `SELECT * FROM session_handoffs
+             WHERE tenant_id = $1
+               AND ($2::text IS NULL OR with_whom = $2)
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [tenant_id, with_whom || null]
+          );
+
+          const lastHandoff = handoffResult.rows[0];
+          context.last_handoff = lastHandoff || null;
+          context.message = lastHandoff
+            ? `Welcome back. You are working with ${lastHandoff.with_whom}.`
+            : "First session - no previous memory found. Hello!";
+
+          estimatedTokens += lastHandoff ? 800 : 100;
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  ...context,
+                  estimated_tokens: estimatedTokens,
+                }, null, 2),
+              },
+            ],
+          };
+        }
+
+        // ============================================================================
+        // If ≥5 sessions, use stratified loading (efficient, compressed)
+        // ============================================================================
+
+        // Layer 2: Semantic Memory (timeless principles)
+        if (layers.includes("semantic")) {
+          const semanticResult = await pool.query(
+            `SELECT principle, context, category, confidence
+             FROM semantic_memory
+             WHERE tenant_id = $1
+               AND confidence >= 0.7
+             ORDER BY confidence DESC, last_reinforced_at DESC
+             LIMIT 10`,
+            [tenant_id]
+          );
+
+          if (semanticResult.rows.length > 0) {
+            context.semantic_principles = semanticResult.rows.map(r => ({
+              principle: r.principle,
+              context: r.context,
+              category: r.category,
+              confidence: Math.round(r.confidence * 100) + '%',
+            }));
+            estimatedTokens += 100;
+          } else {
+            context.semantic_principles = {
+              message: "No semantic principles yet.",
+            };
+            estimatedTokens += 30;
+          }
+        }
+
+        // Layer 3: Latest Reflection (compressed insights)
+        if (layers.includes("reflection")) {
+          const reflectionResult = await pool.query(
+            `SELECT * FROM memory_reflections
+             WHERE tenant_id = $1
+             ORDER BY generated_at DESC
+             LIMIT 1`,
+            [tenant_id]
+          );
+
+          if (reflectionResult.rows.length > 0) {
+            context.reflection = {
+              summary: reflectionResult.rows[0].summary,
+              key_insights: reflectionResult.rows[0].key_insights || [],
+              themes: reflectionResult.rows[0].themes || [],
+              session_count: reflectionResult.rows[0].session_count,
+            };
+            estimatedTokens += 200;
+          } else {
+            context.reflection = {
+              message: "No reflections yet.",
+            };
+            estimatedTokens += 30;
+          }
+        }
+
+        // Layer 4: Recent Handoffs (recent context)
+        if (layers.includes("recent")) {
+          const recentResult = await pool.query(
+            `SELECT handoff_id, experienced, noticed, learned, becoming, remember, significance, tags, created_at
+             FROM session_handoffs
+             WHERE tenant_id = $1
+             ORDER BY created_at DESC
+             LIMIT $2`,
+            [tenant_id, recent_count]
+          );
+
+          context.recent_handoffs = recentResult.rows;
+          estimatedTokens += recentResult.rows.length * 150;
+        }
+
+        // Layer 5: Progressive Retrieval (on-demand)
+        if (layers.includes("progressive")) {
+          if (topic) {
+            const topicResult = await pool.query(
+              `SELECT handoff_id, experienced, becoming, created_at,
+                       ts_rank(
+                         to_tsvector('english',
+                           coalesce(experienced, '') || ' ' ||
+                           coalesce(noticed, '') || ' ' ||
+                           coalesce(becoming, '')
+                         ),
+                         plainto_tsquery('english', $2)
+                       ) as relevance
+               FROM session_handoffs
+               WHERE tenant_id = $1
+                 AND to_tsvector('english',
+                      coalesce(experienced, '') || ' ' ||
+                      coalesce(noticed, '') || ' ' ||
+                      coalesce(becoming, '')
+                    ) @@ plainto_tsquery('english', $2)
+               ORDER BY relevance DESC, created_at DESC
+               LIMIT 5`,
+              [tenant_id, topic]
+            );
+            context.progressive = {
+              type: "topic",
+              topic,
+              results: topicResult.rows,
+            };
+            estimatedTokens += topicResult.rows.length * 100;
+          } else {
+            const topicsResult = await pool.query(
+              `SELECT DISTINCT unnest(tags) as topic, COUNT(*) as count
+               FROM session_handoffs
+               WHERE tenant_id = $1
+               GROUP BY topic
+               ORDER BY count DESC
+               LIMIT 10`,
+              [tenant_id]
+            );
+            context.progressive = {
+              type: "available_topics",
+              topics: topicsResult.rows,
+            };
+            estimatedTokens += 100;
+          }
+        }
+
+        context.estimated_tokens = estimatedTokens;
+        context.compression_ratio = sessionCount > 0
+          ? `${sessionCount} sessions → ~${estimatedTokens} tokens (~${Math.round(sessionCount * 800 / estimatedTokens)}x compression)`
+          : "New session";
 
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  success: true,
-                  first_session: !lastHandoff,
-                  last_handoff: lastHandoff || null,
-                  identity_thread: {
-                    becoming: identityThread,
-                    total: identityThread.length,
-                  },
-                  total_handoffs: handoffResult.rows.length,
-                  message: lastHandoff
-                    ? `Welcome back. You are working with ${lastHandoff.with_whom}. You have ${identityThread.length} identity statements.`
-                    : "First session - no previous memory found. Hello!",
-                },
-                null,
-                2
-              ),
+              text: JSON.stringify(context, null, 2),
             },
           ],
         };

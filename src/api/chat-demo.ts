@@ -206,7 +206,7 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
         response,
         agent_id,
         memories_used: memories.length,
-        model: 'glm-4.7'
+        model: 'GLM-4.5-air'
       });
 
     } catch (error) {
