@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Connection Debug</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-8">
+  <h1 class="text-2xl font-bold mb-4">API Connection Debug</h1>
+
+  <div class="space-y-4">
+    <div class="bg-gray-800 rounded-lg p-4">
+      <h2 class="text-lg font-semibold mb-2">Test 1: Check Server Health</h2>
+      <div id="health-result" class="font-mono text-sm"></div>
+    </div>
+
+    <div class="bg-gray-800 rounded-lg p-4">
+      <h2 class="text-lg font-semibold mb-2">Test 2: Stratified Memory API</h2>
+      <div id="memory-result" class="font-mono text-sm"></div>
+    </div>
+
+    <div class="bg-gray-800 rounded-lg p-4">
+      <h2 class="text-lg font-semibold mb-2">Test 3: CORS Check</h2>
+      <div id="cors-result" class="font-mono text-sm"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+
+    async function test1() {
+      const result = document.getElementById('health-result');
+      result.innerHTML = '<span class="text-yellow-400">Testing...</span>';
+
+      try {
+        const response = await fetch(`${API_BASE}/health`);
+        const data = await response.json();
+
+        result.innerHTML = `
+          <span class="text-green-400">✓ Success</span>
+          <pre class="mt-2 text-gray-300">${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (error) {
+        result.innerHTML = `
+          <span class="text-red-400">✗ Failed</span>
+          <pre class="mt-2 text-red-300">${error.message}</pre>
+        `;
+      }
+    }
+
+    async function test2() {
+      const result = document.getElementById('memory-result');
+      result.innerHTML = '<span class="text-yellow-400">Testing...</span>';
+
+      try {
+        const response = await fetch(`${API_BASE}/api/memory/wake-up-stratified`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: 'claude-session',
+            layers: ['metadata'],
+            recent_count: 1
+          })
+        });
+
+        const data = await response.json();
+
+        result.innerHTML = `
+          <span class="text-green-400">✓ Success (HTTP ${response.status})</span>
+          <pre class="mt-2 text-gray-300">${JSON.stringify(data, null, 2).substring(0, 500)}...</pre>
+        `;
+      } catch (error) {
+        result.innerHTML = `
+          <span class="text-red-400">✗ Failed</span>
+          <pre class="mt-2 text-red-300">${error.message}</pre>
+          <p class="text-red-400 mt-2">This usually means CORS or network issue</p>
+        `;
+      }
+    }
+
+    async function test3() {
+      const result = document.getElementById('cors-result');
+      result.innerHTML = '<span class="text-yellow-400">Testing...</span>';
+
+      try {
+        const response = await fetch(`${API_BASE}/api/memory/wake-up-stratified`, {
+          method: 'OPTIONS',
+          headers: {
+            'Origin': window.location.origin,
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'Content-Type'
+          }
+        });
+
+        const corsHeaders = {
+          'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+          'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+          'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+        };
+
+        result.innerHTML = `
+          <span class="text-green-400">✓ CORS Preflight OK (HTTP ${response.status})</span>
+          <pre class="mt-2 text-gray-300">${JSON.stringify(corsHeaders, null, 2)}</pre>
+        `;
+      } catch (error) {
+        result.innerHTML = `
+          <span class="text-red-400">✗ Failed</span>
+          <pre class="mt-2 text-red-300">${error.message}</pre>
+        `;
+      }
+    }
+
+    // Run tests
+    test1();
+    setTimeout(test2, 500);
+    setTimeout(test3, 1000);
+  </script>
+</body>
+</html>

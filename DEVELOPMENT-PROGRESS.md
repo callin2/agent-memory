@@ -34,16 +34,18 @@
   - Risk: Horizontal privilege escalation (Tenant A accessing Tenant B data)
 
 ### Security - Task 3: Fix SQL Injection in ILIKE Queries
-- [ ] **Todo:** Replace ILIKE with full-text search (`@@ plainto_tsquery`)
-- [ ] **Files:** `src/mcp/memory-server.ts:406`, `src/api/stratified-memory.ts:334`
-- [ ] **Effort:** 1 day
+- [x] **Todo:** Replace ILIKE with full-text search (`@@ plainto_tsquery`)
+- [x] **Files:** `src/mcp/memory-server.ts:406`, `src/api/stratified-memory.ts:334`
+- [x] **Effort:** 1 day
 - [ ] **Dependencies:** None
-- [ ] **Started:** ___
-- [ ] **Completed:** ___
+- [x] **Started:** 2026-02-18
+- [x] **Completed:** 2026-02-18
 - [ ] **Notes:**
-  - Current bad pattern: `ILIKE '%' || $2 || '%'`
-  - Use existing FTS index: `idx_handoffs_fts`
-  - Escape function: `sanitizeILIKESearch()` for special characters
+  - ✅ Fixed `src/mcp/memory-server.ts:406`: Replaced ILIKE with `to_tsvector() @@ plainto_tsquery()`
+  - ✅ Fixed `src/api/stratified-memory.ts:334`: Replaced ILIKE with `to_tsvector() @@ plainto_tsquery()`
+  - ✅ Now uses existing GIN index `idx_handoffs_fts` for O(log n) search
+  - ✅ Added relevance ranking with `ts_rank()` for better results
+  - Impact: Prevents SQL injection, enables index usage, faster queries
 
 ### Database - Task 4: Add Missing Foreign Key Constraints
 - [ ] **Todo:** Add FKs to `session_handoffs`, `knowledge_notes`, `consolidation_jobs`
@@ -247,9 +249,11 @@
 - 🟠 P1 (High): 5 tasks
 - 🟡 P2 (Medium): 7 tasks
 
-**Completed:** 0 / 18 (0%)
+**Completed:** 1 / 18 (6%)
 **In Progress:** 0 tasks
 **Blocked:** 0 tasks
+
+**Last Completed:** Task 3 (Fix SQL Injection) - 2026-02-18
 
 **Estimated Effort:**
 - P0: 10-15 days
@@ -294,13 +298,21 @@
   - Expert review (Principle 7) reveals critical gaps
 - **Next Session:** Start with Task 3 (Fix SQL injection)
 
-### Session 2 (___)
-- **Started:** ___
+### Session 2 (2026-02-18)
+- **Started:** 2026-02-18 08:30 UTC
 - **Completed:**
-  - [ ] Task ___
-- **Blocked by:** ___
-- **Learnings:** ___
-- **Next Session:** ___
+  - [x] Task 3: Fixed SQL injection in ILIKE queries
+    - Fixed `src/mcp/memory-server.ts:406`
+    - Fixed `src/api/stratified-memory.ts:334`
+    - Replaced ILIKE with full-text search (`@@ plainto_tsquery`)
+    - Uses existing GIN index (`idx_handoffs_fts`)
+    - Added relevance ranking (`ts_rank()`)
+- **Blocked by:** None
+- **Learnings:**
+  - Pre-existing TypeScript errors in other files (llm-client.ts, handoff-adaptive.ts, agent-orchestrator.ts)
+  - These don't block our security fixes
+  - Can be fixed separately (they're from last session's work)
+- **Next Session:** Start Task 5 (Add missing indexes) - quick win (4 hours)
 
 ---
 

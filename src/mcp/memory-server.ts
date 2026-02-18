@@ -105,6 +105,37 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "wake_up_stratified",
+        description:
+          "Wake up with stratified memory layers - token-efficient context loading. Returns metadata (fast), latest reflection (compressed), recent handoffs (detail), and optional progressive retrieval. Much more efficient than wake_up for large memory sets.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+            layers: {
+              type: "array",
+              items: { type: "string", enum: ["metadata", "reflection", "recent", "progressive"] },
+              description: "Which layers to load. Default: all",
+              default: ["metadata", "reflection", "recent"],
+            },
+            recent_count: {
+              type: "number",
+              description: "Number of recent handoffs to include (default: 3)",
+              default: 3,
+            },
+            topic: {
+              type: "string",
+              description: "Specific topic for progressive retrieval (optional)",
+            },
+          },
+          required: [],
+        },
+      },
+      {
         name: "create_handoff",
         description:
           "Create a session handoff to preserve who you became in this session. Call this at session end.",
@@ -283,6 +314,148 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 null,
                 2
               ),
+            },
+          ],
+        };
+      }
+
+      case "wake_up_stratified": {
+        const {
+          tenant_id = "default",
+          layers = ["metadata", "reflection", "recent"],
+          recent_count = 3,
+          topic,
+        } = args as {
+          tenant_id?: string;
+          layers?: string[];
+          recent_count?: number;
+          topic?: string;
+        };
+
+        const context: any = {
+          success: true,
+          tenant_id,
+          layers_loaded: layers,
+        };
+
+        let estimatedTokens = 0;
+
+        // Layer 1: Metadata (~50 tokens)
+        if (layers.includes("metadata")) {
+          const metadataResult = await pool.query(
+            `SELECT * FROM memory_metadata WHERE tenant_id = $1`,
+            [tenant_id]
+          );
+          context.metadata = metadataResult.rows[0] || {
+            session_count: 0,
+            message: "No metadata found. First session?",
+          };
+          estimatedTokens += 50;
+        }
+
+        // Layer 2: Latest reflection (~200 tokens)
+        if (layers.includes("reflection")) {
+          const reflectionResult = await pool.query(
+            `SELECT * FROM memory_reflections
+             WHERE tenant_id = $1
+             ORDER BY generated_at DESC
+             LIMIT 1`,
+            [tenant_id]
+          );
+
+          if (reflectionResult.rows.length > 0) {
+            context.reflection = {
+              summary: reflectionResult.rows[0].summary,
+              key_insights: reflectionResult.rows[0].key_insights || [],
+              themes: reflectionResult.rows[0].themes || [],
+              session_count: reflectionResult.rows[0].session_count,
+              generated_at: reflectionResult.rows[0].generated_at,
+            };
+            estimatedTokens += 200;
+          } else {
+            context.reflection = {
+              message: "No reflections yet. System needs to run consolidation.",
+              hint: "Reflections are created periodically from session data.",
+            };
+            estimatedTokens += 50;
+          }
+        }
+
+        // Layer 3: Recent handoffs (~500 tokens for 3 handoffs)
+        if (layers.includes("recent")) {
+          const recentResult = await pool.query(
+            `SELECT handoff_id, experienced, noticed, learned, becoming, remember, significance, tags, created_at
+             FROM session_handoffs
+             WHERE tenant_id = $1
+             ORDER BY created_at DESC
+             LIMIT $2`,
+            [tenant_id, recent_count]
+          );
+          context.recent = recentResult.rows;
+          estimatedTokens += recentResult.rows.length * 150; // ~150 tokens per handoff
+        }
+
+        // Layer 4: Progressive retrieval (on-demand, varies)
+        if (layers.includes("progressive")) {
+          if (topic) {
+            // Topic-based retrieval using full-text search (fixes SQL injection)
+            const topicResult = await pool.query(
+              `SELECT handoff_id, experienced, becoming, created_at,
+                       ts_rank(
+                         to_tsvector('english',
+                           coalesce(experienced, '') || ' ' ||
+                           coalesce(noticed, '') || ' ' ||
+                           coalesce(becoming, '')
+                         ),
+                         plainto_tsquery('english', $2)
+                       ) as relevance
+               FROM session_handoffs
+               WHERE tenant_id = $1
+                 AND to_tsvector('english',
+                      coalesce(experienced, '') || ' ' ||
+                      coalesce(noticed, '') || ' ' ||
+                      coalesce(becoming, '')
+                    ) @@ plainto_tsquery('english', $2)
+               ORDER BY relevance DESC, created_at DESC
+               LIMIT 5`,
+              [tenant_id, topic]
+            );
+            context.progressive = {
+              type: "topic",
+              topic,
+              results: topicResult.rows,
+            };
+            estimatedTokens += topicResult.rows.length * 100;
+          } else {
+            // Show available topics (using GIN index)
+            const topicsResult = await pool.query(
+              `SELECT DISTINCT unnest(tags) as topic, COUNT(*) as count
+               FROM session_handoffs
+               WHERE tenant_id = $1
+               GROUP BY topic
+               ORDER BY count DESC
+               LIMIT 10`,
+              [tenant_id]
+            );
+            context.progressive = {
+              type: "available_topics",
+              topics: topicsResult.rows,
+              hint: "Call again with topic parameter to retrieve specific memories.",
+            };
+            estimatedTokens += 100;
+          }
+        }
+
+        context.estimated_tokens = estimatedTokens;
+        context.compression_ratio = context.metadata?.session_count
+          ? `${context.metadata.session_count} sessions → ${estimatedTokens} tokens`
+          : "New session";
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(context, null, 2),
             },
           ],
         };

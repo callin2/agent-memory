@@ -434,6 +434,88 @@ export function createAPIRoutes(pool: Pool): Router {
   });
 
   // ========================================================================
+  // Tenant API Routes
+  // ========================================================================
+
+  /**
+   * POST /api/v1/tenants
+   * Create a new tenant
+   */
+  apiRouter.post(
+    "/tenants",
+    async (req: Request, res: Response) => {
+      try {
+        const { id, name } = req.body;
+
+        if (!id) {
+          return res.status(400).json({
+            error: "Missing required field: id",
+          });
+        }
+
+        // Check if tenant already exists
+        const existing = await pool.query(
+          "SELECT tenant_id FROM tenants WHERE tenant_id = $1",
+          [id]
+        );
+
+        if (existing.rows.length > 0) {
+          return res.status(409).json({
+            error: "Tenant already exists",
+            tenant_id: id,
+          });
+        }
+
+        // Create tenant
+        const result = await pool.query(
+          `INSERT INTO tenants (tenant_id, name, settings)
+           VALUES ($1, $2, $3)
+           RETURNING tenant_id, name, created_at`,
+          [id, name || id, {}]
+        );
+
+        return res.status(201).json(result.rows[0]);
+      } catch (error: any) {
+        console.error("Error creating tenant:", error);
+        return res.status(500).json({
+          error: "Failed to create tenant",
+          message:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/tenants/:id
+   * Get tenant details
+   */
+  apiRouter.get(
+    "/tenants/:id",
+    async (req: Request, res: Response) => {
+      try {
+        const result = await pool.query(
+          "SELECT * FROM tenants WHERE tenant_id = $1",
+          [req.params.id]
+        );
+
+        if (result.rows.length === 0) {
+          return res.status(404).json({ error: "Tenant not found" });
+        }
+
+        return res.json(result.rows[0]);
+      } catch (error: any) {
+        console.error("Error getting tenant:", error);
+        return res.status(500).json({
+          error: "Failed to get tenant",
+          message:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+      }
+    },
+  );
+
+  // ========================================================================
   // Session API Routes
   // ========================================================================
 

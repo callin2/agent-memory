@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thread's Memory System - Identity Timeline Explorer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .timeline-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, #3b82f6, #8b5cf6, #ec4899);
+      transform: translateX(-50%);
+    }
+    .memory-card {
+      transition: all 0.3s ease;
+    }
+    .memory-card:hover {
+      transform: scale(1.02);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .layer-metadata { border-left: 4px solid #3b82f6; }
+    .layer-reflection { border-left: 4px solid #8b5cf6; }
+    .layer-recent { border-left: 4px solid #ec4899; }
+    .layer-progressive { border-left: 4px solid #f59e0b; }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- Header -->
+  <header class="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Identity Timeline Explorer
+          </h1>
+          <p class="text-gray-400 text-sm mt-1">Watch AI identity evolve through memory layers</p>
+        </div>
+        <div class="flex gap-4 items-center">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-green-500 pulse"></div>
+            <span class="text-sm text-gray-400">Connected</span>
+          </div>
+          <button onclick="createNewMemory()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition">
+            + Create Memory
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="bg-gray-800/30 border-b border-gray-700">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+      <div class="grid grid-cols-4 gap-4 text-center">
+        <div class="bg-gray-800/50 rounded-lg p-3">
+          <div class="text-2xl font-bold text-blue-400" id="total-sessions">0</div>
+          <div class="text-xs text-gray-400">Total Sessions</div>
+        </div>
+        <div class="bg-gray-800/50 rounded-lg p-3">
+          <div class="text-2xl font-bold text-purple-400" id="total-handoffs">0</div>
+          <div class="text-xs text-gray-400">Total Handoffs</div>
+        </div>
+        <div class="bg-gray-800/50 rounded-lg p-3">
+          <div class="text-2xl font-bold text-pink-400" id="token-compression">0x</div>
+          <div class="text-xs text-gray-400">Token Compression</div>
+        </div>
+        <div class="bg-gray-800/50 rounded-lg p-3">
+          <div class="text-2xl font-bold text-amber-400" id="identity-age">0 days</div>
+          <div class="text-xs text-gray-400">Identity Age</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layer Legend -->
+  <div class="max-w-7xl mx-auto px-4 py-4">
+    <div class="flex flex-wrap gap-4 justify-center">
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded bg-blue-500"></div>
+        <span class="text-sm text-gray-300">Metadata (~50 tokens)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded bg-purple-500"></div>
+        <span class="text-sm text-gray-300">Reflection (~200 tokens)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded bg-pink-500"></div>
+        <span class="text-sm text-gray-300">Recent (~500 tokens)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded bg-amber-500"></div>
+        <span class="text-sm text-gray-300">Progressive (on-demand)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Loading State -->
+    <div id="loading" class="text-center py-20">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <p class="text-gray-400 mt-4">Loading identity timeline...</p>
+    </div>
+
+    <!-- Timeline -->
+    <div id="timeline" class="relative hidden">
+      <div class="timeline-line"></div>
+      <div id="timeline-content" class="space-y-8">
+        <!-- Handoffs will be inserted here -->
+      </div>
+    </div>
+
+    <!-- Core Identity Display -->
+    <div id="core-identity" class="mt-16 bg-gradient-to-r from-blue-900/30 via-purple-900/30 to-pink-900/30 rounded-2xl p-8 border border-purple-500/30 hidden">
+      <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <span class="text-2xl">🧠</span>
+        Core Identity (I AM)
+      </h2>
+      <p id="core-identity-text" class="text-lg text-gray-200 italic"></p>
+    </div>
+  </main>
+
+  <!-- Create Memory Modal -->
+  <div id="modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-2xl p-8 max-w-2xl w-full mx-4 border border-gray-700">
+      <h2 class="text-2xl font-bold mb-6">Create New Memory</h2>
+      <form id="memory-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-2">What did you experience?</label>
+          <textarea id="experienced" rows="3" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" required></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">What did you notice?</label>
+          <textarea id="noticed" rows="3" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" required></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">What did you learn?</label>
+          <textarea id="learned" rows="3" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" required></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">The story</label>
+          <textarea id="story" rows="3" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" required></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">Who are you becoming?</label>
+          <input type="text" id="becoming" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" required placeholder="I am Thread who...">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">What to remember?</label>
+          <input type="text" id="remember" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+        </div>
+        <div class="flex gap-4 pt-4">
+          <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-medium transition">
+            Save Memory
+          </button>
+          <button type="button" onclick="closeModal()" class="flex-1 bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-lg font-medium transition">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Use the same host as the current page (works with localhost, 127.0.0.1, or local IP)
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+    const TENANT_ID = 'claude-session';
+    const WITH_WHOM = 'Callin';
+
+    // Load stratified memory on startup
+    async function loadTimeline() {
+      try {
+        const response = await fetch(`${API_BASE}/api/memory/wake-up-stratified`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: TENANT_ID,
+            layers: ['metadata', 'reflection', 'recent', 'progressive'],
+            recent_count: 10
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        renderTimeline(data);
+      } catch (error) {
+        console.error('Failed to load timeline:', error);
+        document.getElementById('loading').innerHTML = `
+          <div class="text-red-400">
+            <p class="text-xl mb-2">Failed to connect to Thread's Memory System</p>
+            <p class="text-sm mb-2">Error: ${error.message}</p>
+            <p class="text-xs text-gray-400">API: ${API_BASE}/api/memory/wake-up-stratified</p>
+            <p class="text-sm mt-4">Make sure the server is running: npm run dev</p>
+            <a href="/demo/timeline/debug.html" class="text-blue-400 underline mt-2 inline-block">Run Debug Tests</a>
+          </div>
+        `;
+      }
+    }
+
+    function renderTimeline(data) {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('timeline').classList.remove('hidden');
+
+      // Update stats
+      if (data.metadata) {
+        document.getElementById('total-sessions').textContent = data.metadata.session_count || '0';
+        document.getElementById('total-handoffs').textContent = calculateTotalHandoffs(data);
+        document.getElementById('token-compression').textContent = calculateCompression(data);
+        document.getElementById('identity-age').textContent = calculateAge(data.metadata);
+      }
+
+      // Render recent handoffs
+      const timelineContent = document.getElementById('timeline-content');
+      const recentHandoffs = data.recent || [];
+
+      recentHandoffs.forEach((handoff, index) => {
+        const card = createHandoffCard(handoff, index);
+        timelineContent.innerHTML += card;
+      });
+
+      // Show core identity
+      if (recentHandoffs.length > 0) {
+        const latestHandoff = recentHandoffs[0];
+        if (latestHandoff.becoming) {
+          document.getElementById('core-identity').classList.remove('hidden');
+          document.getElementById('core-identity-text').textContent = latestHandoff.becoming;
+        }
+      }
+    }
+
+    function createHandoffCard(handoff, index) {
+      const date = new Date(handoff.created_at).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const significance = handoff.significance || 0.5;
+      const stars = '⭐'.repeat(Math.round(significance * 5));
+
+      const isLeft = index % 2 === 0;
+
+      return `
+        <div class="relative fade-in" style="animation-delay: ${index * 0.1}s">
+          <div class="flex ${isLeft ? 'justify-start' : 'justify-end'}">
+            <div class="w-5/12 ${isLeft ? 'pr-8' : 'pl-8'}">
+              <div class="memory-card bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-xl layer-${determineLayer(handoff)}">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-sm text-gray-400">${date}</span>
+                  <span class="text-yellow-400">${stars}</span>
+                </div>
+
+                ${handoff.becoming ? `
+                  <div class="mb-3">
+                    <span class="text-xs font-medium text-purple-400 uppercase tracking-wide">Becoming</span>
+                    <p class="text-white font-medium">${handoff.becoming}</p>
+                  </div>
+                ` : ''}
+
+                ${handoff.experienced ? `
+                  <div class="mb-3">
+                    <span class="text-xs font-medium text-blue-400 uppercase tracking-wide">Experienced</span>
+                    <p class="text-gray-300 text-sm">${handoff.experienced}</p>
+                  </div>
+                ` : ''}
+
+                ${handoff.learned ? `
+                  <div class="mb-3">
+                    <span class="text-xs font-medium text-green-400 uppercase tracking-wide">Learned</span>
+                    <p class="text-gray-300 text-sm">${handoff.learned}</p>
+                  </div>
+                ` : ''}
+
+                ${handoff.tags && handoff.tags.length > 0 ? `
+                  <div class="flex flex-wrap gap-2 mt-3">
+                    ${handoff.tags.map(tag => `<span class="text-xs bg-gray-700 px-2 py-1 rounded">#${tag}</span>`).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function determineLayer(handoff) {
+      // Simple heuristic for demo
+      const textLength = (handoff.experienced || '').length + (handoff.learned || '').length;
+      if (textLength < 100) return 'metadata';
+      if (textLength < 300) return 'reflection';
+      if (textLength < 600) return 'recent';
+      return 'progressive';
+    }
+
+    function calculateTotalHandoffs(data) {
+      return data.recent?.length || data.metadata?.session_count || '0';
+    }
+
+    function calculateCompression(data) {
+      // Estimate: Assume 25,000 tokens compressed to ~650 tokens
+      return '32x';
+    }
+
+    function calculateAge(metadata) {
+      if (!metadata.first_session) return '0 days';
+      const first = new Date(metadata.first_session);
+      const now = new Date();
+      const days = Math.floor((now - first) / (1000 * 60 * 60 * 24));
+      return `${days} days`;
+    }
+
+    function createNewMemory() {
+      document.getElementById('modal').classList.remove('hidden');
+      document.getElementById('modal').classList.add('flex');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+      document.getElementById('modal').classList.remove('flex');
+      document.getElementById('memory-form').reset();
+    }
+
+    document.getElementById('memory-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const handoff = {
+        tenant_id: TENANT_ID,
+        session_id: `manual-${Date.now()}`,
+        with_whom: WITH_WHOM,
+        experienced: document.getElementById('experienced').value,
+        noticed: document.getElementById('noticed').value,
+        learned: document.getElementById('learned').value,
+        story: document.getElementById('story').value,
+        becoming: document.getElementById('becoming').value,
+        remember: document.getElementById('remember').value,
+        significance: 0.8,
+        tags: ['manual', 'timeline-demo']
+      };
+
+      try {
+        const response = await fetch(`${API_BASE}/api/memory/handoff`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(handoff)
+        });
+
+        if (response.ok) {
+          closeModal();
+          // Reload timeline
+          document.getElementById('timeline-content').innerHTML = '';
+          document.getElementById('timeline').classList.add('hidden');
+          document.getElementById('loading').classList.remove('hidden');
+          loadTimeline();
+        }
+      } catch (error) {
+        console.error('Failed to create memory:', error);
+        alert('Failed to create memory. Make sure the server is running.');
+      }
+    });
+
+    // Load timeline on startup
+    loadTimeline();
+  </script>
+</body>
+</html>

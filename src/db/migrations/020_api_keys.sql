@@ -2,10 +2,13 @@
 -- Description: Add API key management for securing API endpoints
 -- Version: 020
 
+-- Drop old api_keys table if it exists (from migration 002)
+DROP TABLE IF EXISTS api_keys CASCADE;
+
 -- API Keys table
-CREATE TABLE IF NOT EXISTS api_keys (
+CREATE TABLE api_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id VARCHAR(255) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  tenant_id VARCHAR(255) NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
 
   -- API key metadata
   name VARCHAR(255) NOT NULL,

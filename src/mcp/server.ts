@@ -8,6 +8,16 @@
 import { Pool } from "pg";
 import { recordEvent, getEvent } from "../core/recorder.js";
 import { buildACB } from "../core/orchestrator.js";
+import {
+  listWorkspacesTool,
+  handleListWorkspaces,
+  getWorkspaceSnapshotTool,
+  handleGetWorkspaceSnapshot,
+  exploreRoomTool,
+  handleExploreRoom,
+  searchAllWorkspacesTool,
+  handleSearchAllWorkspaces
+} from "./tools/workspace-navigation.js";
 
 export interface MCPMessage {
   jsonrpc: "2.0";
@@ -171,6 +181,11 @@ export class MCPServer {
           required: ["tenant_id", "with_whom"],
         },
       },
+      // Workspace Navigation Tools
+      listWorkspacesTool,
+      getWorkspaceSnapshotTool,
+      exploreRoomTool,
+      searchAllWorkspacesTool,
     ];
   }
 
@@ -228,6 +243,14 @@ export class MCPServer {
         return await this.handleGetEvent(args);
       case "memory_session_startup":
         return await this.handleSessionStartup(args);
+      case "list_workspaces":
+        return await handleListWorkspaces(this.pool, args.tenant_id);
+      case "get_workspace_snapshot":
+        return await handleGetWorkspaceSnapshot(this.pool, args.tenant_id, args.max_tokens);
+      case "explore_room":
+        return await handleExploreRoom(this.pool);
+      case "search_all_workspaces":
+        return await handleSearchAllWorkspaces(this.pool, args.tenant_id, args.query, args.limit, args.offset);
       default:
         throw {
           code: -32601,

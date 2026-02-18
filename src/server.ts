@@ -6,9 +6,12 @@ import { createTestHarnessRoutes } from "./api/test-harness-routes.js";
 import { createKnowledgeRoutes } from "./api/knowledge-routes.js";
 import { createSessionStartupRoutes } from "./api/session-startup.js";
 import { createHandoffRoutes } from "./api/handoff.js";
+import { createAdaptiveChatRoutes } from "./api/handoff-adaptive.js";
 import { createConsolidationRoutes } from "./api/consolidation.js";
 import { createMetricsRoutes } from "./api/metrics.js";
 import { createExportRoutes } from "./api/export.js";
+import { createOrchestrationRoutes } from "./api/orchestration.js";
+import { createStratifiedMemoryRoutes } from "./api/stratified-memory.js";
 import { startMCPServer } from "./mcp/server.js";
 import { applyMcpEnvDefaults } from "./utils/mcp-env.js";
 import { promises as fs } from "fs";
@@ -232,16 +235,22 @@ const testHarnessRoutes = createTestHarnessRoutes(pool);
 const knowledgeRoutes = createKnowledgeRoutes(pool);
 const sessionStartupRoutes = createSessionStartupRoutes(pool);
 const handoffRoutes = createHandoffRoutes(pool);
+const adaptiveChatRoutes = createAdaptiveChatRoutes(pool);
 const consolidationRoutes = createConsolidationRoutes(pool);
 const exportRoutes = createExportRoutes(pool);
+const orchestrationRoutes = createOrchestrationRoutes(pool);
+const stratifiedMemoryRoutes = createStratifiedMemoryRoutes(pool);
 
 app.use("/api/v1", apiRoutes);
 app.use("/api/v1/test-harness", testHarnessRoutes);
 app.use("/api/v1/knowledge", knowledgeRoutes);
 app.use("/api/v1", sessionStartupRoutes); // Session startup under /api/v1
 app.use("/api/v1", handoffRoutes); // Handoff routes under /api/v1
+app.use("/api/v1", adaptiveChatRoutes); // Adaptive chat routes under /api/v1
 app.use("/api/v1", consolidationRoutes); // Consolidation routes under /api/v1
+app.use("/api/v1", orchestrationRoutes); // Orchestration routes under /api/v1
 app.use("/api/v1", exportRoutes); // Export routes under /api/v1
+app.use("/api/memory", stratifiedMemoryRoutes); // Stratified memory under /api/memory
 
 // Metrics and health monitoring (serves both humans and agents)
 const metricsRoutes = createMetricsRoutes(pool);
@@ -253,6 +262,20 @@ const frontendDistPath = path.join(__dirname, '..', 'web-ui', 'dist');
 
 // Serve static files from /test-harness route
 app.use('/test-harness', express.static(frontendDistPath, {
+  index: 'index.html',
+  maxAge: '1h'
+}));
+
+// Serve static files from /demo route
+const demoPath = path.join(__dirname, '..', 'demo');
+app.use('/demo', express.static(demoPath, {
+  index: 'index.html',
+  maxAge: '1h'
+}));
+
+// Serve static files from /thread-demo route (separate repo)
+const threadDemoPath = path.join(__dirname, '..', '..', 'thread_demo');
+app.use('/thread-demo', express.static(threadDemoPath, {
   index: 'index.html',
   maxAge: '1h'
 }));

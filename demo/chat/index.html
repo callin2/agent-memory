@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Agent Chat - Thread's Memory System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .message-enter {
+      animation: messageSlide 0.3s ease-out;
+    }
+    @keyframes messageSlide {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .typing-indicator span {
+      animation: typingBounce 1.4s infinite ease-in-out both;
+    }
+    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+    .agent-card {
+      transition: all 0.2s ease;
+    }
+    .agent-card:hover {
+      transform: translateY(-2px);
+    }
+    .agent-card.selected {
+      ring: 2px;
+      ring-color: #3b82f6;
+    }
+    .memory-chip {
+      animation: chipFade 0.3s ease-out;
+    }
+    @keyframes chipFade {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- Header -->
+  <header class="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Multi-Agent Chat Demo
+          </h1>
+          <p class="text-gray-400 text-sm mt-1">AI agents that remember your project work</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+            <span class="text-sm text-gray-400">Connected</span>
+          </div>
+          <button onclick="showInfo()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">
+            ℹ️ About
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 py-6 flex gap-6" style="height: calc(100vh - 100px);">
+    <!-- Left Sidebar: Agent Selection -->
+    <div class="w-80 flex-shrink-0">
+      <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+        <h2 class="text-lg font-semibold mb-4">Select Agent</h2>
+        <div class="space-y-3" id="agent-list">
+          <!-- Agents will be inserted here -->
+        </div>
+      </div>
+
+      <!-- Memory Context -->
+      <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 mt-4">
+        <h2 class="text-lg font-semibold mb-3">🧠 Memory Used</h2>
+        <div id="memory-context" class="space-y-2 text-sm">
+          <p class="text-gray-400 italic">Start chatting to see which memories are used...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="flex-1 flex flex-col bg-gray-800 rounded-xl border border-gray-700">
+      <!-- Chat Messages -->
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
+        <div class="text-center text-gray-400 py-20">
+          <div class="text-6xl mb-4">💬</div>
+          <p class="text-lg font-medium mb-2">Start a conversation</p>
+          <p class="text-sm">Select an agent and ask anything about your project</p>
+          <div class="mt-6 text-left max-w-md mx-auto bg-gray-900/50 rounded-lg p-4">
+            <p class="text-xs text-gray-500 mb-2">Try asking:</p>
+            <ul class="text-sm space-y-1 text-gray-300">
+              <li>• "What did we build for Thread's Memory System?"</li>
+              <li>• "How did we fix the TypeScript errors?"</li>
+              <li>• "Tell me about the session_handoffs schema"</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="border-t border-gray-700 p-4">
+        <form id="chat-form" class="flex gap-3">
+          <input
+            type="text"
+            id="user-input"
+            class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Type your message..."
+            autocomplete="off"
+          >
+          <button
+            type="submit"
+            id="send-button"
+            class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Send
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Modal -->
+  <div id="info-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-2xl p-8 max-w-2xl w-full mx-4 border border-gray-700">
+      <h2 class="text-2xl font-bold mb-4">About This Demo</h2>
+      <div class="space-y-4 text-gray-300">
+        <p>This demo shows <strong>AI agents with real memory</strong> - they remember your actual project work and reference it naturally in conversation.</p>
+
+        <div class="bg-gray-900/50 rounded-lg p-4">
+          <h3 class="font-semibold text-white mb-2">🎭 The Agents</h3>
+          <ul class="space-y-2 text-sm">
+            <li><strong class="text-blue-400">Planner</strong> - Designs system architecture and coordinates work</li>
+            <li><strong class="text-purple-400">Researcher</strong> - Investigates APIs, debugs issues, explores frameworks</li>
+            <li><strong class="text-pink-400">Writer</strong> - Documents schemas, creates content, writes guides</li>
+            <li><strong class="text-green-400">Reviewer</strong> - Reviews work, catches issues, ensures quality</li>
+          </ul>
+        </div>
+
+        <div class="bg-gray-900/50 rounded-lg p-4">
+          <h3 class="font-semibold text-white mb-2">🧠 How Memory Works</h3>
+          <p class="text-sm">Each agent loads their last 10 handoffs + team's last 15 handoffs. This gives them:</p>
+          <ul class="text-sm space-y-1 mt-2">
+            <li>✅ Personal context (what they did)</li>
+            <li>✅ Shared context (what the team did)</li>
+            <li>✅ Natural conversation tone (no robot-speak)</li>
+            <li>✅ Identity continuity (they become through work)</li>
+          </ul>
+        </div>
+
+        <p class="text-sm italic">Built with Thread's Memory System - <a href="/demo/timeline/index.html" class="text-blue-400 hover:underline">View Timeline Demo</a></p>
+      </div>
+      <button onclick="hideInfo()" class="mt-6 w-full bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-lg font-medium transition">
+        Got it!
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+    const TENANT_ID = 'claude-session';
+
+    // Agent definitions
+    const agents = [
+      {
+        id: 'planner',
+        name: 'Planner',
+        color: 'blue',
+        description: 'Designs architecture & coordinates work',
+        emoji: '📐',
+        systemPrompt: 'You are the Planner. You design system architecture, plan implementations, and coordinate team work. Reference actual project work naturally. Sound like a colleague, not a robot.'
+      },
+      {
+        id: 'researcher',
+        name: 'Researcher',
+        color: 'purple',
+        description: 'Investigates APIs & debugs issues',
+        emoji: '🔍',
+        systemPrompt: 'You are the Researcher. You investigate APIs, debug errors, and explore frameworks. Reference actual debugging sessions naturally. Sound like a colleague, not a robot.'
+      },
+      {
+        id: 'writer',
+        name: 'Writer',
+        color: 'pink',
+        description: 'Documents schemas & creates content',
+        emoji: '✍️',
+        systemPrompt: 'You are the Writer. You document schemas, create guides, and write content. Reference actual documentation work naturally. Sound like a colleague, not a robot.'
+      },
+      {
+        id: 'reviewer',
+        name: 'Reviewer',
+        color: 'green',
+        description: 'Reviews work & ensures quality',
+        emoji: '👁️',
+        systemPrompt: 'You are the Reviewer. You review implementations, catch issues, and ensure quality. Reference actual review work naturally. Sound like a colleague, not a robot.'
+      }
+    ];
+
+    let selectedAgent = null;
+    let conversationHistory = [];
+
+    // Initialize agent list
+    function initAgentList() {
+      const container = document.getElementById('agent-list');
+      container.innerHTML = agents.map(agent => `
+        <div
+          class="agent-card bg-gray-700 rounded-lg p-3 cursor-pointer border-2 border-transparent hover:border-${agent.color}-500"
+          data-agent="${agent.id}"
+          onclick="selectAgent('${agent.id}')"
+        >
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">${agent.emoji}</span>
+            <div>
+              <div class="font-semibold text-${agent.color}-400">${agent.name}</div>
+              <div class="text-xs text-gray-400">${agent.description}</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Select an agent
+    function selectAgent(agentId) {
+      selectedAgent = agents.find(a => a.id === agentId);
+
+      // Update UI
+      document.querySelectorAll('.agent-card').forEach(card => {
+        card.classList.remove('border-blue-500', 'border-purple-500', 'border-pink-500', 'border-green-500', 'bg-gray-600');
+        card.classList.add('border-transparent');
+      });
+
+      const selectedCard = document.querySelector(`[data-agent="${agentId}"]`);
+      selectedCard.classList.remove('border-transparent');
+      selectedCard.classList.add(`border-${selectedAgent.color}-500`, 'bg-gray-600');
+
+      // Load agent's memory
+      loadAgentMemory(agentId);
+
+      // Add system message
+      addMessage('system', `${selectedAgent.emoji} ${selectedAgent.name} joined the chat`);
+    }
+
+    // Load agent's memory
+    async function loadAgentMemory(agentId) {
+      const memoryContainer = document.getElementById('memory-context');
+      memoryContainer.innerHTML = '<p class="text-gray-400 animate-pulse">Loading memories...</p>';
+
+      try {
+        const response = await fetch(`${API_BASE}/api/memory/wake-up-stratified`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: `${TENANT_ID}:${agentId}`,
+            layers: ['metadata', 'recent'],
+            recent_count: 5
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.recent && data.recent.length > 0) {
+          memoryContainer.innerHTML = data.recent.map(handoff => `
+            <div class="memory-chip bg-gray-700 rounded px-2 py-1 text-xs">
+              <span class="text-gray-400">${new Date(handoff.created_at).toLocaleDateString()}</span>
+              <p class="text-gray-300 truncate">${handoff.experienced?.substring(0, 60)}...</p>
+            </div>
+          `).join('');
+        } else {
+          memoryContainer.innerHTML = '<p class="text-gray-400 italic">No memories yet. Start chatting to build context!</p>
+        }
+      } catch (error) {
+        memoryContainer.innerHTML = '<p class="text-red-400">Failed to load memories</p>';
+      }
+    }
+
+    // Add message to chat
+    function addMessage(type, content, agentName = '') {
+      const container = document.getElementById('chat-messages');
+
+      // Remove placeholder if exists
+      const placeholder = container.querySelector('.text-center');
+      if (placeholder) placeholder.remove();
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message-enter ${type === 'user' ? 'flex justify-end' : ''}`;
+
+      if (type === 'user') {
+        messageDiv.innerHTML = `
+          <div class="bg-blue-600 rounded-2xl rounded-br-sm px-4 py-2 max-w-[70%]">
+            <p class="text-white">${escapeHtml(content)}</p>
+          </div>
+        `;
+      } else if (type === 'agent') {
+        const agent = agents.find(a => a.name === agentName);
+        const color = agent ? agent.color : 'gray';
+        messageDiv.innerHTML = `
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-${color}-600 flex items-center justify-center flex-shrink-0">
+              ${agent?.emoji || '🤖'}
+            </div>
+            <div class="bg-gray-700 rounded-2xl rounded-bl-sm px-4 py-2 max-w-[70%]">
+              <p class="text-xs text-${color}-400 font-medium mb-1">${agentName}</p>
+              <p class="text-gray-200 whitespace-pre-wrap">${escapeHtml(content)}</p>
+            </div>
+          </div>
+        `;
+      } else if (type === 'system') {
+        messageDiv.innerHTML = `
+          <div class="text-center">
+            <span class="bg-gray-700 text-gray-400 text-sm px-3 py-1 rounded-full">${escapeHtml(content)}</span>
+          </div>
+        `;
+      }
+
+      container.appendChild(messageDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Show typing indicator
+    function showTyping() {
+      const container = document.getElementById('chat-messages');
+      const typingDiv = document.createElement('div');
+      typingDiv.id = 'typing-indicator';
+      typingDiv.className = 'flex gap-3 message-enter';
+      typingDiv.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-${selectedAgent.color}-600 flex items-center justify-center flex-shrink-0">
+          ${selectedAgent.emoji}
+        </div>
+        <div class="bg-gray-700 rounded-2xl rounded-bl-sm px-4 py-3">
+          <div class="typing-indicator flex gap-1">
+            <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+            <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+            <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+          </div>
+        </div>
+      `;
+      container.appendChild(typingDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Hide typing indicator
+    function hideTyping() {
+      const typing = document.getElementById('typing-indicator');
+      if (typing) typing.remove();
+    }
+
+    // Simulate agent response (demo mode - doesn't call actual LLM)
+    async function getAgentResponse(userMessage) {
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+
+      // Demo responses based on selected agent
+      const responses = {
+        planner: [
+          "Based on our work on Thread's Memory System, I designed the stratified memory architecture with 4 layers. We implemented it in src/api/stratified-memory.ts to achieve 32x token compression.",
+          "When we designed the MCP server integration, I planned the architecture to support cross-platform memory access. That's why we have both MCP tools and HTTP API endpoints.",
+          "I remember planning the session_handoffs table schema. We added fields for experienced, noticed, learned, story, becoming, and remember to capture both what happened and who we're becoming."
+        ],
+        researcher: [
+          "I investigated the z.ai API integration for glm-4.7 model. We had to debug 17 TypeScript errors related to the API types and response handling.",
+          "When we explored multi-agent frameworks, I found that most don't have persistent memory. That's what led us to build Thread's Memory System - agents need continuity across sessions.",
+          "I debugged the foreign key constraint error in the session_handoffs table. The issue was that tenant_id wasn't properly referencing the tenants table."
+        ],
+        writer: [
+          "I documented the session_handoffs table schema. The table includes fields like becoming (who we're becoming) and remember (what to remember next) to maintain identity continuity.",
+          "When we created the Timeline Explorer demo, I wrote the README and documented the 4-layer memory architecture: metadata, reflection, recent, and progressive.",
+          "I created the interactive documentation showing how stratified memory reduces token usage from 25,000 to ~850 tokens - a 32x compression ratio."
+        ],
+        reviewer: [
+          "When reviewing the Planner's work, I noticed we lacked actual project context. The agents sounded robotic because they didn't reference our real implementation work.",
+          "I caught that the foreign key constraint was missing from the session_handoffs table. We needed to add the reference to tenants table for data integrity.",
+          "During the multi-agent orchestration implementation, I pointed out that the agents weren't using Thread's Memory System persistently. They had better memory than we did!"
+        ]
+      };
+
+      const agentResponses = responses[selectedAgent.id];
+      return agentResponses[Math.floor(Math.random() * agentResponses.length)];
+    }
+
+    // Handle form submission
+    document.getElementById('chat-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!selectedAgent) {
+        alert('Please select an agent first!');
+        return;
+      }
+
+      const input = document.getElementById('user-input');
+      const message = input.value.trim();
+
+      if (!message) return;
+
+      // Add user message
+      addMessage('user', message);
+      conversationHistory.push({ role: 'user', content: message });
+      input.value = '';
+
+      // Disable input
+      document.getElementById('send-button').disabled = true;
+
+      // Show typing indicator
+      showTyping();
+
+      // Get agent response
+      const response = await getAgentResponse(message);
+
+      // Hide typing and add response
+      hideTyping();
+      addMessage('agent', response, selectedAgent.name);
+      conversationHistory.push({ role: 'assistant', content: response });
+
+      // Re-enable input
+      document.getElementById('send-button').disabled = false;
+      input.focus();
+    });
+
+    // Utility functions
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showInfo() {
+      document.getElementById('info-modal').classList.remove('hidden');
+      document.getElementById('info-modal').classList.add('flex');
+    }
+
+    function hideInfo() {
+      document.getElementById('info-modal').classList.add('hidden');
+      document.getElementById('info-modal').classList.remove('flex');
+    }
+
+    // Initialize
+    initAgentList();
+  </script>
+</body>
+</html>
