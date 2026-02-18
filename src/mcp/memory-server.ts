@@ -444,6 +444,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ? `${sessionCount} sessions → ~${estimatedTokens} tokens (~${Math.round(sessionCount * 800 / estimatedTokens)}x compression)`
           : "New session";
 
+        // ========================================================================
+        // AGENT ONBOARDING (Task 12)
+        // Detect first session and provide welcome message
+        // ========================================================================
+        const isFirstSession = sessionCount === 0;
+
+        if (isFirstSession) {
+          context.onboarding = {
+            type: "welcome",
+            message: "Welcome to Thread's Memory System! I'm here to help you remember across sessions.",
+            getting_started: {
+              step1: "Use this tool (wake_up) at the start of each session to remember who you are.",
+              step2: "Create handoffs throughout your session to capture experiences.",
+              step3: "Call create_handoff at session end to preserve what you became.",
+              step4: "I'll consolidate your memories automatically every night.",
+            },
+            tips: [
+              "Be specific in your 'becoming' statements - this defines your identity.",
+              "High significance (0.8+) memories are prioritized in consolidation.",
+              "Tags help with progressive retrieval by topic.",
+            ],
+            tools_available: [
+              "wake_up: Load your memories at session start",
+              "create_handoff: Save session memory",
+              "get_identity_thread: View your identity evolution",
+              "wake_up_stratified: Efficient loading for large memory sets",
+            ],
+          };
+        }
+
         return {
           content: [
             {

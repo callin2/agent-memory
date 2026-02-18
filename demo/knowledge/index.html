@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knowledge Notes - Sticky Notes Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .sticky-note {
+      transition: all 0.3s ease;
+      transform-style: preserve-3d;
+    }
+    .sticky-note:hover {
+      transform: translateY(-4px) rotate(1deg);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+      z-index: 10;
+    }
+    .note-yellow {
+      background: linear-gradient(135deg, #fef08a 0%, #fde047 100%);
+      border-color: #eab308;
+    }
+    .note-pink {
+      background: linear-gradient(135deg, #fbcfe8 0%, #f9a8d4 100%);
+      border-color: #ec4899;
+    }
+    .note-blue {
+      background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
+      border-color: #3b82f6;
+    }
+    .note-green {
+      background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
+      border-color: #22c55e;
+    }
+    .note-purple {
+      background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
+      border-color: #a855f7;
+    }
+    .masonry {
+      column-count: 3;
+      column-gap: 1.5rem;
+    }
+    @media (max-width: 1024px) {
+      .masonry { column-count: 2; }
+    }
+    @media (max-width: 640px) {
+      .masonry { column-count: 1; }
+    }
+    .sticky-card {
+      break-inside: avoid;
+      margin-bottom: 1.5rem;
+    }
+    .tag {
+      transition: all 0.2s ease;
+    }
+    .tag:hover {
+      transform: scale(1.05);
+    }
+    .pin {
+      width: 12px;
+      height: 12px;
+      background: radial-gradient(circle, #dc2626 0%, #991b1b 100%);
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- Header -->
+  <header class="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h1 class="text-2xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+            📝 Knowledge Notes
+          </h1>
+          <p class="text-gray-400 text-sm mt-1">Sticky notes of insights and learnings</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+            <span class="text-sm text-gray-400">Connected</span>
+          </div>
+          <a href="/demo/index.html" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">
+            ← Back to Demos
+          </a>
+        </div>
+      </div>
+
+      <!-- Filter Tags -->
+      <div class="flex flex-wrap gap-2" id="filter-tags">
+        <button onclick="filterNotes('all')" class="filter-btn bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full text-sm transition border-2 border-transparent" data-filter="all">
+          All Notes
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  <div id="loading" class="flex items-center justify-center py-20">
+    <div class="text-center">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mb-4"></div>
+      <p class="text-gray-400">Loading knowledge notes...</p>
+    </div>
+  </div>
+
+  <!-- Notes Container -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <div id="notes-container" class="masonry hidden">
+      <!-- Notes will be inserted here -->
+    </div>
+  </main>
+
+  <!-- Create Note Modal -->
+  <div id="create-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-2xl p-8 max-w-2xl w-full mx-4 border border-gray-700">
+      <h2 class="text-2xl font-bold mb-6">✍️ Create New Note</h2>
+      <form id="note-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-2">Note Content</label>
+          <textarea id="note-text" rows="6" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-transparent" placeholder="What did you learn?" required></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">Tags (comma separated)</label>
+          <input type="text" id="note-tags" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-yellow-500 focus:border-transparent" placeholder="insight, learning, design">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">Note Color</label>
+          <div class="flex gap-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="note-color" value="yellow" checked class="accent-yellow-500">
+              <span class="bg-yellow-400 text-gray-900 px-2 py-1 rounded text-sm">Yellow</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="note-color" value="pink" class="accent-pink-500">
+              <span class="bg-pink-400 text-gray-900 px-2 py-1 rounded text-sm">Pink</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="note-color" value="blue" class="accent-blue-500">
+              <span class="bg-blue-400 text-gray-900 px-2 py-1 rounded text-sm">Blue</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="note-color" value="green" class="accent-green-500">
+              <span class="bg-green-400 text-gray-900 px-2 py-1 rounded text-sm">Green</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="note-color" value="purple" class="accent-purple-500">
+              <span class="bg-purple-400 text-gray-900 px-2 py-1 rounded text-sm">Purple</span>
+            </label>
+          </div>
+        </div>
+        <div class="flex gap-4 pt-4">
+          <button type="submit" class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-gray-900 px-6 py-3 rounded-lg font-medium transition">
+            Create Note
+          </button>
+          <button type="button" onclick="closeModal()" class="flex-1 bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-lg font-medium transition">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Floating Action Button -->
+  <button onclick="openModal()" class="fixed bottom-8 right-8 bg-yellow-500 hover:bg-yellow-600 text-gray-900 w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl transition transform hover:scale-110 z-40">
+    +
+  </button>
+
+  <script>
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+    const TENANT_ID = 'default'; // Knowledge notes use default tenant
+    let allNotes = [];
+    let currentFilter = 'all';
+
+    // Color mapping
+    const colorClasses = {
+      yellow: 'note-yellow',
+      pink: 'note-pink',
+      blue: 'note-blue',
+      green: 'note-green',
+      purple: 'note-purple'
+    };
+
+    // Load notes
+    async function loadNotes() {
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/knowledge/notes?tenant_id=${TENANT_ID}`);
+        const notes = await response.json();
+
+        if (Array.isArray(notes)) {
+          allNotes = notes;
+          renderNotes();
+          extractAndRenderTags(allNotes);
+        } else if (notes.error) {
+          showError(notes.error);
+        } else {
+          showError('Failed to load notes');
+        }
+      } catch (error) {
+        console.error('Failed to load notes:', error);
+        showError('Error loading notes');
+      }
+    }
+
+    function renderNotes() {
+      const container = document.getElementById('notes-container');
+      document.getElementById('loading').classList.add('hidden');
+      container.classList.remove('hidden');
+
+      const filteredNotes = currentFilter === 'all'
+        ? allNotes
+        : allNotes.filter(note => note.tags && note.tags.includes(currentFilter));
+
+      if (filteredNotes.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-20">
+            <div class="text-6xl mb-4">📝</div>
+            <p class="text-gray-400 text-lg">No notes found</p>
+            <button onclick="openModal()" class="mt-4 bg-yellow-600 hover:bg-yellow-700 text-gray-900 px-6 py-2 rounded-lg">
+              Create your first note
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filteredNotes.map((note, index) => {
+        const colorClass = colorClasses[note.color] || colorClasses.yellow;
+        const noteDate = new Date(note.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        return `
+          <div class="sticky-card">
+            <div class="sticky-note ${colorClass} rounded-lg p-6 shadow-lg border-2 relative">
+              <!-- Push Pin -->
+              <div class="absolute -top-2 left-1/2 transform -translate-x-1/2 pin"></div>
+
+              <!-- Content -->
+              <div class="text-gray-900 mb-4">
+                <p class="whitespace-pre-wrap text-sm leading-relaxed">${escapeHtml(note.text)}</p>
+              </div>
+
+              <!-- Tags -->
+              ${note.tags && note.tags.length > 0 ? `
+                <div class="flex flex-wrap gap-2 mb-3">
+                  ${note.tags.map(tag => `
+                    <span onclick="filterNotes('${tag}')" class="tag bg-gray-900/60 hover:bg-gray-900/80 px-2 py-1 rounded text-xs font-medium cursor-pointer text-white">
+                      #${escapeHtml(tag)}
+                    </span>
+                  `).join('')}
+                </div>
+              ` : ''}
+
+              <!-- Footer -->
+              <div class="flex items-center justify-between text-xs text-gray-700">
+                <span>${noteDate}</span>
+                ${note.with_whom ? `<span>with ${escapeHtml(note.with_whom)}</span>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function extractAndRenderTags(notes) {
+      const allTags = new Set();
+      notes.forEach(note => {
+        if (note.tags) {
+          note.tags.forEach(tag => allTags.add(tag));
+        }
+      });
+
+      const filterContainer = document.getElementById('filter-tags');
+      filterContainer.innerHTML = `
+        <button onclick="filterNotes('all')" class="filter-btn bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full text-sm transition border-2 ${currentFilter === 'all' ? 'border-yellow-500' : 'border-transparent'}" data-filter="all">
+          All Notes (${notes.length})
+        </button>
+        ${Array.from(allTags).map(tag => `
+          <button onclick="filterNotes('${escapeHtml(tag)}')" class="filter-btn bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full text-sm transition border-2 ${currentFilter === tag ? 'border-yellow-500' : 'border-transparent'}" data-filter="${escapeHtml(tag)}">
+            #${escapeHtml(tag)}
+          </button>
+        `).join('')}
+      `;
+    }
+
+    function filterNotes(filter) {
+      currentFilter = filter;
+      renderNotes();
+      extractAndRenderTags(allNotes);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showError(message) {
+      document.getElementById('loading').innerHTML = `
+        <div class="text-center text-red-400">
+          <p class="text-xl mb-2">Failed to load notes</p>
+          <p class="text-sm">${message}</p>
+        </div>
+      `;
+    }
+
+    // Modal functions
+    function openModal() {
+      document.getElementById('create-modal').classList.remove('hidden');
+      document.getElementById('create-modal').classList.add('flex');
+    }
+
+    function closeModal() {
+      document.getElementById('create-modal').classList.add('hidden');
+      document.getElementById('create-modal').classList.remove('flex');
+      document.getElementById('note-form').reset();
+    }
+
+    // Create note
+    document.getElementById('note-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const text = document.getElementById('note-text').value;
+      const tagsInput = document.getElementById('note-tags').value;
+      const color = document.querySelector('input[name="note-color"]:checked').value;
+      const tags = tagsInput ? tagsInput.split(',').map(t => t.trim().replace(/^#/, '')) : [];
+
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/knowledge/notes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: TENANT_ID,
+            text,
+            tags,
+            with_whom: 'User via Sticky Notes Demo'
+          })
+        });
+
+        const note = await response.json();
+
+        if (note.id || Array.isArray(note)) {
+          closeModal();
+          loadNotes(); // Reload notes
+        } else if (note.error) {
+          alert('Failed to create note: ' + note.error);
+        } else {
+          closeModal();
+          loadNotes();
+        }
+      } catch (error) {
+        console.error('Failed to create note:', error);
+        alert('Failed to create note');
+      }
+    });
+
+    // Load notes on startup
+    loadNotes();
+  </script>
+</body>
+</html>

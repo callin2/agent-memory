@@ -55,7 +55,8 @@ export function createHandoffRoutes(pool: Pool): Router {
         becoming,
         remember,
         significance = 0.5,
-        tags = []
+        tags = [],
+        sensitivity // Optional: allow manual override
       } = req.body;
 
       // Validation
@@ -67,10 +68,38 @@ export function createHandoffRoutes(pool: Pool): Router {
         return;
       }
 
+      // ========================================================================
+      // PII PROTECTION (Task 17): Auto-classify sensitivity
+      // ========================================================================
+      // If sensitivity not provided, auto-classify using database function
+      let classifiedSensitivity = sensitivity;
+      if (!classifiedSensitivity) {
+        const textToClassify = [
+          experienced,
+          noticed,
+          learned,
+          becoming,
+          story,
+          remember
+        ].filter(Boolean).join(' ');
+
+        const classifyResult = await pool.query(
+          `SELECT classify_sensitivity($1) as sensitivity`,
+          [textToClassify]
+        );
+        classifiedSensitivity = classifyResult.rows[0].sensitivity;
+      }
+
+      // Validate sensitivity level
+      const validSensitivities = ['none', 'low', 'medium', 'high', 'secret'];
+      if (!validSensitivities.includes(classifiedSensitivity)) {
+        classifiedSensitivity = 'none';
+      }
+
       // Generate handoff ID
       const handoff_id = "sh_" + randomBytes(16).toString("hex");
 
-      // Insert handoff
+      // Insert handoff with sensitivity (trigger will auto-encrypt if high/secret)
       const result = await pool.query(
         `INSERT INTO session_handoffs (
           handoff_id,
@@ -84,8 +113,9 @@ export function createHandoffRoutes(pool: Pool): Router {
           becoming,
           remember,
           significance,
-          tags
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          tags,
+          sensitivity
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *`,
         [
           handoff_id,
@@ -99,12 +129,14 @@ export function createHandoffRoutes(pool: Pool): Router {
           becoming,
           remember,
           significance,
-          tags
+          tags,
+          classifiedSensitivity
         ]
       );
 
       const handoff = result.rows[0];
 
+      // Don't return encrypted fields in response (security best practice)
       res.status(201).json({
         success: true,
         handoff: {
@@ -112,7 +144,7 @@ export function createHandoffRoutes(pool: Pool): Router {
           tenant_id: handoff.tenant_id,
           session_id: handoff.session_id,
           with_whom: handoff.with_whom,
-          experienced: handoff.experienced,
+          experienced: handoff.experienced, // Will be NULL if encrypted
           noticed: handoff.noticed,
           learned: handoff.learned,
           story: handoff.story,
@@ -120,10 +152,14 @@ export function createHandoffRoutes(pool: Pool): Router {
           remember: handoff.remember,
           significance: handoff.significance,
           tags: handoff.tags,
+          sensitivity: handoff.sensitivity, // PII protection level
+          encrypted: handoff.sensitivity === 'high' || handoff.sensitivity === 'secret',
           timestamp: handoff.timestamp,
           created_at: handoff.created_at
         },
-        message: "Session handoff created. You'll be remembered."
+        message: handoff.sensitivity === 'secret'
+          ? "Session handoff created with encryption. Sensitive data protected."
+          : "Session handoff created. You'll be remembered."
       });
 
     } catch (error) {
@@ -171,6 +207,7 @@ export function createHandoffRoutes(pool: Pool): Router {
           remember,
           significance,
           tags,
+          sensitivity,
           timestamp,
           created_at
         FROM session_handoffs
@@ -192,6 +229,123 @@ export function createHandoffRoutes(pool: Pool): Router {
       console.error("[Handoff] Error:", error);
       res.status(500).json({
         error: "Failed to retrieve handoffs",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  /**
+   * GET /api/v1/handoff/:handoff_id/decrypt
+   *
+   * Decrypt a handoff for authorized access
+   *
+   * WARNING: Only use after proper authentication/authorization
+   * This endpoint should be protected by API key or OAuth in production
+   *
+   * Returns: Decrypted handoff data
+   */
+  router.get("/handoff/:handoff_id/decrypt", async (req: Request, res: Response) => {
+    try {
+      const handoff_id = req.params.handoff_id;
+
+      if (!handoff_id || !/^sh_[a-f0-9]{32}$/i.test(handoff_id)) {
+        res.status(400).json({
+          error: "Invalid handoff_id format"
+        });
+        return;
+      }
+
+      // Use the decrypt_handoff function
+      const result = await pool.query(
+        `SELECT * FROM decrypt_handoff($1)`,
+        [handoff_id]
+      );
+
+      if (result.rows.length === 0) {
+        res.status(404).json({
+          error: "Handoff not found"
+        });
+        return;
+      }
+
+      const handoff = result.rows[0];
+
+      res.json({
+        success: true,
+        handoff: {
+          handoff_id: handoff.handoff_id,
+          tenant_id: handoff.tenant_id,
+          session_id: handoff.session_id,
+          with_whom: handoff.with_whom,
+          experienced: handoff.experienced,
+          noticed: handoff.noticed,
+          learned: handoff.learned,
+          becoming: handoff.becoming,
+          story: handoff.story,
+          remember: handoff.remember,
+          sensitivity: handoff.sensitivity
+        },
+        decrypted: true
+      });
+
+    } catch (error) {
+      console.error("[Handoff] Decrypt error:", error);
+      res.status(500).json({
+        error: "Failed to decrypt handoff",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  /**
+   * GET /api/v1/handoffs/stats
+   *
+   * Get encryption statistics for a tenant
+   */
+  router.get("/handoffs/stats", async (req: Request, res: Response) => {
+    try {
+      const tenant_id = req.query.tenant_id as string;
+
+      if (!tenant_id) {
+        res.status(400).json({
+          error: "tenant_id is required"
+        });
+        return;
+      }
+
+      const result = await pool.query(
+        `SELECT
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE sensitivity = 'none') as none_count,
+          COUNT(*) FILTER (WHERE sensitivity = 'low') as low_count,
+          COUNT(*) FILTER (WHERE sensitivity = 'medium') as medium_count,
+          COUNT(*) FILTER (WHERE sensitivity = 'high') as high_count,
+          COUNT(*) FILTER (WHERE sensitivity = 'secret') as secret_count,
+          COUNT(*) FILTER (WHERE experienced_encrypted IS NOT NULL) as encrypted_count
+        FROM session_handoffs
+        WHERE tenant_id = $1`,
+        [tenant_id]
+      );
+
+      const stats = result.rows[0];
+
+      res.json({
+        tenant_id,
+        total: parseInt(stats.total),
+        encrypted: parseInt(stats.encrypted_count),
+        by_sensitivity: {
+          none: parseInt(stats.none_count),
+          low: parseInt(stats.low_count),
+          medium: parseInt(stats.medium_count),
+          high: parseInt(stats.high_count),
+          secret: parseInt(stats.secret_count)
+        }
+      });
+
+    } catch (error) {
+      console.error("[Handoff] Stats error:", error);
+      res.status(500).json({
+        error: "Failed to retrieve stats",
         message: error instanceof Error ? error.message : String(error)
       });
     }

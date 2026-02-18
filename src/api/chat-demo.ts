@@ -22,6 +22,9 @@ export function createChatDemoRoutes(pool: Pool): Router {
     llmConfig.baseURL
   );
 
+  // Default tenant for chat demo
+  const CHAT_DEMO_TENANT = process.env.CHAT_DEMO_TENANT || 'claude-session';
+
   if (!llmConfig.apiKey) {
     console.warn('[Chat Demo] LLM API key not configured, using demo mode');
   }
@@ -216,6 +219,85 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
 
     } catch (error) {
       console.error('[Chat Demo] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * POST /api/demo/save-handoff
+   *
+   * Save a conversation as a handoff
+   */
+  router.post('/save-handoff', async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { agent_id, conversation, summary } = req.body;
+
+      if (!agent_id || !conversation || !Array.isArray(conversation)) {
+        res.status(400).json({
+          success: false,
+          error: 'Missing required fields: agent_id, conversation (array)'
+        });
+        return;
+      }
+
+      // Build conversation summary
+      const userMessages = conversation.filter((m: any) => m.role === 'user').map((m: any) => m.content);
+      const agentResponses = conversation.filter((m: any) => m.role === 'assistant').map((m: any) => m.content);
+
+      const experienced = summary || `Had a conversation about: ${userMessages[0]?.substring(0, 50)}...`;
+      const learned = `User asked ${userMessages.length} questions, agent provided ${agentResponses.length} responses`;
+
+      // Save to database
+      const insertQuery = `
+        INSERT INTO session_handoffs (
+          handoff_id,
+          tenant_id,
+          session_id,
+          with_whom,
+          experienced,
+          noticed,
+          learned,
+          story,
+          becoming,
+          remember,
+          significance,
+          tags
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING created_at, session_id
+      `;
+
+      const handoffId = `chat-${agent_id}-${Date.now()}`;
+      const result = await pool.query(insertQuery, [
+        handoffId,
+        CHAT_DEMO_TENANT,
+        `chat-${Date.now()}`,
+        'User via Chat Demo',
+        experienced,
+        `Conversation saved from chat demo with ${agent_id}`,
+        learned,
+        JSON.stringify(conversation).substring(0, 500), // story - truncated conversation
+        '',  // becoming - will be updated if needed
+        `Chat demo conversation with ${agent_id}`,
+        0.6, // significance - moderate
+        ['chat-demo', agent_id, 'user-saved']
+      ]);
+
+      const saved = result.rows[0];
+
+      console.log('[Chat Demo] Saved conversation as handoff:', saved.session_id);
+
+      res.json({
+        success: true,
+        message: 'Conversation saved as handoff',
+        session_id: saved.session_id,
+        created_at: saved.created_at
+      });
+
+    } catch (error) {
+      console.error('[Chat Demo] Error saving handoff:', error);
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

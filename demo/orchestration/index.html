@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Orchestration - Dynamic Workflow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .workflow-step {
+      animation: slideIn 0.5s ease-out;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .typing {
+      animation: typingBounce 1.4s infinite;
+    }
+    .typing span {
+      animation: typingBounce 1.4s infinite ease-in-out both;
+    }
+    .typing span:nth-child(1) { animation-delay: -0.32s; }
+    .typing span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+    .agent-card {
+      transition: all 0.3s ease;
+    }
+    .agent-card.active {
+      ring: 4px;
+      ring-color: #22c55e;
+      transform: scale(1.05);
+    }
+    .workflow-line {
+      position: relative;
+    }
+    .workflow-line::after {
+      content: '';
+      position: absolute;
+      left: 24px;
+      top: 60px;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, #22c55e, #3b82f6);
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- Header -->
+  <header class="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+            🤖 Agent Orchestration Demo
+          </h1>
+          <p class="text-gray-400 text-sm mt-1">Agents that decide workflows dynamically</p>
+        </div>
+        <a href="/demo/index.html" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">
+          ← Back to Demos
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-4 py-6 flex gap-6">
+    <!-- Left: Input -->
+    <div class="w-1/2">
+      <!-- Task Input -->
+      <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <h2 class="text-xl font-semibold mb-4">🎯 What do you need?</h2>
+        <form id="task-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">Describe your task</label>
+            <textarea id="task-input" rows="4" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="E.g., 'Design a REST API for user authentication' or 'Debug the database connection issue'"></textarea>
+          </div>
+          <button type="submit" class="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2">
+            <span>🚀 Start Agents</span>
+          </button>
+        </form>
+
+        <!-- Example Tasks -->
+        <div class="mt-6">
+          <p class="text-sm text-gray-400 mb-3">Try these examples:</p>
+          <div class="space-y-2">
+            <button onclick="setTask('Design a REST API for user authentication')" class="w-full text-left bg-gray-700/50 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">
+              🏗️ Design a REST API for user authentication
+            </button>
+            <button onclick="setTask('Debug why the database connection is failing')" class="w-full text-left bg-gray-700/50 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">
+              🐛 Debug why the database connection is failing
+            </button>
+            <button onclick="setTask('Document the session_handoffs table schema')" class="w-full text-left bg-gray-700/50 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">
+              📚 Document the session_handoffs table schema
+            </button>
+            <button onclick="setTask('Optimize the slow query performance issue')" class="w-full text-left bg-gray-700/50 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">
+              ⚡ Optimize the slow query performance issue
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Agent Workflow -->
+    <div class="w-1/2">
+      <!-- Active Agents Panel -->
+      <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 mb-6">
+        <h2 class="text-xl font-semibold mb-4">🤖 Active Agents</h2>
+        <div id="agents-status" class="grid grid-cols-4 gap-3">
+          <div class="agent-card bg-gray-700 rounded-lg p-3 text-center" id="agent-planner">
+            <div class="text-3xl mb-2">📐</div>
+            <div class="text-xs font-semibold text-blue-400">Planner</div>
+            <div class="text-xs text-gray-500 status">Idle</div>
+          </div>
+          <div class="agent-card bg-gray-700 rounded-lg p-3 text-center" id="agent-researcher">
+            <div class="text-3xl mb-2">🔍</div>
+            <div class="text-xs font-semibold text-purple-400">Researcher</div>
+            <div class="text-xs text-gray-500 status">Idle</div>
+          </div>
+          <div class="agent-card bg-gray-700 rounded-lg p-3 text-center" id="agent-writer">
+            <div class="text-3xl mb-2">✍️</div>
+            <div class="text-xs font-semibold text-pink-400">Writer</div>
+            <div class="text-xs text-gray-500 status">Idle</div>
+          </div>
+          <div class="agent-card bg-gray-700 rounded-lg p-3 text-center" id="agent-reviewer">
+            <div class="text-3xl mb-2">👁️</div>
+            <div class="text-xs font-semibold text-green-400">Reviewer</div>
+            <div class="text-xs text-gray-500 status">Idle</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workflow Visualization -->
+      <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <h2 class="text-xl font-semibold mb-4">📋 Workflow</h2>
+        <div id="workflow-container" class="space-y-0 workflow-line">
+          <div class="text-gray-400 text-center py-10">
+            <p class="text-lg">Agents waiting for task...</p>
+            <p class="text-sm mt-2">Submit a task to see dynamic agent orchestration</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message Modal -->
+  <div id="message-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-2xl p-6 max-w-3xl w-full mx-4 border border-gray-700 shadow-2xl">
+      <div id="modal-content">
+        <!-- Content will be inserted here -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+
+    const agents = {
+      planner: { name: 'Planner', emoji: '📐', color: 'blue', skills: ['architecture', 'design', 'coordination'] },
+      researcher: { name: 'Researcher', emoji: '🔍', color: 'purple', skills: ['investigation', 'debugging', 'analysis'] },
+      writer: { name: 'Writer', emoji: '✍️', color: 'pink', skills: ['documentation', 'content', 'communication'] },
+      reviewer: { name: 'Reviewer', emoji: '👁️', color: 'green', skills: ['quality', 'testing', 'review'] }
+    };
+
+    let currentTask = '';
+    let workflowSteps = [];
+
+    function setTask(text) {
+      document.getElementById('task-input').value = text;
+    }
+
+    // Set form submit handler
+    document.getElementById('task-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const task = document.getElementById('task-input').value.trim();
+      if (!task) return;
+
+      // Clear previous workflow
+      clearWorkflow();
+
+      await orchestrateAgents(task);
+    });
+
+    async function orchestrateAgents(task) {
+      currentTask = task;
+      const container = document.getElementById('workflow-container');
+      let conversationHistory = [];
+
+      // Agent conversation with loops
+      const taskLower = task.toLowerCase();
+      let rounds = 0;
+      const maxRounds = 5; // Prevent infinite loops
+
+      // Start with Planner
+      await updateAgentStatus('planner', 'Thinking...', 'active');
+
+      let currentAgent = 'planner';
+      let currentPrompt = `Task: ${task}\n\nYou are the Planner. Analyze this task and create an initial plan. Decide which other agents need to be involved and in what order. Format your response as: "Plan: ..." followed by your reasoning.`;
+
+      while (rounds < maxRounds) {
+        rounds++;
+
+        // Get current agent's response
+        const response = await getAgentResponse(currentAgent, currentPrompt);
+        conversationHistory.push({ role: currentAgent, content: response });
+
+        // Add to workflow visualization
+        addWorkflowStep(currentAgent, `${agents[currentAgent].emoji} ${agents[currentAgent].name}: ${getActionTitle(response)}`, response);
+
+        // Decide next action based on agent and response
+        const nextStep = decideNextStep(currentAgent, response, taskLower, rounds);
+        await sleep(1000);
+
+        if (nextStep.done) {
+          await updateAgentStatus(currentAgent, 'Idle', 'idle');
+          break;
+        }
+
+        // Switch to next agent
+        await updateAgentStatus(currentAgent, 'Idle', 'idle');
+        currentAgent = nextStep.agent;
+        await updateAgentStatus(currentAgent, 'Working...', 'active');
+
+        // Build prompt with conversation context
+        const conversationContext = conversationHistory.map(m => `${agents[m.role]?.name || m.role}: ${m.content}`).join('\n\n');
+        currentPrompt = `${conversationContext}\n\n${nextStep.prompt}`;
+
+        // Add a small delay between agents
+        await sleep(1000);
+      }
+
+      // Final synthesis
+      await updateAgentStatus('planner', 'Synthesizing...', 'active');
+      const finalResponse = await getAgentResponse('planner', `Based on all the discussion above, provide a final summary and next steps for: ${task}`);
+      conversationHistory.push({ role: 'planner', content: finalResponse });
+      addWorkflowStep('planner', '✅ Final Summary', finalResponse);
+      await updateAgentStatus('planner', 'Idle', 'idle');
+    }
+
+    function decideNextStep(currentAgent, response, taskType, round) {
+      // Define agent decision logic based on task and response
+
+      if (currentAgent === 'planner') {
+        if (round === 1) {
+          if (taskType.includes('design') || taskType.includes('architecture')) {
+            return { agent: 'researcher', prompt: 'What do you think are the best practices and patterns for this task?' };
+          } else if (taskType.includes('debug') || taskType.includes('error')) {
+            return { agent: 'researcher', prompt: 'Can you investigate the root cause by examining similar issues?' };
+          } else if (taskType.includes('document') || taskType.includes('write')) {
+            return { agent: 'researcher', prompt: 'What technical details do we need to gather?' };
+          } else {
+            return { agent: 'researcher', prompt: 'What context do we need to understand?' };
+          }
+        } else if (round === 2) {
+          return { agent: 'writer', prompt: 'Can you create documentation based on what we\'ve discussed?' };
+        } else if (round === 3) {
+          return { agent: 'reviewer', prompt: 'What are your thoughts on this approach? Any issues or concerns?' };
+        } else if (round >= 4) {
+          return { done: true };
+        }
+      }
+
+      if (currentAgent === 'researcher') {
+        if (response.toLowerCase().includes('question') || response.toLowerCase().includes('?')) {
+          return { agent: 'planner', prompt: 'Please clarify or provide guidance.' };
+        } else if (round === 2) {
+          return { agent: 'planner', prompt: 'Based on this research, what should our approach be?' };
+        } else {
+          return { agent: 'planner', prompt: 'What should we do next?' };
+        }
+      }
+
+      if (currentAgent === 'writer') {
+        if (round === 2) {
+          return { agent: 'reviewer', prompt: 'Please review this documentation.' };
+        } else {
+          return { agent: 'planner', prompt: 'Is this complete or should we add anything?' };
+        }
+      }
+
+      if (currentAgent === 'reviewer') {
+        if (response.toLowerCase().includes('issue') || response.toLowerCase().includes('concern') || response.toLowerCase().includes('missing')) {
+          return { agent: 'planner', prompt: 'The reviewer found issues. Please address them.' };
+        } else {
+          return { done: true };
+        }
+      }
+
+      // Default
+      return { agent: 'planner', prompt: 'What should we do next?' };
+    }
+
+    function getActionTitle(response) {
+      const responseLower = response.toLowerCase();
+
+      if (responseLower.includes('plan:')) {
+        return response.split('Plan:')[1]?.split('\n')[0]?.substring(0, 50) || 'Creating plan';
+      }
+      if (responseLower.includes('here\'s') || responseLower.includes('based on')) {
+        return response.substring(0, 60) + '...';
+      }
+      if (responseLower.length < 60) {
+        return response;
+      }
+      return response.substring(0, 60) + '...';
+    }
+
+    async function getAgentResponse(agentId, prompt) {
+      try {
+        const response = await fetch(`${API_BASE}/api/demo/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent_id: agentId,
+            message: prompt
+          })
+        });
+
+        const data = await response.json();
+        return data.response || 'No response available';
+      } catch (error) {
+        return `Error getting response: ${error.message}`;
+      }
+    }
+
+    function addWorkflowStep(agent, title, fullMessage) {
+      const container = document.getElementById('workflow-container');
+
+      // Clear placeholder if first step
+      if (container.querySelector('.text-center')) {
+        container.innerHTML = '';
+      }
+
+      const agentInfo = agents[agent];
+      const step = document.createElement('div');
+      step.className = 'workflow-step bg-gray-700 rounded-lg p-4 border border-gray-600 cursor-pointer hover:border-${agentInfo.color}-500 transition';
+      step.onclick = () => showMessage(agent, fullMessage);
+
+      // Store the message for later retrieval
+      const stepData = { agent, title, fullMessage };
+      workflowSteps.push(stepData);
+
+      step.innerHTML = `
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-full bg-${agentInfo.color}-600 flex items-center justify-center text-2xl flex-shrink-0">
+            ${agentInfo.emoji}
+          </div>
+          <div class="flex-1">
+            <div class="text-sm font-semibold text-${agentInfo.color}-400">${agentInfo.name}</div>
+            <p class="text-gray-300 text-sm">${escapeHtml(title)}</p>
+            <p class="text-gray-500 text-xs mt-1">📖 Click to read full message</p>
+          </div>
+        </div>
+      `;
+      container.appendChild(step);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function updateAgentStatus(agentId, status, state) {
+      const card = document.getElementById(`agent-${agentId}`);
+      const statusEl = card.querySelector('.status');
+
+      card.classList.remove('active');
+      if (state === 'active') card.classList.add('active');
+
+      statusEl.textContent = status;
+      statusEl.className = `text-xs status ${state === 'active' ? 'text-green-400' : state === 'idle' ? 'text-gray-500' : 'text-blue-400'}`;
+    }
+
+    function clearWorkflow() {
+      const container = document.getElementById('workflow-container');
+      container.innerHTML = `
+        <div class="text-gray-400 text-center py-10">
+          <p class="text-lg">Agents waiting for task...</p>
+          <p class="text-sm mt-2">Submit a task to see dynamic agent orchestration</p>
+        </div>
+      `;
+      workflowSteps = [];
+
+      // Reset all agent statuses
+      Object.keys(agents).forEach(agentId => {
+        updateAgentStatus(agentId, 'Idle', 'idle');
+      });
+    }
+
+    function showMessage(agent, fullMessage) {
+      const modal = document.getElementById('message-modal');
+      const modalContent = document.getElementById('modal-content');
+
+      const agentInfo = agents[agent];
+      modalContent.innerHTML = `
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-16 h-16 rounded-full bg-${agentInfo.color}-600 flex items-center justify-center text-4xl">
+            ${agentInfo.emoji}
+          </div>
+          <div>
+            <h3 class="text-2xl font-bold text-${agentInfo.color}-400">${agentInfo.name}</h3>
+            <p class="text-gray-400 text-sm">${fullMessage.substring(0, 100)}...</p>
+          </div>
+        </div>
+        <div class="bg-gray-900 rounded-lg p-4 max-h-96 overflow-y-auto">
+          <p class="text-gray-200 whitespace-pre-wrap text-sm leading-relaxed">${escapeHtml(fullMessage)}</p>
+        </div>
+        <div class="mt-4 flex gap-3">
+          <button onclick="closeMessageModal()" class="flex-1 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition">
+            Close
+          </button>
+          <button onclick="copyMessage()" class="flex-1 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition">
+            Copy to Clipboard
+          </button>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeMessageModal() {
+      const modal = document.getElementById('message-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function copyMessage() {
+      const content = document.querySelector('#modal-content .bg-gray-900 p').textContent;
+      navigator.clipboard.writeText(content).then(() => {
+        alert('Message copied to clipboard!');
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+  </script>
+</body>
+</html>

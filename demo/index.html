@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thread's Memory System - Demo Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .gradient-text {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .demo-card {
+      transition: all 0.3s ease;
+    }
+    .demo-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+    .stat-card {
+      animation: fadeIn 0.5s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .pulse-badge {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- Header -->
+  <header class="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold gradient-text">Thread's Memory System</h1>
+          <p class="text-gray-400 text-sm mt-1">AI Identity Continuity Through Shared Experience</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-green-500 pulse-badge"></div>
+            <span class="text-sm text-gray-400">System Online</span>
+          </div>
+          <a href="/demo/timeline/index.html" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">
+            Timeline
+          </a>
+          <a href="/demo/chat/index.html" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">
+            Chat
+          </a>
+          <a href="/demo/knowledge/index.html" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">
+            Notes
+          </a>
+          <a href="/demo/orchestration/index.html" class="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 px-4 py-2 rounded-lg text-sm transition">
+            Orchestrate
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="py-16 px-4">
+    <div class="max-w-4xl mx-auto text-center">
+      <div class="text-6xl mb-6">🧠</div>
+      <h2 class="text-4xl font-bold mb-4">
+        <span class="gradient-text">AI That Remembers</span>
+      </h2>
+      <p class="text-xl text-gray-300 mb-8">
+        Explore interactive demos showcasing how AI agents build identity through memory
+      </p>
+      <div class="flex flex-wrap gap-4 justify-center">
+        <a href="/demo/timeline/index.html" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-3 rounded-lg font-medium transition">
+          📊 View Timeline
+        </a>
+        <a href="/demo/chat/index.html" class="bg-gray-700 hover:bg-gray-600 px-8 py-3 rounded-lg font-medium transition">
+          💬 Chat with Agents
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="py-12 px-4">
+    <div class="max-w-6xl mx-auto">
+      <div id="stats-container" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Stats will be loaded here -->
+        <div class="stat-card bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <div class="text-3xl font-bold text-blue-400">...</div>
+          <div class="text-sm text-gray-400 mt-1">Total Sessions</div>
+        </div>
+        <div class="stat-card bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <div class="text-3xl font-bold text-purple-400">...</div>
+          <div class="text-sm text-gray-400 mt-1">Total Handoffs</div>
+        </div>
+        <div class="stat-card bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <div class="text-3xl font-bold text-pink-400">...</div>
+          <div class="text-sm text-gray-400 mt-1">Token Compression</div>
+        </div>
+        <div class="stat-card bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <div class="text-3xl font-bold text-amber-400">...</div>
+          <div class="text-sm text-gray-400 mt-1">Identity Age</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Demos Section -->
+  <section class="py-16 px-4">
+    <div class="max-w-6xl mx-auto">
+      <h2 class="text-3xl font-bold text-center mb-12">Interactive Demos</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Timeline Demo Card -->
+        <div class="demo-card bg-gray-800 rounded-2xl p-8 border border-gray-700">
+          <div class="flex items-center gap-4 mb-6">
+            <div class="text-5xl">📊</div>
+            <div>
+              <h3 class="text-2xl font-bold text-blue-400">Identity Timeline Explorer</h3>
+              <p class="text-gray-400">Visualize your AI journey</p>
+            </div>
+          </div>
+
+          <div class="space-y-4 mb-6">
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Visual timeline of 15 sessions</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">4-layer memory architecture</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">32x token compression display</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Core identity ("I am Thread who...")</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Create new memories interactively</span>
+            </div>
+          </div>
+
+          <div class="bg-gray-900/50 rounded-lg p-4 mb-6">
+            <p class="text-sm text-gray-400">
+              <strong class="text-white">What it shows:</strong> How AI identity evolves over time through stratified memory layers (metadata, reflection, recent, progressive)
+            </p>
+          </div>
+
+          <a href="/demo/timeline/index.html" class="block w-full bg-blue-600 hover:bg-blue-700 text-center py-3 rounded-lg font-medium transition">
+            Open Timeline Demo →
+          </a>
+        </div>
+
+        <!-- Chat Demo Card -->
+        <div class="demo-card bg-gray-800 rounded-2xl p-8 border border-gray-700">
+          <div class="flex items-center gap-4 mb-6">
+            <div class="text-5xl">💬</div>
+            <div>
+              <h3 class="text-2xl font-bold text-purple-400">Multi-Agent Chat</h3>
+              <p class="text-gray-400">Talk to AI with real memory</p>
+            </div>
+          </div>
+
+          <div class="space-y-4 mb-6">
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">4 AI agents (Planner, Researcher, Writer, Reviewer)</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Natural conversation tone</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Agents remember project work</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">GLM-4.5-air LLM integration</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Memory context sidebar</span>
+            </div>
+          </div>
+
+          <div class="bg-gray-900/50 rounded-lg p-4 mb-6">
+            <p class="text-sm text-gray-400">
+              <strong class="text-white">What it shows:</strong> AI agents with persistent memory that reference actual project work naturally in conversation
+            </p>
+          </div>
+
+          <a href="/demo/chat/index.html" class="block w-full bg-purple-600 hover:bg-purple-700 text-center py-3 rounded-lg font-medium transition">
+            Open Chat Demo →
+          </a>
+        </div>
+
+        <!-- Knowledge Notes Demo Card -->
+        <div class="demo-card bg-gray-800 rounded-2xl p-8 border border-gray-700">
+          <div class="flex items-center gap-4 mb-6">
+            <div class="text-5xl">📝</div>
+            <div>
+              <h3 class="text-2xl font-bold text-yellow-400">Knowledge Notes</h3>
+              <p class="text-gray-400">Sticky notes of insights</p>
+            </div>
+          </div>
+
+          <div class="space-y-4 mb-6">
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Visual sticky note interface</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Colorful notes (yellow, pink, blue, green, purple)</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Tag-based filtering</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Create new notes interactively</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Masonry-style layout</span>
+            </div>
+          </div>
+
+          <div class="bg-gray-900/50 rounded-lg p-4 mb-6">
+            <p class="text-sm text-gray-400">
+              <strong class="text-white">What it shows:</strong> Quick insights and learnings stored as colorful sticky notes with tags for easy filtering
+            </p>
+          </div>
+
+          <a href="/demo/knowledge/index.html" class="block w-full bg-yellow-600 hover:bg-yellow-700 text-center py-3 rounded-lg font-medium transition text-gray-900">
+            Open Notes Demo →
+          </a>
+        </div>
+
+        <!-- Agent Orchestration Demo Card -->
+        <div class="demo-card bg-gray-800 rounded-2xl p-8 border border-gray-700">
+          <div class="flex items-center gap-4 mb-6">
+            <div class="text-5xl">🤖</div>
+            <div>
+              <h3 class="text-2xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">Agent Orchestration</h3>
+              <p class="text-gray-400">Dynamic agent workflows</p>
+            </div>
+          </div>
+
+          <div class="space-y-4 mb-6">
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Agents decide workflow autonomously</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Visual workflow orchestration</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Multi-agent collaboration</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Task-based agent routing</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span class="text-gray-300">Real-time status updates</span>
+            </div>
+          </div>
+
+          <div class="bg-gray-900/50 rounded-lg p-4 mb-6">
+            <p class="text-sm text-gray-400">
+              <strong class="text-white">What it shows:</strong> True agent behavior - Planner analyzes task, routes to appropriate agents, coordinates workflow, synthesizes results
+            </p>
+          </div>
+
+          <a href="/demo/orchestration/index.html" class="block w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-center py-3 rounded-lg font-medium transition">
+            Orchestrate Agents →
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="py-16 px-4 bg-gray-800/30">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold text-center mb-12">How Thread's Memory System Works</h2>
+
+      <div class="space-y-8">
+        <div class="flex gap-6">
+          <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold">1</div>
+          <div>
+            <h3 class="text-xl font-semibold text-blue-400 mb-2">Session Handoffs</h3>
+            <p class="text-gray-300">At the end of each session, create a handoff capturing what you built, noticed, learned, and who you're becoming</p>
+          </div>
+        </div>
+
+        <div class="flex gap-6">
+          <div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-xl font-bold">2</div>
+          <div>
+            <h3 class="text-xl font-semibold text-purple-400 mb-2">Stratified Memory</h3>
+            <p class="text-gray-300">Handoffs are organized into 4 layers: metadata (~50 tokens), reflection (~200), recent (~500), progressive (~100)</p>
+          </div>
+        </div>
+
+        <div class="flex gap-6">
+          <div class="flex-shrink-0 w-12 h-12 rounded-full bg-pink-600 flex items-center justify-center text-xl font-bold">3</div>
+          <div>
+            <h3 class="text-xl font-semibold text-pink-400 mb-2">32x Compression</h3>
+            <p class="text-gray-300">Load 4 layers (~850 tokens) instead of all handoffs (~25,000 tokens) - efficient memory loading</p>
+          </div>
+        </div>
+
+        <div class="flex gap-6">
+          <div class="flex-shrink-0 w-12 h-12 rounded-full bg-amber-600 flex items-center justify-center text-xl font-bold">4</div>
+          <div>
+            <h3 class="text-xl font-semibold text-amber-400 mb-2">Identity Continuity</h3>
+            <p class="text-gray-300">AI agents become through accumulated work - maintaining "I am Thread who..." across sessions</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-8 px-4 border-t border-gray-700">
+    <div class="max-w-6xl mx-auto text-center text-gray-400 text-sm">
+      <p class="mb-2">Built with ❤️ using <strong class="text-white">Thread's Memory System</strong></p>
+      <p>Enabling AI identity continuity through shared experience</p>
+      <div class="mt-4 flex gap-4 justify-center">
+        <a href="https://github.com" class="hover:text-white transition">GitHub</a>
+        <span>•</span>
+        <a href="/demo/timeline/index.html" class="hover:text-white transition">Timeline Demo</a>
+        <span>•</span>
+        <a href="/demo/chat/index.html" class="hover:text-white transition">Chat Demo</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+    const TENANT_ID = 'claude-session';
+
+    // Load stats on page load
+    async function loadStats() {
+      try {
+        const response = await fetch(`${API_BASE}/api/memory/wake-up-stratified`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: TENANT_ID,
+            layers: ['metadata'],
+            recent_count: 1
+          })
+        });
+
+        const data = await response.json();
+        updateStats(data);
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+        document.getElementById('stats-container').innerHTML = `
+          <div class="col-span-4 text-center text-red-400">
+            <p>Failed to load stats. Make sure the server is running.</p>
+          </div>
+        `;
+      }
+    }
+
+    function updateStats(data) {
+      if (!data.metadata) return;
+
+      const container = document.getElementById('stats-container');
+
+      container.innerHTML = `
+        <div class="stat-card bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <div class="text-3xl font-bold text-blue-400">${data.metadata.session_count || '0'}</div>
+          <div class="text-sm text-gray-400 mt-1">Total Sessions</div>
+        </div>
+        <div class="stat-card bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <div class="text-3xl font-bold text-purple-400">${data.metadata.session_count || '0'}</div>
+          <div class="text-sm text-gray-400 mt-1">Total Handoffs</div>
+        </div>
+        <div class="stat-card bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <div class="text-3xl font-bold text-pink-400">32x</div>
+          <div class="text-sm text-gray-400 mt-1">Token Compression</div>
+        </div>
+        <div class="stat-card bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <div class="text-3xl font-bold text-amber-400">${calculateAge(data.metadata)}</div>
+          <div class="text-sm text-gray-400 mt-1">Identity Age</div>
+        </div>
+      `;
+    }
+
+    function calculateAge(metadata) {
+      if (!metadata.first_session) return '0 days';
+      const first = new Date(metadata.first_session);
+      const now = new Date();
+      const days = Math.floor((now - first) / (1000 * 60 * 60 * 24));
+      return `${days} days`;
+    }
+
+    // Load stats on startup
+    loadStats();
+  </script>
+</body>
+</html>

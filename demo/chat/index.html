@@ -45,6 +45,19 @@
       from { opacity: 0; transform: scale(0.8); }
       to { opacity: 1; transform: scale(1); }
     }
+    .process-step {
+      transition: all 0.3s ease;
+    }
+    .process-step.active {
+      animation: pulse 1.5s infinite;
+    }
+    .process-step.done {
+      opacity: 0.6;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
   </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
@@ -66,6 +79,9 @@
           <div class="bg-blue-900/30 border border-blue-700/50 rounded-lg px-3 py-1">
             <span class="text-xs text-blue-400">🤖 GLM-4.5-air</span>
           </div>
+          <button onclick="saveConversation()" id="save-btn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            💾 Save Handoff
+          </button>
           <button onclick="showInfo()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">
             ℹ️ About
           </button>
@@ -89,6 +105,66 @@
         <h2 class="text-lg font-semibold mb-3">🧠 Memory Used</h2>
         <div id="memory-context" class="space-y-2 text-sm">
           <p class="text-gray-400 italic">Start chatting to see which memories are used...</p>
+        </div>
+      </div>
+
+      <!-- Process Flow -->
+      <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 mt-4">
+        <h2 class="text-lg font-semibold mb-3">⚡ Process Flow</h2>
+        <div id="process-flow" class="space-y-2 text-xs">
+          <div class="flex items-center gap-2 text-gray-500">
+            <div class="w-4 h-4 rounded-full bg-gray-600"></div>
+            <span>Ready</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Context Size Monitor -->
+      <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 mt-4">
+        <h2 class="text-lg font-semibold mb-3">📊 Context Usage</h2>
+        <div class="space-y-3">
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-gray-400">Current: <span id="current-tokens" class="text-white font-semibold">0</span> tokens</span>
+              <span class="text-gray-400">Max: <span id="max-tokens" class="text-white">128000</span></span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+              <div id="context-bar" class="h-full bg-green-500 transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">
+              <span id="context-percent">0%</span> of model context
+              <span id="token-source" class="ml-2 text-gray-600 italic">(estimated)</span>
+            </div>
+          </div>
+
+          <!-- Token Breakdown -->
+          <div id="token-breakdown" class="hidden bg-gray-900/50 rounded-lg p-2 space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="text-gray-400">Memory:</span>
+              <span id="memory-tokens" class="text-blue-400">0</span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="text-gray-400">Conversation:</span>
+              <span id="conversation-tokens" class="text-purple-400">0</span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="text-gray-400">System:</span>
+              <span id="system-tokens" class="text-gray-300">~100</span>
+            </div>
+          </div>
+
+          <div id="consolidation-warning" class="hidden bg-yellow-900/30 border border-yellow-700/50 rounded-lg p-3">
+            <div class="flex items-start gap-2">
+              <span class="text-yellow-500">⚠️</span>
+              <div class="text-xs">
+                <p class="text-yellow-400 font-medium">Context size is high!</p>
+                <p class="text-gray-400 mt-1">Consider consolidating old memories to free up space.</p>
+              </div>
+            </div>
+          </div>
+          <button id="consolidate-btn" onclick="triggerConsolidation()" class="hidden w-full bg-purple-600 hover:bg-purple-700 px-3 py-2 rounded-lg text-xs font-medium transition">
+            🗜️ Consolidate Memories
+          </button>
         </div>
       </div>
     </div>
@@ -212,6 +288,9 @@
 
     let selectedAgent = null;
     let conversationHistory = [];
+    const MAX_CONTEXT_SIZE = 128000; // GLM-4.5-air max context
+    const CONSOLIDATION_THRESHOLD = 0.7; // 70%
+    let actualTokenUsage = null; // Store real token usage from API
 
     // Initialize agent list
     function initAgentList() {
@@ -237,6 +316,10 @@
     function selectAgent(agentId) {
       selectedAgent = agents.find(a => a.id === agentId);
 
+      // Reset actual token usage when switching agents
+      actualTokenUsage = null;
+      conversationHistory = [];
+
       // Update UI
       document.querySelectorAll('.agent-card').forEach(card => {
         card.classList.remove('border-blue-500', 'border-purple-500', 'border-pink-500', 'border-green-500', 'bg-gray-600');
@@ -249,6 +332,12 @@
 
       // Load agent's memory
       loadAgentMemory(agentId);
+
+      // Reset process flow
+      resetProcessFlow();
+
+      // Update context usage
+      updateContextUsage();
 
       // Add system message
       addMessage('system', `${selectedAgent.emoji} ${selectedAgent.name} joined the chat`);
@@ -272,6 +361,18 @@
 
         const data = await response.json();
 
+        // Calculate approximate token count
+        let totalTokens = 0;
+        if (data.metadata) {
+          totalTokens += 50; // metadata layer ~50 tokens
+        }
+        if (data.recent && data.recent.length > 0) {
+          totalTokens += data.recent.length * 500; // recent layer ~500 tokens each
+        }
+
+        // Store context size for display in process flow
+        window.currentContextSize = totalTokens;
+
         if (data.recent && data.recent.length > 0) {
           memoryContainer.innerHTML = data.recent.map(handoff => `
             <div class="memory-chip bg-gray-700 rounded px-2 py-1 text-xs">
@@ -281,9 +382,14 @@
           `).join('');
         } else {
           memoryContainer.innerHTML = '<p class="text-gray-400 italic">No memories yet. Start chatting to build context!</p>';
+          window.currentContextSize = 0;
         }
+
+        // Update context usage after loading memory
+        updateContextUsage();
       } catch (error) {
         memoryContainer.innerHTML = '<p class="text-red-400">Failed to load memories</p>';
+        window.currentContextSize = 0;
       }
     }
 
@@ -382,6 +488,16 @@
         const data = await response.json();
         console.log('[Chat Demo] API Response:', data);
 
+        // Store actual token usage from API
+        if (data.usage) {
+          actualTokenUsage = {
+            prompt_tokens: data.usage.prompt_tokens,
+            completion_tokens: data.usage.completion_tokens,
+            total_tokens: data.usage.total_tokens
+          };
+          console.log('[Chat Demo] Token Usage:', actualTokenUsage);
+        }
+
         return data.response;
       } catch (error) {
         console.error('[Chat Demo] Error:', error);
@@ -411,21 +527,250 @@
       // Disable input
       document.getElementById('send-button').disabled = true;
 
+      // Process Flow: Step 1 - Loading Memory
+      updateProcessFlow('loading', 'active');
+      await sleep(300);
+
+      // Process Flow: Step 2 - Calling LLM
+      updateProcessFlow('calling', 'active');
+      await sleep(200);
+
       // Show typing indicator
       showTyping();
 
+      // Process Flow: Step 3 - Generating Response
+      updateProcessFlow('generating', 'active');
+
       // Get agent response
       const response = await getAgentResponse(message);
+
+      // Process Flow: Step 4 - Displaying
+      updateProcessFlow('displaying', 'active');
+      await sleep(200);
 
       // Hide typing and add response
       hideTyping();
       addMessage('agent', response, selectedAgent.name);
       conversationHistory.push({ role: 'assistant', content: response });
+      updateSaveButton();
+
+      // Update context usage display
+      updateContextUsage();
+
+      // Process Flow: Step 5 - Ready
+      updateProcessFlow('ready', 'done');
 
       // Re-enable input
       document.getElementById('send-button').disabled = false;
       input.focus();
     });
+
+    // Calculate total context size
+    function calculateContextSize() {
+      // If we have actual token usage from API, use it
+      if (actualTokenUsage && actualTokenUsage.total_tokens) {
+        return actualTokenUsage.total_tokens;
+      }
+
+      // Otherwise fall back to estimation
+      let totalTokens = 0;
+
+      // Loaded memory
+      if (window.currentContextSize) {
+        totalTokens += window.currentContextSize;
+      }
+
+      // Conversation history (rough estimate: ~0.75 tokens per word)
+      if (conversationHistory.length > 0) {
+        const conversationText = conversationHistory
+          .map(msg => `${msg.role}: ${msg.content}`)
+          .join('\n');
+        const wordCount = conversationText.split(/\s+/).length;
+        totalTokens += Math.ceil(wordCount * 0.75);
+      }
+
+      // System prompt (~100 tokens)
+      totalTokens += 100;
+
+      return totalTokens;
+    }
+
+    // Update context usage display
+    function updateContextUsage() {
+      const currentSize = calculateContextSize();
+      const percentage = (currentSize / MAX_CONTEXT_SIZE) * 100;
+      const isActualUsage = actualTokenUsage !== null;
+
+      // Update display
+      document.getElementById('current-tokens').textContent = currentSize.toLocaleString();
+      document.getElementById('max-tokens').textContent = MAX_CONTEXT_SIZE.toLocaleString();
+      document.getElementById('context-percent').textContent = percentage.toFixed(1) + '%';
+
+      // Update token source indicator
+      const tokenSource = document.getElementById('token-source');
+      if (isActualUsage) {
+        tokenSource.textContent = '(actual from API)';
+        tokenSource.classList.remove('text-gray-600', 'italic');
+        tokenSource.classList.add('text-green-400', 'font-medium');
+      } else {
+        tokenSource.textContent = '(estimated)';
+        tokenSource.classList.remove('text-green-400', 'font-medium');
+        tokenSource.classList.add('text-gray-600', 'italic');
+      }
+
+      // Update progress bar
+      const bar = document.getElementById('context-bar');
+      bar.style.width = Math.min(percentage, 100) + '%';
+
+      // Change color based on percentage
+      bar.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500');
+      if (percentage < 50) {
+        bar.classList.add('bg-green-500');
+      } else if (percentage < 70) {
+        bar.classList.add('bg-yellow-500');
+      } else {
+        bar.classList.add('bg-red-500');
+      }
+
+      // Show token breakdown
+      const breakdown = document.getElementById('token-breakdown');
+      if (isActualUsage && actualTokenUsage) {
+        breakdown.classList.remove('hidden');
+        document.getElementById('memory-tokens').textContent = window.currentContextSize?.toLocaleString() || '0';
+        document.getElementById('conversation-tokens').textContent = actualTokenUsage.prompt_tokens.toLocaleString();
+      } else if (window.currentContextSize > 0) {
+        breakdown.classList.remove('hidden');
+        document.getElementById('memory-tokens').textContent = window.currentContextSize.toLocaleString();
+        // Estimate conversation tokens
+        if (conversationHistory.length > 0) {
+          const conversationText = conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+          const wordCount = conversationText.split(/\s+/).length;
+          const estimatedConvTokens = Math.ceil(wordCount * 0.75);
+          document.getElementById('conversation-tokens').textContent = estimatedConvTokens.toLocaleString() + ' (est)';
+        } else {
+          document.getElementById('conversation-tokens').textContent = '0';
+        }
+      } else {
+        breakdown.classList.add('hidden');
+      }
+
+      // Show warning and consolidate button at 70%
+      const warning = document.getElementById('consolidation-warning');
+      const consolidateBtn = document.getElementById('consolidate-btn');
+
+      if (percentage >= CONSOLIDATION_THRESHOLD * 100) {
+        warning.classList.remove('hidden');
+        consolidateBtn.classList.remove('hidden');
+      } else {
+        warning.classList.add('hidden');
+        consolidateBtn.classList.add('hidden');
+      }
+    }
+
+    // Trigger consolidation
+    async function triggerConsolidation() {
+      const consolidateBtn = document.getElementById('consolidate-btn');
+      consolidateBtn.disabled = true;
+      consolidateBtn.textContent = '🗜️ Consolidating...';
+
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/consolidation/run`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: `${TENANT_ID}:${selectedAgent.id}`,
+            job_type: 'all'
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Reload memory after consolidation
+          await loadAgentMemory(selectedAgent.id);
+
+          // Update context display
+          updateContextUsage();
+
+          // Show results
+          addMessage('system', `✅ Consolidation complete! Compressed ${data.results.reduce((sum, r) => sum + (r.tokens_saved || 0), 0)} tokens`);
+
+          console.log('[Consolidation]', data);
+        } else {
+          addMessage('system', `❌ Consolidation failed: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('[Consolidation] Error:', error);
+        addMessage('system', `❌ Consolidation failed`);
+      } finally {
+        consolidateBtn.disabled = false;
+        consolidateBtn.textContent = '🗜️ Consolidate Memories';
+      }
+    }
+
+    // Process Flow Visualization
+    function resetProcessFlow() {
+      const container = document.getElementById('process-flow');
+      const contextSize = calculateContextSize();
+      container.innerHTML = `
+        <div class="flex items-center gap-2 text-gray-500" data-step="ready">
+          <div class="w-4 h-4 rounded-full bg-gray-600"></div>
+          <span>Ready${contextSize > 0 ? ` (${contextSize} tokens)` : ''}</span>
+        </div>
+      `;
+    }
+
+    function updateProcessFlow(step, status) {
+      const container = document.getElementById('process-flow');
+      const contextSize = calculateContextSize();
+      const memorySize = window.currentContextSize || 0;
+      const conversationSize = contextSize - memorySize - 100; // Subtract memory and system prompt
+      const steps = [
+        { id: 'loading', icon: '🧠', label: `Loading Memory (${memorySize} tokens)` },
+        { id: 'calling', icon: '🤖', label: `Calling LLM (${contextSize} tokens)` },
+        { id: 'generating', icon: '✨', label: 'Generating Response' },
+        { id: 'displaying', icon: '💬', label: 'Displaying' },
+        { id: 'ready', icon: '✓', label: 'Ready' }
+      ];
+
+      const stepIndex = steps.findIndex(s => s.id === step);
+
+      let html = '';
+      for (let i = 0; i < steps.length; i++) {
+        const s = steps[i];
+        const isPast = i < stepIndex;
+        const isCurrent = i === stepIndex;
+        const isFuture = i > stepIndex;
+
+        let bgColor = 'bg-gray-600';
+        let textColor = 'text-gray-500';
+        let statusClass = '';
+
+        if (isPast) {
+          bgColor = 'bg-green-600';
+          textColor = 'text-green-400';
+          statusClass = 'done';
+        } else if (isCurrent) {
+          bgColor = status === 'active' ? 'bg-blue-600' : 'bg-green-600';
+          textColor = 'text-blue-400';
+          statusClass = 'active';
+        }
+
+        html += `
+          <div class="process-step flex items-center gap-2 ${textColor} ${statusClass}" data-step="${s.id}">
+            <div class="w-4 h-4 rounded-full ${bgColor} flex-shrink-0"></div>
+            <span class="truncate">${isCurrent || isPast ? `${s.icon} ` : ''}${s.label}</span>
+          </div>
+        `;
+
+        // Add connecting line
+        if (i < steps.length - 1) {
+          html += `<div class="ml-2 h-3 w-0.5 ${isPast ? 'bg-green-600' : 'bg-gray-700'}"></div>`;
+        }
+      }
+
+      container.innerHTML = html;
+    }
 
     // Utility functions
     function escapeHtml(text) {
@@ -463,6 +808,59 @@
       document.getElementById('info-modal').classList.remove('flex');
     }
 
+    // Save conversation as handoff
+    async function saveConversation() {
+      if (conversationHistory.length === 0) {
+        alert('No conversation to save yet!');
+        return;
+      }
+
+      const saveBtn = document.getElementById('save-btn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = '💾 Saving...';
+
+      try {
+        const response = await fetch(`${API_BASE}/api/demo/save-handoff`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent_id: selectedAgent.id,
+            conversation: conversationHistory,
+            summary: `Chat conversation with ${selectedAgent.name} about ${conversationHistory[0]?.content?.substring(0, 50)}...`
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          addMessage('system', `✅ Conversation saved as handoff! (ID: ${data.session_id})`);
+
+          // Reload agent memory to show the new handoff
+          loadAgentMemory(selectedAgent.id);
+        } else {
+          addMessage('system', `❌ Failed to save: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('Failed to save conversation:', error);
+        addMessage('system', `❌ Failed to save conversation`);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Save Handoff';
+      }
+    }
+
+    // Enable save button when conversation has messages
+    function updateSaveButton() {
+      const saveBtn = document.getElementById('save-btn');
+      if (conversationHistory.length >= 2) { // At least one user message and one response
+        saveBtn.disabled = false;
+      }
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     // Load LLM configuration
     async function loadLLMConfig() {
       try {
@@ -484,6 +882,7 @@
     // Initialize
     initAgentList();
     loadLLMConfig();
+    resetProcessFlow();
   </script>
 </body>
 </html>
