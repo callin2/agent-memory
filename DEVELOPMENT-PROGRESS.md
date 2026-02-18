@@ -170,15 +170,24 @@
   - Impact: Automated memory consolidation, 400× compression ratio
 
 ### Domain - Task 11: Episodic/Semantic Memory Distinction
-- [ ] **Todo:** Add `memory_type` enum, create `semantic_memory` table
-- [ ] **Files:** New migration, new service
-- [ ] **Effort:** 12-16 hours (1.5-2 days)
+- [x] **Todo:** Add `memory_type` enum, create `semantic_memory` table
+- [x] **Files:** Migration 026, src/services/semantic-memory.ts, scheduler update
+- [x] **Effort:** 12-16 hours (1.5-2 days)
 - [ ] **Dependencies:** Task 9 (reflection needs semantic memory)
-- [ ] **Started:** ___
-- [ ] **Completed:** ___
-- [ ] **Notes:**
-  - Episodic: what/when/where (time-bound)
-  - Semantic: principles/patterns (timeless)
+- [x] **Started:** 2026-02-18
+- [x] **Completed:** 2026-02-18
+- [x] **Notes:**
+  - ✅ Created migration 026: memory_type enum + semantic_memory table
+  - ✅ Added semantic_memory table (principle, context, category, confidence)
+  - ✅ Created SemanticMemoryService class
+  - ✅ Implemented extractPrinciples() with LLM and heuristic fallback
+  - ✅ Implemented principle reinforcement (confidence increase)
+  - ✅ Implemented principle decay (forgetting curve)
+  - ✅ Integrated into consolidation scheduler
+  - ✅ Updated wake_up_stratified to include semantic layer
+  - ✅ Full-text search on principles for similarity detection
+  - Episodic: what/when/where (time-bound sessions)
+  - Semantic: principles/patterns (timeless knowledge)
   - Impact: Matches human memory architecture (Tulving, 1972)
 
 ---
@@ -278,11 +287,11 @@
 - 🟠 P1 (High): 5 tasks
 - 🟡 P2 (Medium): 7 tasks
 
-**Completed:** 8 / 18 (44%)
+**Completed:** 9 / 18 (50%)
 **In Progress:** 0 tasks
 **Blocked:** 0 tasks
 
-**Last Completed:** Task 10 (Automated Consolidation Scheduler) - 2026-02-18
+**Last Completed:** Task 11 (Episodic/Semantic Memory) - 2026-02-18
 
 **Estimated Effort:**
 - P0: 10-15 days
@@ -461,6 +470,39 @@
   - Scheduler runs during low-activity periods (2-4 AM UTC)
   - Multi-tenant consolidation requires grouping by tenant_id
 - **Next Session:** Continue with remaining P1 tasks (Redis caching, consolidation optimization, episodic/semantic memory)
+
+### Session 7 (2026-02-18)
+- **Started:** 2026-02-18 21:00 UTC
+- **Completed:**
+  - [x] Task 11: Episodic/Semantic Memory Distinction
+    - Created migration 026: Added memory_type enum + semantic_memory table
+    - semantic_memory: principle, context, category, confidence, source_handoff_ids
+    - Created SemanticMemoryService class with:
+      - extractPrinciples() using LLM (with heuristic fallback)
+      - findSimilarPrinciple() for deduplication (FTS)
+      - reinforcePrinciple() increases confidence on repeated observation
+      - decayPrinciples() implements forgetting curve
+      - getSemanticMemoryText() for wake_up display
+    - Integrated into consolidation scheduler
+    - Updated wake_up_stratified to include semantic layer
+    - Loading order: metadata → semantic → reflection → recent → progressive
+    - Matches human memory architecture (Tulving, 1972)
+- **Files Created:**
+  - src/db/migrations/026_episodic_semantic_memory.sql
+  - src/services/semantic-memory.ts
+- **Files Modified:**
+  - src/services/consolidation/scheduler.ts
+  - src/mcp/memory-server.ts
+  - DEVELOPMENT-PROGRESS.md
+- **P1 Tasks Complete:** 2/5 (40%)
+- **Overall Progress:** 9/18 tasks (50%) ✅
+- **Milestone Reached:** Halfway complete!
+- **Learnings:**
+  - Episodic → Semantic transformation is key to AGI
+  - Principles need reinforcement to maintain confidence
+  - Forgetting curve applies to semantic memory too
+  - LLM can extract timeless principles from specific episodes
+- **Next Session:** Continue with remaining P1/P2 tasks (Redis caching, consolidation optimization, UX improvements)
 
 ---
 

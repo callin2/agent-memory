@@ -107,7 +107,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wake_up_stratified",
         description:
-          "Wake up with stratified memory layers - token-efficient context loading. Returns metadata (fast), latest reflection (compressed), recent handoffs (detail), and optional progressive retrieval. Much more efficient than wake_up for large memory sets.",
+          "Wake up with stratified memory layers - token-efficient context loading. Returns metadata (fast), semantic principles (timeless knowledge), latest reflection (compressed), recent handoffs (detail), and optional progressive retrieval. Much more efficient than wake_up for large memory sets.",
         inputSchema: {
           type: "object",
           properties: {
@@ -118,9 +118,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             layers: {
               type: "array",
-              items: { type: "string", enum: ["metadata", "reflection", "recent", "progressive"] },
+              items: { type: "string", enum: ["metadata", "semantic", "reflection", "recent", "progressive"] },
               description: "Which layers to load. Default: all",
-              default: ["metadata", "reflection", "recent"],
+              default: ["metadata", "semantic", "reflection", "recent"],
             },
             recent_count: {
               type: "number",
@@ -322,7 +322,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "wake_up_stratified": {
         const {
           tenant_id = "default",
-          layers = ["metadata", "reflection", "recent"],
+          layers = ["metadata", "semantic", "reflection", "recent"],
           recent_count = 3,
           topic,
         } = args as {
@@ -353,7 +353,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           estimatedTokens += 50;
         }
 
-        // Layer 2: Latest reflection (~200 tokens)
+        // Layer 2: Semantic Memory - Timeless principles (~100 tokens)
+        if (layers.includes("semantic")) {
+          const semanticResult = await pool.query(
+            `SELECT principle, context, category, confidence
+             FROM semantic_memory
+             WHERE tenant_id = $1
+               AND confidence >= 0.7
+             ORDER BY confidence DESC, last_reinforced_at DESC
+             LIMIT 10`,
+            [tenant_id]
+          );
+
+          if (semanticResult.rows.length > 0) {
+            context.semantic = {
+              type: "timeless_principles",
+              principles: semanticResult.rows.map(r => ({
+                principle: r.principle,
+                context: r.context,
+                category: r.category,
+                confidence: Math.round(r.confidence * 100) + '%',
+              })),
+            };
+            estimatedTokens += 100;
+          } else {
+            context.semantic = {
+              message: "No semantic principles yet. Consolidation will extract them from episodes.",
+              hint: "Semantic memory contains timeless principles extracted from experiences.",
+            };
+            estimatedTokens += 50;
+          }
+        }
+
+        // Layer 3: Latest reflection (~200 tokens)
         if (layers.includes("reflection")) {
           const reflectionResult = await pool.query(
             `SELECT * FROM memory_reflections

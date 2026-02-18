@@ -125,7 +125,7 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
       let response: string;
       try {
         if (zaiAPIKey) {
-          const llmResponse = await llmClient.chat(messages, 'glm-4.7');
+          const llmResponse = await llmClient.chat(messages, 'GLM-4.5-air');
           response = llmResponse.content;
         } else {
           throw new Error('No API key configured');
@@ -228,7 +228,7 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
       success: true,
       service: 'chat-demo',
       llm_configured: !!zaiAPIKey,
-      model: 'glm-4.7'
+      model: 'GLM-4.5-air'
     });
   });
 

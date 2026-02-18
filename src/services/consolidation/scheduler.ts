@@ -16,6 +16,8 @@
 
 import { Pool } from 'pg';
 import { ReflectionService } from './reflection.js';
+import { SemanticMemoryService } from '../semantic-memory.js';
+import { createLLMClient } from '../llm-client.js';
 
 // Types for consolidation jobs
 export type ConsolidationType = 'daily' | 'weekly' | 'monthly';
@@ -52,6 +54,7 @@ const SCHEDULES: Record<ConsolidationType, ConsolidationSchedule> = {
 
 export class ConsolidationScheduler {
   private reflectionService: ReflectionService;
+  private semanticMemoryService: SemanticMemoryService;
   private jobs: Map<ConsolidationType, any> = new Map();
   private enabled: boolean;
 
@@ -59,9 +62,12 @@ export class ConsolidationScheduler {
     pool: Pool,
     options: {
       enabled?: boolean;
+      llmClient?: any;
     } = {}
   ) {
-    this.reflectionService = new ReflectionService(pool);
+    const llmClient = options.llmClient || createLLMClient();
+    this.reflectionService = new ReflectionService(pool, llmClient || undefined);
+    this.semanticMemoryService = new SemanticMemoryService(pool, llmClient || undefined);
     this.enabled = options.enabled !== false; // Default enabled
   }
 
@@ -210,6 +216,32 @@ export class ConsolidationScheduler {
       `[Consolidation Scheduler] Generated reflection for ${tenantId}: ` +
       `${reflection.reflection_id} (${reflection.session_count} sessions)`
     );
+
+    // Extract semantic principles from episodic memories
+    try {
+      const episodicMemories = handoffs.map(h => ({
+        handoff_id: h.handoff_id,
+        experienced: h.experienced,
+        learned: h.learned,
+        becoming: h.becoming,
+        significance: parseFloat(h.significance) || 0.5,
+        created_at: new Date(h.created_at),
+      }));
+
+      const principles = await this.semanticMemoryService.extractPrinciples(
+        tenantId,
+        episodicMemories
+      );
+
+      console.log(
+        `[Consolidation Scheduler] Extracted ${principles.length} semantic principles for ${tenantId}`
+      );
+    } catch (error) {
+      console.error(
+        `[Consolidation Scheduler] Failed to extract semantic principles for ${tenantId}:`,
+        error
+      );
+    }
 
     // Mark handoffs as consolidated
     await this.markHandoffsConsolidated(
