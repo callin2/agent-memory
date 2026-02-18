@@ -24,21 +24,21 @@
 -- Used by: Metadata queries for high-significance sessions
 -- Query: SELECT * FROM session_handoffs WHERE tenant_id = $1 AND significance >= 0.8
 -- Impact: 10-50× speedup for high-significance filtering
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_session_handoffs_tenant_significance
+CREATE INDEX IF NOT EXISTS idx_session_handoffs_tenant_significance
 ON session_handoffs(tenant_id, significance DESC, created_at DESC);
 
 -- Index 2: Tag array searches (GIN)
 -- Used by: Progressive retrieval (topic search by tags)
 -- Query: SELECT * FROM session_handoffs WHERE $2::text = ANY(tags)
 -- Impact: 20-100× speedup for tag filtering, enables index usage
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_session_handoffs_tags_gin
+CREATE INDEX IF NOT EXISTS idx_session_handoffs_tags_gin
 ON session_handoffs USING GIN (tags);
 
 -- Index 3: Identity thread queries (becoming)
 -- Used by: get_identity_thread, wake_up
 -- Query: SELECT becoming FROM session_handoffs WHERE tenant_id = $1 AND becoming IS NOT NULL
 -- Impact: 5-15× speedup for identity aggregation, partial index (smaller, faster)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_session_handoffs_tenant_becoming
+CREATE INDEX IF NOT EXISTS idx_session_handoffs_tenant_becoming
 ON session_handoffs(tenant_id, created_at ASC)
 WHERE becoming IS NOT NULL;
 
@@ -46,14 +46,14 @@ WHERE becoming IS NOT NULL;
 -- Used by: wake_up_stratified (Layer 3: Recent)
 -- Query: SELECT * FROM session_handoffs WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 3
 -- Impact: 2-5× speedup for recent queries, index-only scan
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_session_handoffs_tenant_recent_covering
+CREATE INDEX IF NOT EXISTS idx_session_handoffs_tenant_recent_covering
 ON session_handoffs(tenant_id, created_at DESC);
 
 -- Index 5: Composite index for tenant + significance + time
 -- Used by: Consolidation queries for old sessions
 -- Query: SELECT * WHERE tenant_id = $1 AND created_at < $2 ORDER BY significance DESC
 -- Impact: Enables compression optimization queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_session_handoffs_tenant_compression
+CREATE INDEX IF NOT EXISTS idx_session_handoffs_tenant_compression
 ON session_handoffs(tenant_id, compression_level, created_at DESC);
 
 -- ============================================================================

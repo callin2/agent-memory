@@ -12,6 +12,7 @@ import { createMetricsRoutes } from "./api/metrics.js";
 import { createExportRoutes } from "./api/export.js";
 import { createOrchestrationRoutes } from "./api/orchestration.js";
 import { createStratifiedMemoryRoutes } from "./api/stratified-memory.js";
+import { createChatDemoRoutes } from "./api/chat-demo.js";
 import { startMCPServer } from "./mcp/server.js";
 import { applyMcpEnvDefaults } from "./utils/mcp-env.js";
 import { promises as fs } from "fs";
@@ -21,6 +22,8 @@ import {
   createTransparencyMiddleware,
 } from "./middleware/transparency-middleware.js";
 import { createContextInjector } from "./core/context-injector.js";
+import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth.js";
+import { createTenantIsolationMiddleware } from "./middleware/tenantIsolation.js";
 
 // Apply MCP_ENV defaults before loading .env
 applyMcpEnvDefaults();
@@ -75,6 +78,35 @@ const poolConfig: PoolConfig = {
 };
 
 const pool = new Pool(poolConfig);
+
+// ============================================================================
+// API KEY AUTHENTICATION MIDDLEWARE
+// ============================================================================
+// Authentication middleware for securing API endpoints
+// NOTE: Auth is disabled by default. Set API_AUTH_ENABLED=true to enable.
+
+const authEnabled = process.env.API_AUTH_ENABLED === 'true';
+const apiKeyAuth = authEnabled
+  ? createApiKeyAuthMiddleware(pool, { required: false, permission: 'read' })
+  : (_req: any, _res: any, next: any) => next(); // No-op when disabled
+
+console.log(
+  `[API Authentication] ${authEnabled ? 'ENABLED' : 'DISABLED'} - Set API_AUTH_ENABLED=true to enable`
+);
+
+// ============================================================================
+// TENANT ISOLATION MIDDLEWARE
+// ============================================================================
+// Prevents horizontal privilege escalation (Tenant A accessing Tenant B data)
+// This middleware runs AFTER authentication to verify tenant_id matches
+
+const tenantIsolation = authEnabled
+  ? createTenantIsolationMiddleware({ allowOverride: false, requireTenantId: true })
+  : (_req: any, _res: any, next: any) => next(); // No-op when disabled
+
+console.log(
+  `[Tenant Isolation] ${authEnabled ? 'ENABLED' : 'DISABLED'} - Prevents cross-tenant data access`
+);
 
 // ============================================================================
 // TRANSPARENT MEMORY LAYER
@@ -240,17 +272,22 @@ const consolidationRoutes = createConsolidationRoutes(pool);
 const exportRoutes = createExportRoutes(pool);
 const orchestrationRoutes = createOrchestrationRoutes(pool);
 const stratifiedMemoryRoutes = createStratifiedMemoryRoutes(pool);
+const chatDemoRoutes = createChatDemoRoutes(pool);
 
-app.use("/api/v1", apiRoutes);
-app.use("/api/v1/test-harness", testHarnessRoutes);
-app.use("/api/v1/knowledge", knowledgeRoutes);
-app.use("/api/v1", sessionStartupRoutes); // Session startup under /api/v1
-app.use("/api/v1", handoffRoutes); // Handoff routes under /api/v1
-app.use("/api/v1", adaptiveChatRoutes); // Adaptive chat routes under /api/v1
-app.use("/api/v1", consolidationRoutes); // Consolidation routes under /api/v1
-app.use("/api/v1", orchestrationRoutes); // Orchestration routes under /api/v1
-app.use("/api/v1", exportRoutes); // Export routes under /api/v1
-app.use("/api/memory", stratifiedMemoryRoutes); // Stratified memory under /api/memory
+// Apply API key authentication + tenant isolation to all /api/v1/* routes
+// Note: /metrics and /health remain public for monitoring
+// Note: /api/demo routes remain open for demo purposes
+app.use("/api/v1", apiKeyAuth, tenantIsolation, apiRoutes);
+app.use("/api/v1/test-harness", apiKeyAuth, tenantIsolation, testHarnessRoutes);
+app.use("/api/v1/knowledge", apiKeyAuth, tenantIsolation, knowledgeRoutes);
+app.use("/api/v1", apiKeyAuth, tenantIsolation, sessionStartupRoutes); // Session startup under /api/v1
+app.use("/api/v1", apiKeyAuth, tenantIsolation, handoffRoutes); // Handoff routes under /api/v1
+app.use("/api/v1", apiKeyAuth, tenantIsolation, adaptiveChatRoutes); // Adaptive chat routes under /api/v1
+app.use("/api/v1", apiKeyAuth, tenantIsolation, consolidationRoutes); // Consolidation routes under /api/v1
+app.use("/api/v1", apiKeyAuth, tenantIsolation, orchestrationRoutes); // Orchestration routes under /api/v1
+app.use("/api/v1", apiKeyAuth, tenantIsolation, exportRoutes); // Export routes under /api/v1
+app.use("/api/memory", apiKeyAuth, tenantIsolation, stratifiedMemoryRoutes); // Stratified memory under /api/memory
+app.use("/api/demo", chatDemoRoutes); // Chat demo under /api/demo (no auth for demo)
 
 // Metrics and health monitoring (serves both humans and agents)
 const metricsRoutes = createMetricsRoutes(pool);
