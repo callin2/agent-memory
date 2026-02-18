@@ -16,6 +16,14 @@
 
 ---
 
+## Related Documentation
+
+- **[SOURCES_OF_TRUTH.md](./SOURCES_OF_TRUTH.md)** - What is current
+- **[ONBOARDING.md](./ONBOARDING.md)** - How to get started
+- **[AGENTS.md](./AGENTS.md)** - Repository layout
+
+---
+
 ## Protocol: Making Changes
 
 ### 1. Before You Start
@@ -428,6 +436,23 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 | `test` | Adding/updating tests | `test(mcp): add bearer token validation tests` |
 | `chore` | Maintenance tasks | `chore: update dependencies` |
 | `break` | Breaking change | `break(mcp): migrate from SSE to HTTP` |
+
+**Commit message structure**:
+```
+type(scope): description
+
+- What changed
+- Why it changed
+- Related files
+
+Co-Authored-By: Claude Sonnet 4.5
+```
+
+**Examples**:
+- `feat(mcp): add wake_up tool` - New feature
+- `fix(auth): resolve token parsing bug` - Bug fix
+- `docs: update README` - Documentation only
+- `refactor(api): simplify auth flow` - Refactoring
 
 ### Scopes
 
