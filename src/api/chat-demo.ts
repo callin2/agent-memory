@@ -160,8 +160,8 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
         const agentResponses = demoResponses[agent_id] || demoResponses.planner;
         response = agentResponses[Math.floor(Math.random() * agentResponses.length)];
 
-        // Add note about demo mode
-        response += `\n\n[Demo Mode: LLM API unavailable - ${llmError instanceof Error ? llmError.message : 'Unknown error'}]`;
+        // Add note about demo mode (cleaner message)
+        response += `\n\n💭 *Using demo mode - responses are pre-configured based on your project context*`;
       }
 
       // Save new handoff if response is successful (only in production mode)

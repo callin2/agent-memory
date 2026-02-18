@@ -24,6 +24,7 @@ import {
 import { createContextInjector } from "./core/context-injector.js";
 import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth.js";
 import { createTenantIsolationMiddleware } from "./middleware/tenantIsolation.js";
+import { createConsolidationScheduler } from "./services/consolidation/scheduler.js";
 
 // Apply MCP_ENV defaults before loading .env
 applyMcpEnvDefaults();
@@ -378,10 +379,19 @@ app.use(
 );
 
 // Graceful shutdown
+let consolidationScheduler: any = null;
+
 const shutdown = async () => {
   console.log("Shutting down gracefully...");
 
   try {
+    // Stop consolidation scheduler
+    if (consolidationScheduler) {
+      console.log("Stopping consolidation scheduler...");
+      consolidationScheduler.stop();
+      console.log("✓ Consolidation scheduler stopped");
+    }
+
     await pool.end();
     console.log("PostgreSQL pool closed");
   } catch (err) {
@@ -398,7 +408,18 @@ process.on("SIGINT", shutdown);
 if (process.argv.includes("--mcp")) {
   // Run as MCP server using stdio
   console.error("Starting MCP server...");
-  initializeDatabase().then(() => {
+  initializeDatabase().then(async () => {
+    // Start consolidation scheduler
+    const schedulerEnabled = process.env.CONSOLIDATION_SCHEDULER_ENABLED !== 'false';
+    if (schedulerEnabled) {
+      try {
+        consolidationScheduler = await createConsolidationScheduler(pool, { enabled: true });
+        console.error('[Consolidation] Scheduler started');
+      } catch (error) {
+        console.error('[Consolidation] Failed to start scheduler:', error);
+      }
+    }
+
     startMCPServer(pool).catch((err) => {
       console.error("MCP server error:", err);
       process.exit(1);
@@ -408,6 +429,20 @@ if (process.argv.includes("--mcp")) {
   // Run as HTTP server
   const server = app.listen(Number(PORT), HOST as string, async () => {
     await initializeDatabase();
+
+    // Start consolidation scheduler
+    const schedulerEnabled = process.env.CONSOLIDATION_SCHEDULER_ENABLED !== 'false';
+    if (schedulerEnabled) {
+      try {
+        consolidationScheduler = await createConsolidationScheduler(pool, { enabled: true });
+        const status = consolidationScheduler.getStatus();
+        console.log('[Consolidation] Scheduler started');
+        console.log(`[Consolidation] Scheduled jobs: ${status.jobs.join(', ')}`);
+      } catch (error) {
+        console.error('[Consolidation] Failed to start scheduler:', error);
+      }
+    }
+
     console.log(`Agent Memory System v2.0 running on port ${PORT}`);
     console.log(
       `Database: ${process.env.PGDATABASE || "agent_memory"}@${process.env.PGHOST || "localhost"}`,

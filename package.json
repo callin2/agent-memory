@@ -65,6 +65,7 @@
   "homepage": "https://github.com/callin2/agent-memory#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "@types/node-cron": "^3.0.11",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -74,6 +75,7 @@
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.563.0",
+    "node-cron": "^4.2.1",
     "pg": "^8.18.0",
     "tailwind-merge": "^3.4.0"
   },
@@ -98,8 +100,5 @@
     "tsx": "^4.21.0",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"
-  },
-  "engines": {
-    "node": ">=20.0.0"
   }
 }
