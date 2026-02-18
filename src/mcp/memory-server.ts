@@ -13,12 +13,13 @@
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { Pool } from "pg";
+import express from "express";
 
 // Database connection
 const pool = new Pool({
@@ -821,12 +822,79 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 /**
- * Start server
+ * Start HTTP server
  */
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Memory system MCP server running on stdio");
+  const app = express();
+  const PORT = parseInt(process.env.PORT || "4000", 10);
+
+  // Middleware
+  app.use(express.json());
+  app.use((req, res, next) => {
+    // CORS headers for cross-origin requests
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
+  // Health check endpoint
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok", server: "memory-system-mcp" });
+  });
+
+  // SSE endpoint for MCP
+  app.get("/sse", async (req, res) => {
+    console.error(`[${new Date().toISOString()}] New SSE connection from ${req.ip}`);
+
+    // Set SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    // Create SSE transport with the response object
+    const transport = new SSEServerTransport("/message", res);
+
+    // Connect server to transport
+    await server.connect(transport);
+
+    console.error(`[${new Date().toISOString()}] SSE connection established`);
+
+    // Handle client disconnect
+    req.on("close", () => {
+      console.error(`[${new Date().toISOString()}] SSE connection closed`);
+    });
+  });
+
+  // Message endpoint for client POST requests
+  app.post("/message", express.json(), (req, res) => {
+    console.error(`[${new Date().toISOString()}] Received message on /message`);
+    // The SSE transport handles this internally
+    res.sendStatus(200);
+  });
+
+  // Start server
+  app.listen(PORT, "0.0.0.0", () => {
+    console.error(``);
+    console.error(`╔════════════════════════════════════════════════════════════╗`);
+    console.error(`║  Memory System MCP Server (HTTP/SSE)                      ║`);
+    console.error(`╚════════════════════════════════════════════════════════════╝`);
+    console.error(``);
+    console.error(`  Server running on: http://0.0.0.0:${PORT}`);
+    console.error(`  SSE endpoint:    http://0.0.0.0:${PORT}/sse`);
+    console.error(`  Health check:    http://0.0.0.0:${PORT}/health`);
+    console.error(``);
+    console.error(`  To connect from another PC, use:`);
+    console.error(`  - Local:  http://localhost:${PORT}/sse`);
+    console.error(`  - Remote: http://<YOUR-IP>:${PORT}/sse`);
+    console.error(`             (run 'npm run network:ips' to see your IPs)`);
+    console.error(``);
+  });
 }
 
 main().catch((error) => {

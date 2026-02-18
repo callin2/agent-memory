@@ -110,5 +110,32 @@ module.exports = {
       out_file: './logs/embedding-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
     },
+
+    // ========================================================================
+    // MCP Server - Memory System (HTTP/SSE transport)
+    // ========================================================================
+    {
+      name: 'memory-mcp-server',
+      script: './node_modules/.bin/tsx',
+      args: 'src/mcp/memory-server.ts',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '200M',
+      env: {
+        NODE_ENV: 'production',
+        PORT: '4000',
+        PGHOST: 'localhost',
+        PGPORT: '5432',
+        PGDATABASE: 'agent_memory',
+        PGUSER: 'agent_mem_dba',
+        PGPASSWORD: 'adminqwer1234',
+      },
+      error_file: './logs/mcp-error.log',
+      out_file: './logs/mcp-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+    },
   ],
 };

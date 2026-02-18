@@ -2,9 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/.mcp.schema.json",
   "mcpServers": {
     "memory-system": {
-      "$comment": "Using shell wrapper to load PATH (tsx is installed locally)",
-      "command": "${SHELL:-/bin/bash}",
-      "args": ["-l", "-c", "exec npx tsx src/mcp/memory-server.ts"],
+      "$comment": "HTTP-based MCP server for remote access",
+      "url": "http://localhost:4000/sse",
       "env": {
         "PGHOST": "localhost",
         "PGPORT": "5432",
