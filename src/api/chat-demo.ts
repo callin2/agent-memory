@@ -203,7 +203,7 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
           '',  // becoming - empty for now
           `Chat demo context for ${agent_id}`,
           0.5,
-          ARRAY['chat-demo', agent_id]
+          ['chat-demo', agent_id]
         ]);
 
         console.log('[Chat Demo] Saved handoff:', sessionId);

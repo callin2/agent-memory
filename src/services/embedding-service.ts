@@ -14,7 +14,6 @@
  */
 
 import { Pool } from 'pg';
-import { LLMClient } from '../llm-client.js';
 
 export interface EmbeddingResult {
   handoff_id: string;
@@ -25,11 +24,9 @@ export interface EmbeddingResult {
 
 export class EmbeddingService {
   private pool: Pool;
-  private llmClient: LLMClient | null;
 
-  constructor(pool: Pool, llmClient?: LLMClient) {
+  constructor(pool: Pool, _llmClient?: unknown) {
     this.pool = pool;
-    this.llmClient = llmClient || null;
   }
 
   /**
@@ -56,7 +53,7 @@ export class EmbeddingService {
         throw new Error(`Embedding API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: any = await response.json();
 
       // Handle OpenAI-compatible response format
       if (data.data && data.data[0] && data.data[0].embedding) {

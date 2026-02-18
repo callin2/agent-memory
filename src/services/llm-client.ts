@@ -62,7 +62,7 @@ export class LLMClient {
       throw new Error(`z.ai API error: ${error}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     console.log('[z.ai] Raw Response:', JSON.stringify(data, null, 2).substring(0, 800));
 
     // Check different possible response formats
@@ -117,7 +117,7 @@ export class LLMClient {
       throw new Error(`OpenAI API error: ${error}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return {
       content: data.choices[0].message.content,
       model: data.model
@@ -155,7 +155,7 @@ export class LLMClient {
       throw new Error(`Anthropic API error: ${error}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return {
       content: data.content[0].text,
       model: data.model

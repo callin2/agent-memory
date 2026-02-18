@@ -196,7 +196,7 @@ export class EncryptionService {
    * Re-encrypt with new key (key rotation)
    * WARNING: Expensive operation - run during maintenance window
    */
-  async rotateEncryptionKey(oldKey: string, newKey: string): Promise<{
+  async rotateEncryptionKey(_oldKey: string, _newKey: string): Promise<{
     processed: number;
     failed: number;
   }> {
