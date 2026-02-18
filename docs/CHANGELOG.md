@@ -5,6 +5,140 @@ All notable changes to the Agent Memory System will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-02-19
+
+### Breaking Change: MCP Server Transport Migration
+
+**Migrated from SSE/stdio to simple HTTP POST architecture**
+
+The MCP server has been completely rewritten to use a simpler, more reliable HTTP-based transport following n8n's architecture pattern.
+
+### Changed
+
+#### MCP Server Architecture
+- **Old**: StreamableHTTPServerTransport (SSE over HTTP with AsyncLocalStorage context)
+- **New**: Simple JSON-RPC 2.0 over HTTP POST (stateless, independent requests)
+- **Endpoint**: `/sse` → `/mcp`
+- **Response Format**: Server-Sent Events → JSON
+- **Session Management**: Required (SSE) → None (stateless)
+
+#### Authentication
+- **Location**: `initialize` message params → HTTP `Authorization` header
+- **Method**: MCP protocol auth → Bearer token (n8n-style)
+- **Tenant Injection**: AsyncLocalStorage → Direct parameter injection
+
+#### Configuration Files
+- `.mcp.json`: Added `type: "http"` and `headers.Authorization`
+- `ecosystem.config.js`: Script changed from `tsx + args` to compiled JS
+
+### Added
+
+#### New MCP Server Implementation
+- **src/mcp/memory-server-http.ts** - Complete HTTP-based MCP server (1293 lines)
+- **src/mcp/auth.ts** - Bearer token authentication utilities (103 lines)
+- 11 MCP tools (full feature parity with old server):
+  1. `wake_up` - Identity-first memory loading with auto-detection
+  2. `create_handoff` - Session handoff creation
+  3. `get_last_handoff` - Most recent handoff retrieval
+  4. `get_identity_thread` - Identity evolution over time
+  5. `list_handoffs` - List all handoffs with filters
+  6. `create_knowledge_note` - Quick knowledge capture
+  7. `get_knowledge_notes` - Retrieve knowledge notes
+  8. `list_semantic_principles` - Timeless learnings
+  9. `create_capsule` - Secure memory capsule
+  10. `get_capsules` - List available capsules
+  11. `get_compression_stats` - Token savings statistics
+
+#### New Documentation
+- **docs/MCP_HTTP_AUTH.md** - Bearer token authentication guide
+- **docs/MCP_SIMPLE_HTTP.md** - HTTP architecture overview
+- **docs/MCP_QUICK_START.md** - Completely rewritten for HTTP (426 lines)
+
+#### New Test Files
+- **test-mcp-auth.mjs** - Authentication validation tests (167 lines)
+- **test-mcp-simple.mjs** - Basic connection tests (39 lines)
+
+### Removed
+
+#### Old SSE Implementation
+- `src/mcp/memory-server.ts` - Old SSE-based server (903 lines)
+- `src/mcp/context.ts` - AsyncLocalStorage context (40 lines)
+- `test-mcp-tools.mjs` - Old SSE endpoint tests
+- `test-ping.mjs` - Ping test for old endpoint
+- `test-tools-single.mjs` - Single request test for old endpoint
+
+### Migration Impact
+
+#### For Users
+- **Update `.mcp.json`**: Change endpoint from `/sse` to `/mcp`, add Bearer token
+- **Authentication**: Provide token in HTTP header instead of initialize params
+- **No breaking changes to tool APIs**: All 11 tools work identically
+
+#### For Developers
+- **Simpler architecture**: No AsyncLocalStorage, no session state
+- **Easier debugging**: Standard HTTP POST/JSON responses
+- **Better testability**: Stateless requests, standard JSON-RPC
+- **Reduced complexity**: ~900 lines removed, replaced with cleaner implementation
+
+### Performance & Reliability
+- **More reliable**: No SSE connection management complexity
+- **Simpler deployment**: No session state to manage
+- **Better monitoring**: Standard HTTP logging
+- **Easier scaling**: Stateless requests can be load-balanced
+
+### Technical Details
+
+#### Protocol Flow (New)
+```
+1. Client → HTTP POST /mcp with Bearer token
+2. Server validates token → extracts tenant_id
+3. Server injects tenant_id into tool arguments
+4. Server executes tool → returns JSON-RPC response
+5. Connection closed (no persistent session)
+```
+
+#### Code Statistics
+- **Added**: 2087 lines (new server + auth + tests + docs)
+- **Removed**: 973 lines (old server + context + old tests)
+- **Net change**: +1114 lines (mostly documentation and tests)
+
+### Documentation Updates
+
+All MCP-related documentation has been updated:
+- ✅ MCP_QUICK_START.md - Complete rewrite with HTTP examples
+- ✅ MCP_HTTP_AUTH.md - Fixed endpoint references
+- ✅ AGENTS.md - Updated server description
+- ✅ ecosystem.config.js - Updated PM2 configuration
+- ✅ .mcp.json - Updated client configuration
+
+### Upgrade Instructions
+
+1. Update `.mcp.json`:
+   ```json
+   {
+     "type": "http",
+     "url": "http://localhost:4000/mcp",
+     "headers": {
+       "Authorization": "Bearer your-token"
+     }
+   }
+   ```
+
+2. Rebuild and restart:
+   ```bash
+   npm run build
+   pm2 restart ecosystem.config.js
+   ```
+
+3. Test connection:
+   ```bash
+   node test-mcp-simple.mjs
+   ```
+
+### Related Commits
+- ea5b874 feat(mcp): complete migration to simple HTTP MCP server with full tool suite
+- f789a42 docs: update MCP documentation for HTTP transport architecture
+
 ## [2.2.0] - 2026-02-17
 
 ### Major Milestone: Ownership Transfer
