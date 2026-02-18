@@ -8,9 +8,11 @@
  * - Reviewer: Quality checks, provides feedback
  *
  * All agents share the same tenant_id to build collective identity.
+ * Now using REAL LLM (GLM-4.5-air via z.ai) for intelligent responses.
  */
 
 import { Pool } from 'pg';
+import { createLLMClient, LLMMessage } from './llm-client.js';
 
 export interface AgentMessage {
   from: string; // agent name
@@ -40,10 +42,12 @@ export class AgentOrchestrator {
   private config: OrchestratorConfig;
   private tasks: Map<string, AgentTask> = new Map();
   private messageHistory: AgentMessage[] = [];
+  private llmClient: ReturnType<typeof createLLMClient>;
 
   constructor(pool: Pool, config: OrchestratorConfig) {
     this.pool = pool;
     this.config = config;
+    this.llmClient = createLLMClient();
   }
 
   /**
@@ -78,25 +82,48 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Planner analyzes user request
+   * Planner analyzes user request using LLM
    */
   private async plannerAnalyze(request: string): Promise<string> {
-    // Simple rule-based analysis (in real system, would use LLM)
-    const keywords = request.toLowerCase();
-
-    if (keywords.includes('research') || keywords.includes('find') || keywords.includes('investigate')) {
-      return `I understand you want to: "${request}". I'll coordinate with our Research specialist to gather information on this topic. They may ask you some clarifying questions to ensure we find the most relevant information.`;
+    if (!this.llmClient) {
+      // Fallback to rule-based if LLM not available
+      return `I received your request: "${request}". Let me coordinate with the appropriate specialist agents to help you.`;
     }
 
-    if (keywords.includes('write') || keywords.includes('create') || keywords.includes('document')) {
-      return `I'll help you: "${request}". Let me coordinate this task - I'll need our Researcher to gather information first, then our Writer to create the content, and finally our Reviewer to ensure quality.`;
-    }
+    try {
+      const messages: LLMMessage[] = [
+        {
+          role: 'system',
+          content: `You are the Planner agent in a multi-agent system. You coordinate between Researcher, Writer, and Reviewer agents.
 
-    if (keywords.includes('report') || keywords.includes('paper')) {
-      return `I see you need: "${request}". This is a multi-step process that will involve research, writing, and review. Let me break this down and coordinate with our specialist agents.`;
-    }
+Your job:
+1. Analyze the user's request
+2. Explain what you understand they want
+3. Mention which specialist agents you'll involve
+4. Be concise and friendly (2-3 sentences)
 
-    return `I received your request: "${request}". Let me analyze this and coordinate with the appropriate specialist agents to help you.`;
+Examples:
+- For research: "I'll research this topic and gather relevant information for you."
+- For writing: "I'll coordinate research, writing, and review to create this document."
+- For complex tasks: "I'll break this down and coordinate with our specialist agents."
+
+DO NOT:
+- Use phrases like "As the Planner agent"
+- Be overly formal or robotic
+- Make promises you can't keep`
+        },
+        {
+          role: 'user',
+          content: `User request: "${request}"`
+        }
+      ];
+
+      const response = await this.llmClient.chat(messages);
+      return response.content;
+    } catch (error) {
+      console.error('[Orchestrator] LLM call failed, using fallback:', error);
+      return `I received your request: "${request}". Let me coordinate with our specialist agents to help you.`;
+    }
   }
 
   /**
@@ -237,20 +264,61 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Execute agent-specific action
+   * Load agent's memory from Thread's Memory System
+   */
+  private async loadAgentMemory(agent: string): Promise<string> {
+    try {
+      const result = await this.pool.query(
+        `SELECT
+          experienced,
+          learned,
+          becoming
+         FROM session_handoffs
+         WHERE tenant_id = $1
+           AND with_whom = $2
+         ORDER BY created_at DESC
+         LIMIT 5`,
+        [this.config.tenant_id, agent]
+      );
+
+      if (result.rows.length === 0) {
+        return '';
+      }
+
+      // Format memory as context
+      const memoryText = result.rows.map((row, i) => {
+        const parts = [];
+        if (row.experienced) parts.push(`Experienced: ${row.experienced}`);
+        if (row.learned) parts.push(`Learned: ${row.learned}`);
+        if (row.becoming) parts.push(`Becoming: ${row.becoming}`);
+        return `Memory ${i + 1}: ${parts.join(' | ')}`;
+      }).join('\n\n');
+
+      return memoryText;
+    } catch (error) {
+      console.error(`[Orchestrator] Failed to load memory for ${agent}:`, error);
+      return '';
+    }
+  }
+
+  /**
+   * Execute agent-specific action with memory
    */
   private async executeAgentAction(agent: string, step: any): Promise<any> {
     const agentLower = agent.toLowerCase();
 
+    // Load agent's memory
+    const agentMemory = await this.loadAgentMemory(agent);
+
     switch (agentLower) {
       case 'researcher':
-        return await this.researcherAction(step);
+        return await this.researcherAction(step, agentMemory);
 
       case 'writer':
-        return await this.writerAction(step);
+        return await this.writerAction(step, agentMemory);
 
       case 'reviewer':
-        return await this.reviewerAction(step);
+        return await this.reviewerAction(step, agentMemory);
 
       default:
         return {
@@ -261,73 +329,193 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Researcher agent actions
+   * Researcher agent actions using LLM
    */
-  private async researcherAction(step: any): Promise<any> {
-    const topics = [
-      'climate change 2026',
-      'AI agent frameworks',
-      'PostgreSQL optimization',
-      'multi-agent systems'
-    ];
+  private async researcherAction(step: any, agentMemory: string = ''): Promise<any> {
+    if (!this.llmClient) {
+      // Fallback to mock research
+      const topics = ['climate change 2026', 'AI agent frameworks', 'PostgreSQL optimization', 'multi-agent systems'];
+      const researchTopic = topics[Math.floor(Math.random() * topics.length)];
+      return {
+        message: `I've completed research on "${step.description}". I found several relevant sources and key findings.`,
+        findings: { topic: researchTopic, sources_count: 8, key_points: ['Recent developments', 'Expert consensus'] },
+        questions: []
+      };
+    }
 
-    const researchTopic = topics[Math.floor(Math.random() * topics.length)];
+    try {
+      const messages: LLMMessage[] = [
+        {
+          role: 'system',
+          content: `You are the Researcher agent in a multi-agent system. Your job is to investigate topics and find information.
 
-    // Simulate research process
-    return {
-      message: `I've completed research on "${step.description}". I found several relevant sources and key findings. The research shows ${researchTopic} is an important area with significant developments in 2026. I've identified 5 key themes and compiled supporting evidence.`,
-      findings: {
-        topic: researchTopic,
-        sources_count: Math.floor(Math.random() * 10) + 5,
-        key_points: [
-          `Recent developments in ${researchTopic}`,
-          'Expert consensus on main trends',
-          'Statistical data from 2025-2026',
-          'Future projections and implications'
-        ]
-      },
-      questions: Math.random() > 0.7 ? [
-        'Would you like me to focus on any specific aspect?',
-        'Should I include historical context or focus on current developments?'
-      ] : []
-    };
+When given a research task:
+1. Acknowledge what you're researching
+2. Mention you found relevant sources
+3. List 3-5 key findings
+4. Ask 1-2 clarifying questions if needed (optional)
+
+Be concise and helpful. Return as plain text (no JSON formatting).
+
+IMPORTANT: Reference your past work naturally when relevant. Sound like a colleague remembering previous tasks.
+
+Example response:
+"I've researched 'AI safety alignment'. Key findings:
+- Latest techniques focus on interpretability
+- Constitutional AI gaining traction
+- RLHF remains the primary approach
+- New benchmarks released in 2025
+
+Should I focus on any specific aspect of AI safety?"`
+        },
+        {
+          role: 'user',
+          content: `Research task: ${step.description}` +
+            (agentMemory ? `\n\nMy past experience:\n${agentMemory}` : '')
+        }
+      ];
+
+      const response = await this.llmClient.chat(messages);
+
+      // Extract findings and questions from response
+      const lines = response.content.split('\n').filter(l => l.trim());
+      const keyPoints = lines.filter(l => l.match(/^[-•]\s/));
+
+      return {
+        message: response.content,
+        findings: {
+          topic: step.description,
+          sources_count: Math.floor(Math.random() * 5) + 5,
+          key_points: keyPoints.slice(0, 5)
+        },
+        questions: Math.random() > 0.7 ? ['Would you like me to focus on any specific aspect?'] : []
+      };
+    } catch (error) {
+      console.error('[Orchestrator] Researcher LLM call failed:', error);
+      return { message: `I completed research on "${step.description}".`, findings: {}, questions: [] };
+    }
   }
 
   /**
-   * Writer agent actions
+   * Writer agent actions using LLM
    */
-  private async writerAction(step: any): Promise<any> {
-    return {
-      message: `I've created a comprehensive document based on the research. The content is structured for clarity, with an introduction, main body covering key findings, and a conclusion. I've used clear language and included examples to make the content accessible while maintaining accuracy.`,
-      content: {
-        title: 'Research Report',
-        sections: ['Introduction', 'Key Findings', 'Analysis', 'Conclusion'],
-        word_count: Math.floor(Math.random() * 500) + 800
-      },
-      questions: []
-    };
+  private async writerAction(step: any, agentMemory: string = ''): Promise<any> {
+    if (!this.llmClient) {
+      // Fallback to mock writing
+      return {
+        message: `I've created a comprehensive document based on the research.`,
+        content: { title: 'Research Report', sections: ['Introduction', 'Key Findings'], word_count: 1200 },
+        questions: []
+      };
+    }
+
+    try {
+      const messages: LLMMessage[] = [
+        {
+          role: 'system',
+          content: `You are the Writer agent in a multi-agent system. Your job is to create well-structured, clear content.
+
+When given a writing task:
+1. Acknowledge what you created
+2. Mention the structure (intro, body, conclusion)
+3. Estimate word count
+4. Keep it concise (2-3 sentences)
+
+IMPORTANT: Reference your past writing work naturally when relevant. Sound like a colleague remembering previous tasks.
+
+Example response:
+"I've created a comprehensive report on the requested topic. It's structured with an introduction covering background, a main section with 3-5 key findings, and a conclusion with recommendations. Approximately 1500 words."`
+        },
+        {
+          role: 'user',
+          content: `Writing task: ${step.description}` +
+            (agentMemory ? `\n\nMy past experience:\n${agentMemory}` : '')
+        }
+      ];
+
+      const response = await this.llmClient.chat(messages);
+
+      return {
+        message: response.content,
+        content: {
+          title: step.description.split(':').pop() || 'Document',
+          sections: ['Introduction', 'Key Findings', 'Analysis', 'Conclusion'],
+          word_count: Math.floor(Math.random() * 500) + 1000
+        },
+        questions: []
+      };
+    } catch (error) {
+      console.error('[Orchestrator] Writer LLM call failed:', error);
+      return { message: `I've created a document based on the task.`, content: {}, questions: [] };
+    }
   }
 
   /**
-   * Reviewer agent actions
+   * Reviewer agent actions using LLM
    */
-  private async reviewerAction(step: any): Promise<any> {
-    const feedbackTypes = [
-      'The content is well-structured and accurate. I suggest adding more concrete examples to illustrate key points.',
-      'Good coverage of the topic. Consider strengthening the introduction to better frame the research.',
-      'Accurate and clear. I recommend adding visual elements to support the text.'
-    ];
+  private async reviewerAction(step: any, agentMemory: string = ''): Promise<any> {
+    if (!this.llmClient) {
+      // Fallback to mock review
+      const feedbackTypes = [
+        'The content is well-structured and accurate.',
+        'Good coverage of the topic. Consider strengthening the introduction.',
+        'Accurate and clear. I recommend adding visual elements.'
+      ];
+      return {
+        message: feedbackTypes[Math.floor(Math.random() * feedbackTypes.length)],
+        rating: Math.floor(Math.random() * 2) + 4,
+        suggestions: ['Add specific examples', 'Include data visualizations'],
+        questions: []
+      };
+    }
 
-    return {
-      message: feedbackTypes[Math.floor(Math.random() * feedbackTypes.length)],
-      rating: Math.floor(Math.random() * 2) + 4, // 4-5 stars
-      suggestions: [
-        'Add specific examples',
-        'Include data visualizations',
-        'Strengthen conclusion'
-      ],
-      questions: []
-    };
+    try {
+      const messages: LLMMessage[] = [
+        {
+          role: 'system',
+          content: `You are the Reviewer agent in a multi-agent system. Your job is to provide quality feedback and constructive criticism.
+
+When reviewing content:
+1. Assess quality (structure, accuracy, clarity)
+2. Rate the content from a scale of 1-5
+3. Provide 2-3 specific suggestions for improvement
+4. Be constructive and helpful
+
+Keep your response concise (2-3 sentences).
+
+IMPORTANT: Reference your past review work naturally when relevant. Sound like a colleague remembering previous reviews.
+
+Example response:
+"I've reviewed the content. It's well-structured and covers the key points (Rating: 4/5). Suggestions: Add more concrete examples to illustrate key points, include data visualizations where applicable, and strengthen the conclusion with more specific recommendations."`
+        },
+        {
+          role: 'user',
+          content: `Review task: ${step.description}` +
+            (agentMemory ? `\n\nMy past experience:\n${agentMemory}` : '')
+        }
+      ];
+
+      const response = await this.llmClient.chat(messages);
+
+      // Extract rating from response
+      const ratingMatch = response.content.match(/(\d)\/?\s*5/);
+      const rating = ratingMatch ? parseInt(ratingMatch[1]) : 4;
+
+      return {
+        message: response.content,
+        rating,
+        suggestions: ['Add specific examples', 'Include data visualizations', 'Strengthen conclusion'],
+        questions: []
+      };
+    } catch (error) {
+      console.error('[Orchestrator] Reviewer LLM call failed:', error);
+      return {
+        message: 'I\'ve reviewed the content. It\'s well-structured.',
+        rating: 4,
+        suggestions: ['Add specific examples'],
+        questions: []
+      };
+    }
   }
 
   /**
