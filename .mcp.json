@@ -2,14 +2,11 @@
   "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/.mcp.schema.json",
   "mcpServers": {
     "memory-system": {
-      "$comment": "HTTP-based MCP server for remote access",
-      "url": "http://localhost:4000/sse",
-      "env": {
-        "PGHOST": "localhost",
-        "PGPORT": "5432",
-        "PGDATABASE": "agent_memory_dev",
-        "PGUSER": "agent_mem_dba",
-        "PGPASSWORD": "adminqwer1234"
+      "$comment": "HTTP-based MCP server for remote access with Bearer token authentication (n8n-style)",
+      "type": "http",
+      "url": "http://localhost:4000/mcp",
+      "headers": {
+        "Authorization": "Bearer test-mcp-token"
       }
     }
   },

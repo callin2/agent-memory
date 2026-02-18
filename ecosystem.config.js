@@ -112,19 +112,18 @@ module.exports = {
     },
 
     // ========================================================================
-    // MCP Server - Memory System (HTTP/SSE transport)
+    // MCP Server - Memory System (Simple HTTP transport)
     // ========================================================================
     {
       name: 'memory-mcp-server',
-      script: './node_modules/.bin/tsx',
-      args: 'src/mcp/memory-server.ts',
+      script: './dist/mcp/memory-server-http.js',
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
       watch: false,
       max_memory_restart: '200M',
       env: {
-        NODE_ENV: 'production',
+        NODE_ENV: 'development',
         PORT: '4000',
         PGHOST: 'localhost',
         PGPORT: '5432',
