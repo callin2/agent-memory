@@ -179,6 +179,16 @@ export class ConsolidationScheduler {
         `[Consolidation Scheduler] ✓ ${type} consolidation complete: ` +
         `${totalProcessed} processed, ${totalAffected} affected in ${duration}s`
       );
+
+      // Run memory decay after weekly consolidation
+      if (type === 'weekly') {
+        try {
+          await this.runMemoryDecay();
+          console.log('[Consolidation Scheduler] ✓ Memory decay applied');
+        } catch (error) {
+          console.error('[Consolidation Scheduler] Memory decay failed:', error);
+        }
+      }
     } catch (error) {
       console.error(`[Consolidation Scheduler] ${type} consolidation failed:`, error);
       throw error;
@@ -409,6 +419,14 @@ export class ConsolidationScheduler {
       jobs: Array.from(this.jobs.keys()),
       schedules: SCHEDULES,
     };
+  }
+
+  /**
+   * Run memory decay (forgetting curve)
+   * Called after weekly consolidation
+   */
+  private async runMemoryDecay(): Promise<void> {
+    await (this.reflectionService as any).pool.query('SELECT decay_memory_strength()');
   }
 }
 

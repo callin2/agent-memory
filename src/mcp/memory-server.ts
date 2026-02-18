@@ -376,6 +376,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           context.recent_handoffs = recentResult.rows;
           estimatedTokens += recentResult.rows.length * 150;
+
+          // Boost memory strength for retrieved handoffs (spaced repetition effect)
+          if (recentResult.rows.length > 0) {
+            const handoffIds = recentResult.rows.map(r => r.handoff_id);
+            await pool.query(
+              `UPDATE session_handoffs
+               SET memory_strength = LEAST(1.0, memory_strength + 0.1),
+                   last_retrieved_at = NOW(),
+                   retrieval_count = retrieval_count + 1
+               WHERE handoff_id = ANY($1)`,
+              [handoffIds]
+            );
+          }
         }
 
         // Layer 5: Progressive Retrieval (on-demand)

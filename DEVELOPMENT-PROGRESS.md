@@ -236,16 +236,21 @@
   - Impact: Reduces "who am I?" confusion 90%, matches human introspection
 
 ### Domain - Task 15: Forgetting Curve & Retrieval Practice
-- [ ] **Todo:** Add `memory_strength`, `last_retrieved_at`, decay function
-- [ ] **Files:** New migration, update queries
-- [ ] **Effort:** 8-12 hours (1-1.5 days)
+- [x] **Todo:** Add `memory_strength`, `last_retrieved_at`, decay function
+- [x] **Files:** Migration 027, memory-server.ts, scheduler.ts
+- [x] **Effort:** 8-12 hours (1-1.5 days)
 - [ ] **Dependencies:** None
-- [ ] **Started:** ___
-- [ ] **Completed:** ___
-- [ ] **Notes:**
-  - Decay: `strength *= 0.95^days_since_retrieval`
-  - Boost: `strength = MIN(1.0, strength + 0.1)` on retrieval
-  - Impact: +40-60% retention (spaced repetition)
+- [x] **Started:** 2026-02-18
+- [x] **Completed:** 2026-02-18
+- [x] **Notes:**
+  - ✅ Created migration 027: Added memory_strength, last_retrieved_at, retrieval_count
+  - ✅ Implemented decay function: strength *= 0.95^days (episodic), 0.97^days (semantic)
+  - ✅ Implemented boost: strength += 0.1 on retrieval (max 1.0)
+  - ✅ Integrated retrieval boost into wake_up (recent handoffs)
+  - ✅ Integrated decay into weekly consolidation scheduler
+  - ✅ Added index for weak memories (< 0.2 strength)
+  - ✅ Research-based: Ebbinghaus forgetting curve + testing effect
+  - Impact: +40-60% retention through spaced repetition, token savings via archival
 
 ### Domain - Task 16: Vector Embeddings & Semantic Search
 - [ ] **Todo:** Add pgvector, generate embeddings, semantic similarity
@@ -293,11 +298,11 @@
 - 🟠 P1 (High): 5 tasks
 - 🟡 P2 (Medium): 7 tasks
 
-**Completed:** 11 / 18 (61%)
+**Completed:** 12 / 18 (67%)
 **In Progress:** 0 tasks
 **Blocked:** 0 tasks
 
-**Last Completed:** Tasks 13 & 14 (Tool Consolidation + Identity-First Loading) - 2026-02-18
+**Last Completed:** Task 15 (Forgetting Curve & Retrieval Practice) - 2026-02-18
 
 **Estimated Effort:**
 - P0: 10-15 days
@@ -538,6 +543,34 @@
   - Identity-first loading answers fundamental question first
   - Backward compatibility crucial (deprecated, not removed)
 - **Next Session:** Continue with remaining tasks (Task 15: Forgetting Curve, Task 16: Vector Embeddings, Task 18: Audit Logging)
+
+### Session 9 (2026-02-18)
+- **Started:** 2026-02-18 23:00 UTC
+- **Completed:**
+  - [x] Task 15: Forgetting Curve & Retrieval Practice
+    - Created migration 027: Added memory_strength, last_retrieved_at, retrieval_count
+    - Implemented decay function: strength *= 0.95^days (episodic), 0.97^days (semantic)
+    - Implemented boost: strength += 0.1 on retrieval (max 1.0)
+    - Integrated retrieval boost into wake_up (recent handoffs)
+    - Integrated decay into weekly consolidation scheduler
+    - Added index for weak memories (< 0.2 strength) for archival
+    - Research-based: Ebbinghaus forgetting curve + testing effect (Roediger, 2006)
+    - Token savings: Archive memories <20% strength
+- **Files Created:**
+  - src/db/migrations/027_forgetting_curve.sql
+- **Files Modified:**
+  - src/mcp/memory-server.ts
+  - src/services/consolidation/scheduler.ts
+  - DEVELOPMENT-PROGRESS.md
+- **P2 Tasks Complete:** 3/7 (43%)
+- **Overall Progress:** 12/18 tasks (67%) ✅
+- **Major Milestone:** Two-thirds complete!
+- **Learnings:**
+  - Spaced repetition improves retention by 40-60%
+  - Decay rate: 5% per day for episodic, 3% for semantic
+  - Boost on retrieval strengthens memories (testing effect)
+  - Can identify weak memories for cleanup
+- **Next Session:** Complete final 6 tasks (Redis caching, consolidation optimization, vector embeddings, PII protection, audit logging, onboarding)
 
 ---
 

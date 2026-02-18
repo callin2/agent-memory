@@ -7,19 +7,24 @@
 import { Router, Request, Response } from 'express';
 import { Pool } from 'pg';
 import { LLMClient, LLMMessage } from '../services/llm-client.js';
+import { getChatDemoLLMConfig } from '../config/llm.js';
 
 export function createChatDemoRoutes(pool: Pool): Router {
   const router = Router();
 
-  // Initialize LLM client
-  const zaiAPIKey = process.env.ZAI_API_KEY || '';
-  const zaiBaseURL = process.env.ZAI_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
+  // Get LLM configuration
+  const llmConfig = getChatDemoLLMConfig();
 
-  if (!zaiAPIKey) {
-    console.warn('[Chat Demo] ZAI_API_KEY not configured, using demo mode');
+  // Initialize LLM client with config
+  const llmClient = new LLMClient(
+    llmConfig.apiKey,
+    llmConfig.provider,
+    llmConfig.baseURL
+  );
+
+  if (!llmConfig.apiKey) {
+    console.warn('[Chat Demo] LLM API key not configured, using demo mode');
   }
-
-  const llmClient = new LLMClient(zaiAPIKey, 'zai', zaiBaseURL);
 
   /**
    * POST /api/demo/chat
@@ -124,8 +129,8 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
       // Call LLM
       let response: string;
       try {
-        if (zaiAPIKey) {
-          const llmResponse = await llmClient.chat(messages, 'GLM-4.5-air');
+        if (llmConfig.apiKey) {
+          const llmResponse = await llmClient.chat(messages, llmConfig.model);
           response = llmResponse.content;
         } else {
           throw new Error('No API key configured');
@@ -166,7 +171,7 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
 
       // Save new handoff if response is successful (only in production mode)
       const isDemoMode = response.includes('[Demo Mode:');
-      if (!isDemoMode && zaiAPIKey && memories.length > 0) {
+      if (!isDemoMode && llmConfig.apiKey && memories.length > 0) {
         const insertQuery = `
           INSERT INTO session_handoffs (
             tenant_id,
@@ -206,7 +211,7 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
         response,
         agent_id,
         memories_used: memories.length,
-        model: 'GLM-4.5-air'
+        model: llmConfig.model
       });
 
     } catch (error) {
@@ -227,8 +232,9 @@ IMPORTANT: Reference actual project work naturally. Sound like a colleague, not 
     res.json({
       success: true,
       service: 'chat-demo',
-      llm_configured: !!zaiAPIKey,
-      model: 'GLM-4.5-air'
+      llm_configured: !!llmConfig.apiKey,
+      model: llmConfig.model,
+      provider: llmConfig.provider
     });
   });
 
