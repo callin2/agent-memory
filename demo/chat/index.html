@@ -463,8 +463,27 @@
       document.getElementById('info-modal').classList.remove('flex');
     }
 
+    // Load LLM configuration
+    async function loadLLMConfig() {
+      try {
+        const response = await fetch(`${API_BASE}/api/demo/health`);
+        const config = await response.json();
+
+        // Update model badge in header
+        const modelBadge = document.querySelector('.bg-blue-900\\/30 span');
+        if (modelBadge && config.model) {
+          modelBadge.textContent = `🤖 ${config.model}`;
+        }
+
+        console.log('[LLM Config]', config);
+      } catch (error) {
+        console.error('[LLM Config] Failed to load:', error);
+      }
+    }
+
     // Initialize
     initAgentList();
+    loadLLMConfig();
   </script>
 </body>
 </html>
