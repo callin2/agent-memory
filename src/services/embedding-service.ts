@@ -2,12 +2,15 @@
  * Vector Embedding Service
  *
  * Generates and manages vector embeddings for semantic similarity search.
- * Uses OpenAI text-embedding-3-small model (1536 dimensions).
+ * Uses local Qwen3 text-embedding-qwen3-embedding-0.6b model (1024 dimensions).
+ *
+ * API Endpoint: http://172.30.1.23:1234/v1/embeddings
  *
  * Benefits over FTS:
  * - "dog" matches "puppy", "canine", "pet" (semantic similarity)
  * - Better for conceptual queries vs keyword matching
  * - 2-3× better retrieval relevance
+ * - Free (runs locally on your LAN PC)
  */
 
 import { Pool } from 'pg';
@@ -30,35 +33,43 @@ export class EmbeddingService {
   }
 
   /**
-   * Generate embedding for text using OpenAI
-   * Note: This would need OpenAI API integration
-   * For now, returns mock embedding (all zeros) for demonstration
+   * Generate embedding for text using local Qwen3 API
+   * Endpoint: http://172.30.1.23:1234/v1/embeddings
    */
   private async generateEmbedding(text: string): Promise<number[]> {
-    if (!this.llmClient) {
-      throw new Error('LLM client not available for embedding generation');
+    const embeddingApiUrl = process.env.EMBEDDING_API_URL || 'http://172.30.1.23:1234/v1/embeddings';
+    const embeddingModel = process.env.EMBEDDING_MODEL || 'text-embedding-qwen3-embedding-0.6b';
+
+    try {
+      const response = await fetch(embeddingApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: embeddingModel,
+          input: text,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Embedding API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Handle OpenAI-compatible response format
+      if (data.data && data.data[0] && data.data[0].embedding) {
+        return data.data[0].embedding;
+      }
+
+      throw new Error('Invalid embedding response format');
+    } catch (error) {
+      // Fallback to hash-based mock embedding if API fails
+      console.error('[Embedding] API call failed, using fallback:', error);
+      const hash = this.simpleHash(text);
+      return this.hashToEmbedding(hash);
     }
-
-    // TODO: Integrate with OpenAI embeddings API
-    // For now, use a simple hash-based mock embedding
-    // In production, this would call:
-    // const response = await fetch('https://api.openai.com/v1/embeddings', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-    //     'Content-Type': 'application/json'
-    //   },
-    //   body: JSON.stringify({
-    //     model: 'text-embedding-3-small',
-    //     input: text
-    //   })
-    // });
-    // const data = await response.json();
-    // return data.data[0].embedding;
-
-    // Mock: Generate pseudo-random embedding based on text hash
-    const hash = this.simpleHash(text);
-    return this.hashToEmbedding(hash);
   }
 
   /**
@@ -75,13 +86,13 @@ export class EmbeddingService {
   }
 
   /**
-   * Convert hash to 1536-dimension embedding vector
+   * Convert hash to 1024-dimension embedding vector (Qwen3 size)
    */
   private hashToEmbedding(hash: number): number[] {
     const embedding: number[] = [];
     const seed = hash;
 
-    for (let i = 0; i < 1536; i++) {
+    for (let i = 0; i < 1024; i++) {
       // Simple pseudo-random number generator
       const value = ((seed * (i + 1)) % 10000) / 10000;
       embedding.push(value);

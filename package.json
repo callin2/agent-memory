@@ -17,6 +17,7 @@
     "test:performance": "vitest run tests/performance",
     "test:watch": "vitest",
     "db:migrate": "psql $PGDATABASE -f src/db/schema.sql",
+    "db:migrate:new": "node run-migrations.mjs",
     "db:reset": "dropdb $PGDATABASE && createdb $PGDATABASE && npm run db:migrate",
     "db:setup:dev": "bash setup-dev-db.sh",
     "db:migrate:dev": "PGDATABASE=agent_memory_dev psql -f src/db/schema.sql && for f in src/db/migrations/*.sql; do [ \"$(basename \\\"$f\\\")\" = \"010_rollbacks.sql\" ] && continue; echo \"Applying $f...\" && PGDATABASE=agent_memory_dev psql -f \"$f\"; done",
