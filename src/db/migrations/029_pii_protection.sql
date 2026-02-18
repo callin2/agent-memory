@@ -137,7 +137,7 @@ BEGIN
 
     -- Encrypt remember field
     IF NEW.remember IS NOT NULL AND NEW.remember_encrypted IS NULL THEN
-      NEW.remember_encrypted = encrypt_text(NEW.remember, 'session-encryption-key);
+      NEW.remember_encrypted = encrypt_text(NEW.remember, 'session-encryption-key');
       NEW.remember = NULL;
     END IF;
   END IF;
@@ -155,8 +155,8 @@ CREATE TRIGGER auto_encrypt_sensitive_data_trigger
   FOR EACH ROW
   EXECUTE FUNCTION auto_encrypt_sensitive_data();
 
-COMMENT ON TRIGGER auto_encrypt_sensitive_data_trigger IS
-  'Automatically encrypts high-sensitivity data when sensitivity is set to high or secret';
+-- Note: COMMENT ON TRIGGER is not supported in PostgreSQL
+-- Trigger purpose: Automatically encrypts high-sensitivity data when sensitivity is set to high or secret
 
 -- ============================================================================
 -- Function to decrypt data (for authorized access)

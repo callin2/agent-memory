@@ -136,10 +136,14 @@ BEGIN
   -- Mark them with a flag so the batch processor can find them
   UPDATE session_handoffs
   SET tags = array_distinct(tags || ARRAY['_needs_embedding'])
-  WHERE tenant_id = p_tenant_id
-    AND embedding IS NULL
-    AND compression_level = 'full'
-  LIMIT p_batch_size;
+  WHERE handoff_id IN (
+    SELECT handoff_id
+    FROM session_handoffs
+    WHERE tenant_id = p_tenant_id
+      AND embedding IS NULL
+      AND compression_level = 'full'
+    LIMIT p_batch_size
+  );
 
   GET DIAGNOSTICS v_count = ROW_COUNT;
 
