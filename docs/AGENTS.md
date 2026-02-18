@@ -6,7 +6,7 @@ This file is written for agentic coding assistants operating in this repo.
 
 - `src/`: main service (Express HTTP API + MCP server + core logic)
 - `src/api/`: HTTP route modules (mounted in `src/server.ts`)
-- `src/mcp/`: MCP stdio server
+- `src/mcp/`: MCP HTTP server (JSON-RPC 2.0 over HTTP POST with Bearer token auth)
 - `src/core/`: orchestration/recording/privacy/security
 - `src/services/`: DB-backed services (tokens, sessions, audit, oauth, capsules, edits)
 - `src/db/`: `schema.sql` + migrations in `src/db/migrations/*.sql`

@@ -1,224 +1,425 @@
-# MCP Authentication - Quick Start Guide
+# MCP Quick Start Guide - HTTP Authentication
 
 ## 30-Second Overview
 
-The MCP server now requires authentication. You must provide a JWT token or API key in the `initialize` message.
+The Memory System MCP server uses **HTTP Bearer token authentication** (n8n-style). Authentication happens at the HTTP layer via the `Authorization` header, not in the MCP message body.
 
-## Before (No Auth) ❌
+## Architecture
 
-```json
-{
-  "method": "initialize",
-  "params": {}
-}
+```
+┌─────────────────┐     Bearer Token     ┌──────────────────┐
+│  Claude Code    │ ──────────────────>  │  HTTP MCP Server │
+│  (.mcp.json)    │   Authorization hdr  │   :4000/mcp      │
+└─────────────────┘                      └──────────────────┘
+                                                 │
+                                                 ▼
+                                          ┌──────────────┐
+                                          │ PostgreSQL   │
+                                          │ (tokens)     │
+                                          └──────────────┘
 ```
 
-**Result:** Error - "Authentication required"
+## Configuration
 
-## After (With Auth) ✅
+### 1. Client Configuration (`.mcp.json`)
 
-### Option 1: JWT Token
+Create or update `.mcp.json` in your project root:
 
 ```json
 {
-  "method": "initialize",
-  "params": {
-    "authorization": {
-      "type": "bearer",
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/.mcp.schema.json",
+  "mcpServers": {
+    "memory-system": {
+      "type": "http",
+      "url": "http://localhost:4000/mcp",
+      "headers": {
+        "Authorization": "Bearer test-mcp-token"
+      }
     }
   }
 }
 ```
 
-### Option 2: API Key
+### 2. Development Token
 
-```json
-{
-  "method": "initialize",
-  "params": {
-    "authorization": {
-      "type": "api_key",
-      "token": "ak_1704067200_abc123.xyZ789"
-    }
-  }
-}
+For local development, use the built-in test token:
+```
+Bearer test-mcp-token
 ```
 
-## Getting Credentials
+This authenticates you as the `default` tenant automatically.
 
-### Get JWT Token
+### 3. Production Token
 
-```bash
-curl -X POST https://your-api.com/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "you@example.com",
-    "password": "your-password"
-  }'
-
-# Response: { "access_token": "eyJhbGci..." }
-```
-
-### Get API Key
+In production, generate real API keys:
 
 ```bash
-curl -X POST https://your-api.com/api/v1/api-keys \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+# Via your API server
+curl -X POST http://your-api.com/api/v1/api-keys \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "My MCP Key",
+    "name": "MCP Server Key",
     "scopes": ["read", "write"]
   }'
 
-# Response: { "apiKey": "ak_1704067200_..." }
+# Response format
+{
+  "apiKey": "ak_1704067200_default.abc123xyz789"
+}
 ```
 
-## Complete Example (Node.js)
-
-```javascript
-import { MCPClient } from 'your-mcp-client-library';
-
-async function main() {
-  // Step 1: Get JWT token
-  const authResponse = await fetch('https://your-api.com/api/v1/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username: process.env.API_USERNAME,
-      password: process.env.API_PASSWORD
-    })
-  });
-
-  const { access_token } = await authResponse.json();
-
-  // Step 2: Connect to MCP server with authentication
-  const client = new MCPClient({
-    authorization: {
-      type: 'bearer',
-      token: access_token
-    }
-  });
-
-  await client.connect();
-
-  // Step 3: Use tools (tenant_id auto-injected)
-  const result = await client.callTool('memory_record_event', {
-    session_id: 'sess_123',
-    channel: 'private',
-    actor: { type: 'human', id: 'user_1' },
-    kind: 'message',
-    content: { text: 'Hello!' }
-    // No tenant_id needed - auto-injected from token
-  });
-
-  console.log('Event recorded:', result);
+Update `.mcp.json`:
+```json
+{
+  "headers": {
+    "Authorization": "Bearer ak_1704067200_default.abc123xyz789"
+  }
 }
+```
 
-main();
+## Protocol Details
+
+### Request Format (JSON-RPC 2.0)
+
+```bash
+curl -X POST http://localhost:4000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer test-mcp-token" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list",
+    "params": {}
+  }'
+```
+
+### Response Format (JSON)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "name": "wake_up",
+        "description": "Wake up and load your memories...",
+        "inputSchema": { ... }
+      }
+    ]
+  }
+}
+```
+
+## Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `wake_up` | Load memories with identity-first approach |
+| `create_handoff` | Create session handoff |
+| `get_last_handoff` | Get most recent handoff |
+| `get_identity_thread` | Get identity evolution over time |
+| `list_handoffs` | List all handoffs with filters |
+| `create_knowledge_note` | Create quick knowledge note |
+| `get_knowledge_notes` | Get knowledge notes |
+| `list_semantic_principles` | List timeless learnings |
+| `create_capsule` | Create secure memory capsule |
+| `get_capsules` | List available capsules |
+| `get_compression_stats` | Get token savings statistics |
+
+## Usage Examples
+
+### Example 1: Wake Up (Load Memories)
+
+```bash
+curl -X POST http://localhost:4000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer test-mcp-token" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "wake_up",
+      "arguments": {
+        "with_whom": "Callin"
+      }
+    }
+  }'
+```
+
+**Note**: `tenant_id` is auto-injected from the authenticated token. You don't need to specify it.
+
+### Example 2: Create Handoff
+
+```bash
+curl -X POST http://localhost:4000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer test-mcp-token" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {
+      "name": "create_handoff",
+      "arguments": {
+        "session_id": "sess_123",
+        "with_whom": "Callin",
+        "experienced": "Implemented HTTP MCP server",
+        "noticed": "Simple HTTP is more reliable than SSE",
+        "learned": "Bearer token auth is cleaner",
+        "story": "Migrated from stdio to HTTP",
+        "becoming": "Becoming an expert in MCP protocols",
+        "remember": "Use JSON-RPC 2.0 for all MCP tools"
+      }
+    }
+  }'
+```
+
+### Example 3: Get Last Handoff
+
+```bash
+curl -X POST http://localhost:4000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer test-mcp-token" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "get_last_handoff",
+      "arguments": {}
+    }
+  }'
+```
+
+## Testing
+
+### Test 1: Health Check
+
+```bash
+curl http://localhost:4000/health
+
+# Expected response
+{
+  "status": "ok",
+  "server": "memory-system-mcp",
+  "transport": "http"
+}
+```
+
+### Test 2: List Tools
+
+```bash
+node test-mcp-simple.mjs
+
+# Expected output
+✅ Connected to MCP server
+Available tools: wake_up, create_handoff, get_last_handoff, get_identity_thread, ...
+```
+
+### Test 3: Authentication
+
+```bash
+node test-mcp-auth.mjs
+
+# Expected output
+Test 1: Request without Authorization header
+Status: 401
+✅ PASS: Correctly rejected unauthorized request
+
+Test 2: Request with valid Bearer token
+Status: 200
+✅ PASS: Successfully authenticated
+
+Test 3: Call tool with authenticated context
+Status: 200
+✅ PASS: Tool executed successfully
 ```
 
 ## Common Errors
 
-### Error: "Authentication required: Missing authorization"
+### Error: 401 Unauthorized
 
-**Cause:** No authorization in initialize params
+**Cause**: Missing or invalid `Authorization` header
 
-**Fix:** Add authorization field:
+**Solution**:
 ```json
 {
-  "params": {
-    "authorization": { "type": "bearer", "token": "..." }
+  "headers": {
+    "Authorization": "Bearer test-mcp-token"
   }
 }
 ```
 
-### Error: "Invalid token or API key"
+### Error: "Method not allowed"
 
-**Cause:** Token expired, invalid, or API key revoked
+**Cause**: Using GET instead of POST
 
-**Fix:**
-- Check token expiration
-- Verify API key is active
-- Regenerate credentials
+**Solution**: Always use POST for `/mcp` endpoint
 
-### Error: "Access denied: different tenant"
+### Error: "Tenant mismatch"
 
-**Cause:** Trying to access another tenant's data
+**Cause**: Token's tenant_id doesn't match requested data
 
-**Fix:** Ensure you're authenticated with correct tenant credentials
+**Solution**: Don't specify `tenant_id` in tool arguments - it's auto-injected from your token
+
+## Comparison: Old vs New
+
+| Feature | Old (SSE/stdio) | New (HTTP) |
+|---------|----------------|------------|
+| **Transport** | StreamableHTTP | Simple HTTP POST |
+| **Endpoint** | `/sse` | `/mcp` |
+| **Auth Location** | `initialize` params | HTTP header |
+| **Response Format** | SSE (text/event-stream) | JSON |
+| **Session State** | Required (SSE) | None (stateless) |
+| **Architecture** | MCP SDK transport | Direct HTTP |
+| **Complexity** | High (AsyncLocalStorage) | Low (simple request/response) |
 
 ## Environment Setup
 
 ```bash
 # Required environment variables
-export API_USERNAME=your-username
-export API_PASSWORD=your-password
-export MCP_SERVER_URL=https://your-mcp-server.com
+export PGHOST=localhost
+export PGPORT=5432
+export PGDATABASE=agent_memory
+export PGUSER=postgres
+export PGPASSWORD=your-password
 
-# Optional: Use API key instead of password
-export MCP_API_KEY=ak_1704067200_abc123.xyZ789
+# Optional: Override port
+export PORT=4000
+
+# Start the server
+npm run mcp:start
+
+# Or with tsx (development)
+npx tsx src/mcp/memory-server-http.ts
 ```
-
-## Testing Your Connection
-
-```bash
-# Test with curl
-curl -X POST https://your-mcp-server.com/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "initialize",
-    "params": {
-      "authorization": {
-        "type": "bearer",
-        "token": "'$ACCESS_TOKEN'"
-      }
-    }
-  }'
-
-# Expected response: { "result": { "serverInfo": { ... } } }
-```
-
-## Key Changes from Unauthenticated MCP
-
-| Feature | Before | After |
-|---------|--------|-------|
-| Initialize | No auth required | Auth required |
-| tenant_id | Manual in params | Auto from token |
-| Cross-tenant | Possible | Blocked |
-| Audit log | No logging | Full logging |
-| Errors | Generic | Specific codes |
 
 ## Security Checklist
 
-✅ Store credentials in environment variables
-✅ Use HTTPS for all communications
-✅ Rotate tokens regularly
-✅ Monitor audit logs for suspicious activity
-✅ Implement rate limiting on API keys
-✅ Use minimum required scopes
+✅ **Development**
+- Use `test-mcp-token` for local testing
+- Server accepts this token automatically in non-production
+- No database validation needed
 
-## Need Help?
+✅ **Production**
+- Set `NODE_ENV=production`
+- Use real API keys from database
+- Enable HTTPS/TLS
+- Rotate tokens regularly
+- Monitor access logs
 
-- **Full Documentation:** See `docs/MCP_AUTHENTICATION.md`
-- **Implementation Details:** See `docs/PHASE_2_MCP_AUTH_SUMMARY.md`
-- **Troubleshooting:** See `docs/MCP_AUTHENTICATION.md` → Troubleshooting section
-- **Issues:** https://github.com/your-org/agent-memory-system/issues
+✅ **Deployment**
+- Use PM2 for process management
+- Configure nginx reverse proxy
+- Enable CORS for specific origins
+- Set rate limiting
 
 ## Quick Reference
 
-| Task | Command |
-|------|---------|
-| Get JWT token | `POST /api/v1/auth/login` |
-| Get API key | `POST /api/v1/api-keys` |
-| Revoke key | `DELETE /api/v1/api-keys/{id}` |
-| Refresh token | `POST /api/v1/auth/refresh` |
-| View audit logs | `GET /api/v1/audit-logs` |
+| Task | Command/Config |
+|------|----------------|
+| Start server | `pm2 start ecosystem.config.js` |
+| Check health | `curl http://localhost:4000/health` |
+| List tools | `node test-mcp-simple.mjs` |
+| Test auth | `node test-mcp-auth.mjs` |
+| View logs | `pm2 logs memory-mcp-server` |
+| Restart | `pm2 restart memory-mcp-server` |
+
+## Migration from Old SSE Server
+
+### Step 1: Update `.mcp.json`
+
+**Before**:
+```json
+{
+  "url": "http://localhost:4000/sse",
+  "env": {
+    "PGHOST": "localhost",
+    ...
+  }
+}
+```
+
+**After**:
+```json
+{
+  "type": "http",
+  "url": "http://localhost:4000/mcp",
+  "headers": {
+    "Authorization": "Bearer test-mcp-token"
+  }
+}
+```
+
+### Step 2: Update PM2 Config
+
+**Before**:
+```javascript
+{
+  script: './node_modules/.bin/tsx',
+  args: 'src/mcp/memory-server.ts'
+}
+```
+
+**After**:
+```javascript
+{
+  script: './dist/mcp/memory-server-http.js'
+}
+```
+
+### Step 3: Remove Old Files
+
+```bash
+rm src/mcp/memory-server.ts
+rm src/mcp/context.ts
+rm test-mcp-tools.mjs
+```
+
+## Troubleshooting
+
+### Server won't start
+
+```bash
+# Check if port is in use
+lsof -i :4000
+
+# Check PM2 logs
+pm2 logs memory-mcp-server --lines 50
+```
+
+### Authentication failures
+
+```bash
+# Verify token format
+echo "Bearer test-mcp-token" | cut -d' ' -f2
+
+# Check database for token
+psql -c "SELECT * FROM mcp_tokens WHERE token = 'test-mcp-token';"
+```
+
+### Tools not working
+
+```bash
+# Test database connection
+psql -c "SELECT COUNT(*) FROM session_handoffs;"
+
+# Check server logs
+tail -f logs/mcp-error.log
+```
+
+## Related Documentation
+
+- **Architecture**: [MCP_SIMPLE_HTTP.md](./MCP_SIMPLE_HTTP.md)
+- **Authentication Details**: [MCP_HTTP_AUTH.md](./MCP_HTTP_AUTH.md)
+- **API Reference**: [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
+- **Deployment**: [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ---
 
-**Last Updated:** 2026-02-09
-**Version:** 2.0.0
-**Status:** Production Ready ✅
+**Last Updated**: 2026-02-19
+**Version**: 2.1.0 (HTTP Transport)
+**Status**: Production Ready ✅

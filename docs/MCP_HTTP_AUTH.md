@@ -13,7 +13,7 @@ The Memory System MCP server now supports **HTTP Bearer token authentication**, 
   "mcpServers": {
     "memory-system": {
       "type": "http",
-      "url": "http://localhost:4000/sse",
+      "url": "http://localhost:4000/mcp",
       "headers": {
         "Authorization": "Bearer <YOUR_TOKEN>"
       }
@@ -144,8 +144,8 @@ VALUES ('ak_1704067200_default.abc123xyz', 'default', true, NOW());
 | Auth Type | Bearer token in headers | Bearer token in headers |
 | Header Name | `Authorization` | `Authorization` |
 | Token Format | JWT or API key | API key format |
-| Endpoint | `/mcp-server/http` | `/sse` |
-| Transport | HTTP | Streamable HTTP |
+| Endpoint | `/mcp-server/http` | `/mcp` |
+| Transport | HTTP | HTTP (JSON-RPC 2.0) |
 
 ## Troubleshooting
 
@@ -196,7 +196,7 @@ VALUES ('ak_1704067200_default.abc123xyz', 'default', true, NOW());
 {
   "mcpServers": {
     "memory-system": {
-      "url": "http://localhost:4000/sse",
+      "url": "http://localhost:4000/mcp",
       "headers": {
         "Authorization": "Bearer your-token"
       }
