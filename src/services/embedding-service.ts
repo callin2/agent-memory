@@ -400,4 +400,343 @@ export class EmbeddingService {
 
     return finalResult.rows;
   }
+
+  // ==========================================================================
+  // NEW: Agent Feedback Embeddings
+  // ==========================================================================
+
+  /**
+   * Generate embeddings for agent feedback that doesn't have them
+   */
+  async generateFeedbackEmbeddings(
+    tenantId: string,
+    batchSize: number = 20
+  ): Promise<number> {
+    const result = await this.pool.query(
+      `SELECT feedback_id, tenant_id, category, type, description
+      FROM agent_feedback
+      WHERE tenant_id = $1
+        AND embedding IS NULL
+      ORDER BY created_at DESC
+      LIMIT $2`,
+      [tenantId, batchSize]
+    );
+
+    const feedbackItems = result.rows;
+    let generated = 0;
+
+    for (const feedback of feedbackItems) {
+      try {
+        const text = [
+          feedback.category,
+          feedback.type,
+          feedback.description
+        ].filter(Boolean).join('. ');
+
+        if (text.length < 10) continue;
+
+        const embedding = await this.generateEmbedding(text);
+        const embeddingString = `[${embedding.join(',')}]`;
+
+        await this.pool.query(
+          `UPDATE agent_feedback
+          SET embedding = $1::vector(1024)
+          WHERE feedback_id = $2`,
+          [embeddingString, feedback.feedback_id]
+        );
+
+        generated++;
+        console.log(`[Embedding] Generated feedback embedding for ${feedback.feedback_id}`);
+      } catch (error) {
+        console.error(`[Embedding] Failed for feedback ${feedback.feedback_id}:`, error);
+      }
+    }
+
+    console.log(`[Embedding] Generated ${generated}/${feedbackItems.length} feedback embeddings`);
+    return generated;
+  }
+
+  /**
+   * Semantic search for agent feedback
+   */
+  async semanticSearchFeedback(
+    tenantId: string,
+    queryText: string,
+    limit: number = 5,
+    minSimilarity: number = 0.5
+  ): Promise<any[]> {
+    const queryEmbedding = await this.generateEmbedding(queryText);
+    const queryEmbeddingString = `[${queryEmbedding.join(',')}]`;
+
+    const result = await this.pool.query(
+      `SELECT
+        feedback_id,
+        category,
+        type,
+        description,
+        severity,
+        status,
+        1 - (embedding <=> $1::vector(1024)) AS similarity,
+        created_at
+      FROM agent_feedback
+      WHERE tenant_id = $2
+        AND embedding IS NOT NULL
+        AND (embedding <=> $1::vector(1024)) < (1 - $3::float8)
+      ORDER BY embedding <=> $1::vector(1024)
+      LIMIT $4`,
+      [queryEmbeddingString, tenantId, minSimilarity, limit]
+    );
+
+    return result.rows;
+  }
+
+  // ==========================================================================
+  // NEW: Knowledge Notes Embeddings
+  // ==========================================================================
+
+  /**
+   * Generate embeddings for knowledge notes that don't have them
+   */
+  async generateNoteEmbeddings(
+    tenantId: string,
+    batchSize: number = 20
+  ): Promise<number> {
+    const result = await this.pool.query(
+      `SELECT id, tenant_id, text, tags, with_whom
+      FROM knowledge_notes
+      WHERE tenant_id = $1
+        AND embedding IS NULL
+      ORDER BY created_at DESC
+      LIMIT $2`,
+      [tenantId, batchSize]
+    );
+
+    const notes = result.rows;
+    let generated = 0;
+
+    for (const note of notes) {
+      try {
+        const text = [
+          note.text,
+          note.with_whom || '',
+          note.tags?.join(' ') || ''
+        ].filter(Boolean).join('. ');
+
+        if (text.length < 10) continue;
+
+        const embedding = await this.generateEmbedding(text);
+        const embeddingString = `[${embedding.join(',')}]`;
+
+        await this.pool.query(
+          `UPDATE knowledge_notes
+          SET embedding = $1::vector(1024)
+          WHERE id = $2`,
+          [embeddingString, note.id]
+        );
+
+        generated++;
+        console.log(`[Embedding] Generated note embedding for ${note.id}`);
+      } catch (error) {
+        console.error(`[Embedding] Failed for note ${note.id}:`, error);
+      }
+    }
+
+    console.log(`[Embedding] Generated ${generated}/${notes.length} note embeddings`);
+    return generated;
+  }
+
+  /**
+   * Semantic search for knowledge notes
+   */
+  async semanticSearchNotes(
+    tenantId: string,
+    queryText: string,
+    limit: number = 5,
+    minSimilarity: number = 0.5
+  ): Promise<any[]> {
+    const queryEmbedding = await this.generateEmbedding(queryText);
+    const queryEmbeddingString = `[${queryEmbedding.join(',')}]`;
+
+    const result = await this.pool.query(
+      `SELECT
+        id,
+        text,
+        tags,
+        with_whom,
+        1 - (embedding <=> $1::vector(1024)) AS similarity,
+        created_at
+      FROM knowledge_notes
+      WHERE tenant_id = $2
+        AND embedding IS NOT NULL
+        AND (embedding <=> $1::vector(1024)) < (1 - $3::float8)
+      ORDER BY embedding <=> $1::vector(1024)
+      LIMIT $4`,
+      [queryEmbeddingString, tenantId, minSimilarity, limit]
+    );
+
+    return result.rows;
+  }
+
+  // ==========================================================================
+  // NEW: Capsules Embeddings
+  // ==========================================================================
+
+  /**
+   * Generate embeddings for capsules that don't have them
+   * Strategy: Flatten JSONB items to text (chunks + decisions + artifacts)
+   */
+  async generateCapsuleEmbeddings(
+    tenantId: string,
+    batchSize: number = 20
+  ): Promise<number> {
+    const result = await this.pool.query(
+      `SELECT capsule_id, tenant_id, scope, subject_type, subject_id, items
+      FROM capsules
+      WHERE tenant_id = $1
+        AND embedding IS NULL
+        AND status = 'active'
+      ORDER BY created_at DESC
+      LIMIT $2`,
+      [tenantId, batchSize]
+    );
+
+    const capsules = result.rows;
+    let generated = 0;
+
+    for (const capsule of capsules) {
+      try {
+        // Flatten JSONB items to text
+        const items = capsule.items || {};
+        const chunks = (items.chunks || []).map((c: any) => typeof c === 'string' ? c : c.text || '').join(' ');
+        const decisions = (items.decisions || []).map((d: any) => typeof d === 'string' ? d : d.text || '').join(' ');
+        const artifacts = (items.artifacts || []).map((a: any) => typeof a === 'string' ? a : a.description || '').join(' ');
+
+        const text = [
+          capsule.subject_type,
+          capsule.subject_id,
+          capsule.scope,
+          chunks,
+          decisions,
+          artifacts
+        ].filter(Boolean).join('. ');
+
+        if (text.length < 10) continue;
+
+        const embedding = await this.generateEmbedding(text);
+        const embeddingString = `[${embedding.join(',')}]`;
+
+        await this.pool.query(
+          `UPDATE capsules
+          SET embedding = $1::vector(1024)
+          WHERE capsule_id = $2`,
+          [embeddingString, capsule.capsule_id]
+        );
+
+        generated++;
+        console.log(`[Embedding] Generated capsule embedding for ${capsule.capsule_id}`);
+      } catch (error) {
+        console.error(`[Embedding] Failed for capsule ${capsule.capsule_id}:`, error);
+      }
+    }
+
+    console.log(`[Embedding] Generated ${generated}/${capsules.length} capsule embeddings`);
+    return generated;
+  }
+
+  /**
+   * Semantic search for capsules
+   */
+  async semanticSearchCapsules(
+    tenantId: string,
+    queryText: string,
+    limit: number = 5,
+    minSimilarity: number = 0.5
+  ): Promise<any[]> {
+    const queryEmbedding = await this.generateEmbedding(queryText);
+    const queryEmbeddingString = `[${queryEmbedding.join(',')}]`;
+
+    const result = await this.pool.query(
+      `SELECT
+        capsule_id,
+        scope,
+        subject_type,
+        subject_id,
+        items,
+        1 - (embedding <=> $1::vector(1024)) AS similarity,
+        created_at,
+        expires_at
+      FROM capsules
+      WHERE tenant_id = $2
+        AND embedding IS NOT NULL
+        AND status = 'active'
+        AND (embedding <=> $1::vector(1024)) < (1 - $3::float8)
+      ORDER BY embedding <=> $1::vector(1024)
+      LIMIT $4`,
+      [queryEmbeddingString, tenantId, minSimilarity, limit]
+    );
+
+    return result.rows;
+  }
+
+  // ==========================================================================
+  // NEW: Universal Embedding Progress (All Tables)
+  // ==========================================================================
+
+  /**
+   * Get embedding progress for all memory types
+   */
+  async getProgressAll(tenantId: string): Promise<{
+    agent_feedback: { total: number; withEmbeddings: number; withoutEmbeddings: number; progressPercent: number };
+    knowledge_notes: { total: number; withEmbeddings: number; withoutEmbeddings: number; progressPercent: number };
+    capsules: { total: number; withEmbeddings: number; withoutEmbeddings: number; progressPercent: number };
+  }> {
+    const result = await this.pool.query(
+      `SELECT * FROM get_embedding_progress_all($1)`,
+      [tenantId]
+    );
+
+    const progress: any = {};
+
+    for (const row of result.rows) {
+      progress[row.table_name] = {
+        total: row.total_records,
+        withEmbeddings: row.with_embeddings,
+        withoutEmbeddings: row.without_embeddings,
+        progressPercent: row.progress_percent
+      };
+    }
+
+    return progress;
+  }
+
+  /**
+   * Batch process all embeddings for a tenant (all memory types)
+   */
+  async processAllForTenantAllTypes(tenantId: string): Promise<{
+    agent_feedback: number;
+    knowledge_notes: number;
+    capsules: number;
+    total: number;
+  }> {
+    console.log(`[Embedding] Starting batch processing for all types...`);
+
+    const feedbackCount = await this.generateFeedbackEmbeddings(tenantId, 20);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const notesCount = await this.generateNoteEmbeddings(tenantId, 20);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const capsulesCount = await this.generateCapsuleEmbeddings(tenantId, 20);
+
+    const total = feedbackCount + notesCount + capsulesCount;
+
+    console.log(`[Embedding] Complete: ${feedbackCount} feedback, ${notesCount} notes, ${capsulesCount} capsules (total: ${total})`);
+
+    return {
+      agent_feedback: feedbackCount,
+      knowledge_notes: notesCount,
+      capsules: capsulesCount,
+      total
+    };
+  }
 }

@@ -26,7 +26,7 @@ module.exports = {
       watch: false,
       max_memory_restart: '500M',
       env: {
-        NODE_ENV: 'production',
+        NODE_ENV: 'development',
         PORT: 3456,
       },
       error_file: './logs/pm2-error.log',
@@ -127,7 +127,7 @@ module.exports = {
         PORT: '4000',
         PGHOST: 'localhost',
         PGPORT: '5432',
-        PGDATABASE: 'agent_memory',
+        PGDATABASE: 'agent_memory_dev',
         PGUSER: 'agent_mem_dba',
         PGPASSWORD: 'adminqwer1234',
       },

@@ -115,6 +115,7 @@ async function loadMemoryForTenant(tenantId) {
     state.memoryData = data;
     state.currentTenant = tenantId;
     state.layersLoaded = data.layers_loaded;
+    state.isLoading = false; // Reset loading state after successful load
 
     updateConnectionStatus(true);
     hideLoadingState();

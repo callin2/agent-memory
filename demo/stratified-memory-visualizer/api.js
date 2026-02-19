@@ -2,6 +2,12 @@
 // Task P0-2: API Integration with retry logic, timeout, error handling
 
 /**
+ * Determine API base URL based on current origin
+ * Uses the same host as the page to avoid CORS issues
+ */
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3456`;
+
+/**
  * Fetch with exponential backoff retry
  * @param {string} url - API endpoint
  * @param {object} options - Fetch options
@@ -116,7 +122,7 @@ async function loadStratifiedMemory(
     console.log(`Loading stratified memory for tenant: ${tenantId}`);
 
     const response = await fetchWithRetry(
-      '/api/memory/wake-up-stratified',
+      `${API_BASE_URL}/api/memory/wake-up-stratified`,
       {
         method: 'POST',
         headers: {

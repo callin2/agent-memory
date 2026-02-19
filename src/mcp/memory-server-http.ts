@@ -298,6 +298,34 @@ const listToolsHandler = async () => {
         },
       },
       {
+        name: "remember_note",
+        description: "Quick capture: store any thought, observation, or note. Automatically searchable via recall(). Use for casual memory capture during work. Perfect for: context, observations, ideas, reminders. Simpler than create_knowledge_note - optimized for fast capture.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+            text: {
+              type: "string",
+              description: "The note content - any text you want to remember",
+            },
+            tags: {
+              type: "array",
+              items: { type: "string" },
+              description: "Optional tags for categorization (e.g., 'bug', 'idea', 'context')",
+            },
+            with_whom: {
+              type: "string",
+              description: "Optional: Person/agent context (e.g., 'Callin')",
+            },
+          },
+          required: ["text"],
+        },
+      },
+      {
         name: "list_semantic_principles",
         description: "List semantic memory principles (timeless learnings extracted from experiences).",
         inputSchema: {
@@ -599,6 +627,44 @@ const listToolsHandler = async () => {
               type: "number",
               description: "Maximum number of results to return (default: 5)",
               default: 5,
+            },
+          },
+          required: ["query"],
+        },
+      },
+      {
+        name: "recall",
+        description: "Universal semantic search across ALL your memory types using natural language. Searches agent_feedback, session_handoffs, knowledge_notes, capsules, and semantic_memory. Matches meaning, not just keywords. Always use this when looking for past information, context, or patterns. Example: 'what issues did we have with the visualizer?' finds relevant feedback, handoffs, and notes.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+            query: {
+              type: "string",
+              description: "Natural language search query. Will search across all memory types semantically.",
+            },
+            types: {
+              type: "array",
+              items: {
+                type: "string",
+                enum: ["agent_feedback", "session_handoffs", "knowledge_notes", "capsules", "semantic_memory", "all"]
+              },
+              description: "Memory types to search (default: all types)",
+              default: ["all"],
+            },
+            limit: {
+              type: "number",
+              description: "Maximum results per memory type (default: 5)",
+              default: 5,
+            },
+            min_similarity: {
+              type: "number",
+              description: "Minimum similarity threshold (0.0-1.0, default: 0.5)",
+              default: 0.5,
             },
           },
           required: ["query"],
@@ -1104,6 +1170,61 @@ const callToolHandler = async (request: any) => {
                 null,
                 2
               ),
+            },
+          ],
+        };
+      }
+
+      case "remember_note": {
+        const {
+          tenant_id = "default",
+          text,
+          with_whom,
+          tags = [],
+        } = args as {
+          tenant_id?: string;
+          text: string;
+          with_whom?: string;
+          tags?: string[];
+        };
+
+        // Insert the note
+        const result = await pool.query(
+          `INSERT INTO knowledge_notes (tenant_id, text, with_whom, tags)
+           VALUES ($1, $2, $3, $4)
+           RETURNING *`,
+          [tenant_id, text, with_whom || null, tags.length > 0 ? tags : null]
+        );
+
+        const note = result.rows[0];
+
+        // Generate embedding for the note asynchronously
+        // Don't wait for it - just log and continue
+        embeddingService.generateNoteEmbeddings(tenant_id, 1)
+          .then(generated => {
+            if (generated > 0) {
+              console.log(`[remember_note] Generated embedding for note ${note.id}`);
+            }
+          })
+          .catch(error => {
+            console.error(`[remember_note] Failed to generate embedding:`, error);
+          });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                note: {
+                  id: note.id,
+                  text: note.text,
+                  tags: note.tags,
+                  with_whom: note.with_whom,
+                  created_at: note.created_at,
+                },
+                message: "Note captured and will be searchable via recall().",
+              }),
             },
           ],
         };
@@ -1680,6 +1801,160 @@ const callToolHandler = async (request: any) => {
                   created_at: r.created_at,
                 })),
                 count: results.length,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "recall": {
+        const {
+          tenant_id = "default",
+          query,
+          types = ["all"],
+          limit = 5,
+          min_similarity = 0.5,
+        } = args as {
+          tenant_id?: string;
+          query: string;
+          types?: string[];
+          limit?: number;
+          min_similarity?: number;
+        };
+
+        if (!query) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: "Missing required parameter: query",
+                }),
+              },
+            ],
+          };
+        }
+
+        // Determine which types to search
+        const searchAll = types.includes("all") || types.length === 0;
+        const searchFeedback = searchAll || types.includes("agent_feedback");
+        const searchHandoffs = searchAll || types.includes("session_handoffs");
+        const searchNotes = searchAll || types.includes("knowledge_notes");
+        const searchCapsules = searchAll || types.includes("capsules");
+        const searchSemantic = searchAll || types.includes("semantic_memory");
+
+        // Search across requested types in parallel
+        const results: any = {
+          query,
+          tenant_id,
+          results: {},
+          total_count: 0,
+        };
+
+        const promises: Promise<void>[] = [];
+
+        if (searchFeedback) {
+          promises.push(
+            embeddingService.semanticSearchFeedback(tenant_id, query, limit, min_similarity)
+              .then(items => {
+                results.results.agent_feedback = {
+                  count: items.length,
+                  items: items.map(item => ({
+                    feedback_id: item.feedback_id,
+                    category: item.category,
+                    type: item.type,
+                    description: item.description?.substring(0, 300),
+                    severity: item.severity,
+                    status: item.status,
+                    similarity: item.similarity,
+                    created_at: item.created_at,
+                  })),
+                };
+                results.total_count += items.length;
+              })
+          );
+        }
+
+        if (searchHandoffs) {
+          promises.push(
+            embeddingService.semanticSearch(tenant_id, query, limit, min_similarity)
+              .then(items => {
+                results.results.session_handoffs = {
+                  count: items.length,
+                  items: items.map(item => ({
+                    handoff_id: item.handoff_id,
+                    experienced: item.experienced?.substring(0, 300),
+                    learned: item.learned?.substring(0, 300),
+                    becoming: item.becoming?.substring(0, 300),
+                    similarity: item.similarity,
+                    created_at: item.created_at,
+                  })),
+                };
+                results.total_count += items.length;
+              })
+          );
+        }
+
+        if (searchNotes) {
+          promises.push(
+            embeddingService.semanticSearchNotes(tenant_id, query, limit, min_similarity)
+              .then(items => {
+                results.results.knowledge_notes = {
+                  count: items.length,
+                  items: items.map(item => ({
+                    id: item.id,
+                    text: item.text?.substring(0, 300),
+                    tags: item.tags,
+                    with_whom: item.with_whom,
+                    similarity: item.similarity,
+                    created_at: item.created_at,
+                  })),
+                };
+                results.total_count += items.length;
+              })
+          );
+        }
+
+        if (searchCapsules) {
+          promises.push(
+            embeddingService.semanticSearchCapsules(tenant_id, query, limit, min_similarity)
+              .then(items => {
+                results.results.capsules = {
+                  count: items.length,
+                  items: items.map(item => ({
+                    capsule_id: item.capsule_id,
+                    scope: item.scope,
+                    subject_type: item.subject_type,
+                    subject_id: item.subject_id,
+                    similarity: item.similarity,
+                    expires_at: item.expires_at,
+                    created_at: item.created_at,
+                  })),
+                };
+                results.total_count += items.length;
+              })
+          );
+        }
+
+        // Wait for all searches to complete
+        await Promise.all(promises);
+
+        // Add summary
+        results.types_searched = [
+          searchFeedback && "agent_feedback",
+          searchHandoffs && "session_handoffs",
+          searchNotes && "knowledge_notes",
+          searchCapsules && "capsules",
+        ].filter(Boolean);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                ...results,
               }),
             },
           ],

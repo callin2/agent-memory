@@ -13,8 +13,6 @@ import { createExportRoutes } from "./api/export.js";
 import { createOrchestrationRoutes } from "./api/orchestration.js";
 import { createStratifiedMemoryRoutes } from "./api/stratified-memory.js";
 import { createChatDemoRoutes } from "./api/chat-demo.js";
-import { startMCPServer } from "./mcp/server.js";
-import { applyMcpEnvDefaults } from "./utils/mcp-env.js";
 import { promises as fs } from "fs";
 import path from "path";
 import cors from "cors";
@@ -25,9 +23,6 @@ import { createContextInjector } from "./core/context-injector.js";
 import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth.js";
 import { createTenantIsolationMiddleware } from "./middleware/tenantIsolation.js";
 import { createConsolidationScheduler } from "./services/consolidation/scheduler.js";
-
-// Apply MCP_ENV defaults before loading .env
-applyMcpEnvDefaults();
 
 // Load environment variables
 dotenv.config();
@@ -43,10 +38,13 @@ const corsOptions = {
         'http://localhost:5173',
         'http://localhost:3456',
         'http://localhost:5174',
+        'http://localhost:8080',
         // Allow local network access (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
         /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
         /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
-        /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(:\d+)?$/
+        /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(:\d+)?$/,
+        // Allow entire 172.16-31.x.x range for broader local network support
+        /^http:\/\/172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+(:\d+)?$/
       ]
     : [],
   credentials: true,
@@ -404,87 +402,62 @@ const shutdown = async () => {
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
-// Start HTTP server (unless running in MCP mode)
-if (process.argv.includes("--mcp")) {
-  // Run as MCP server using stdio
-  console.error("Starting MCP server...");
-  initializeDatabase().then(async () => {
-    // Start consolidation scheduler
-    const schedulerEnabled = process.env.CONSOLIDATION_SCHEDULER_ENABLED !== 'false';
-    if (schedulerEnabled) {
-      try {
-        consolidationScheduler = await createConsolidationScheduler(pool, { enabled: true });
-        console.error('[Consolidation] Scheduler started');
-      } catch (error) {
-        console.error('[Consolidation] Failed to start scheduler:', error);
+// Start HTTP server
+const server = app.listen(Number(PORT), HOST as string, async () => {
+  await initializeDatabase();
+
+  // Start consolidation scheduler
+  const schedulerEnabled = process.env.CONSOLIDATION_SCHEDULER_ENABLED !== 'false';
+  if (schedulerEnabled) {
+    try {
+      consolidationScheduler = await createConsolidationScheduler(pool, { enabled: true });
+      const status = consolidationScheduler.getStatus();
+      console.log('[Consolidation] Scheduler started');
+      console.log(`[Consolidation] Scheduled jobs: ${status.jobs.join(', ')}`);
+    } catch (error) {
+      console.error('[Consolidation] Failed to start scheduler:', error);
+    }
+  }
+
+  console.log(`Agent Memory System v2.0 running on port ${PORT}`);
+  console.log(
+    `Database: ${process.env.PGDATABASE || "agent_memory"}@${process.env.PGHOST || "localhost"}`,
+  );
+  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`\nEndpoints:`);
+  console.log(`  Health:   http://localhost:${PORT}/health`);
+  console.log(`  Metrics:  http://localhost:${PORT}/metrics`);
+  console.log(`  API:      http://localhost:${PORT}/api/v1/`);
+  console.log(`\nLocal Network Access:`);
+
+  // Get local network IP addresses
+  const os = require('os');
+  const networkInterfaces = os.networkInterfaces();
+  const ips = [];
+  for (const name of Object.keys(networkInterfaces)) {
+    for (const iface of networkInterfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        ips.push(iface.address);
       }
     }
+  }
 
-    startMCPServer(pool).catch((err) => {
-      console.error("MCP server error:", err);
-      process.exit(1);
+  if (ips.length > 0) {
+    console.log(`  Access from other devices using:`);
+    ips.forEach(ip => {
+      console.log(`    http://${ip}:${PORT}`);
     });
-  });
-} else {
-  // Run as HTTP server
-  const server = app.listen(Number(PORT), HOST as string, async () => {
-    await initializeDatabase();
+  }
+});
 
-    // Start consolidation scheduler
-    const schedulerEnabled = process.env.CONSOLIDATION_SCHEDULER_ENABLED !== 'false';
-    if (schedulerEnabled) {
-      try {
-        consolidationScheduler = await createConsolidationScheduler(pool, { enabled: true });
-        const status = consolidationScheduler.getStatus();
-        console.log('[Consolidation] Scheduler started');
-        console.log(`[Consolidation] Scheduled jobs: ${status.jobs.join(', ')}`);
-      } catch (error) {
-        console.error('[Consolidation] Failed to start scheduler:', error);
-      }
-    }
-
-    console.log(`Agent Memory System v2.0 running on port ${PORT}`);
-    console.log(
-      `Database: ${process.env.PGDATABASE || "agent_memory"}@${process.env.PGHOST || "localhost"}`,
-    );
-    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-    console.log(`\nEndpoints:`);
-    console.log(`  Health:   http://localhost:${PORT}/health`);
-    console.log(`  Metrics:  http://localhost:${PORT}/metrics`);
-    console.log(`  API:      http://localhost:${PORT}/api/v1/`);
-    console.log(`\nLocal Network Access:`);
-
-    // Get local network IP addresses
-    const os = require('os');
-    const networkInterfaces = os.networkInterfaces();
-    const ips = [];
-    for (const name of Object.keys(networkInterfaces)) {
-      for (const iface of networkInterfaces[name]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          ips.push(iface.address);
-        }
-      }
-    }
-
-    if (ips.length > 0) {
-      console.log(`  Access from other devices using:`);
-      ips.forEach(ip => {
-        console.log(`    http://${ip}:${PORT}`);
-      });
-    }
-    console.log(`\nTo run as MCP server:`);
-    console.log(`  npm start -- --mcp`);
-  });
-
-  // Handle server errors
-  server.on("error", (err: any) => {
-    if (err.code === "EADDRINUSE") {
-      console.error(`Port ${PORT} is already in use`);
-    } else {
-      console.error("Server error:", err);
-    }
-    process.exit(1);
-  });
-}
+// Handle server errors
+server.on("error", (err: any) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use`);
+  } else {
+    console.error("Server error:", err);
+  }
+  process.exit(1);
+});
 
 export { app, pool };
