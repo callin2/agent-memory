@@ -19,11 +19,201 @@
   <!-- Error Container (P0-9) -->
   <div id="error-container" class="container mx-auto px-4 py-6 hidden"></div>
 
-  <!-- Main Content -->
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-center mb-4">Stratified Memory Visualizer</h1>
-    <p class="text-center text-gray-400">Project setup complete. API integration ready.</p>
-  </div>
+  <!-- Header (P0-3) -->
+  <header class="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Stratified Memory Visualizer
+          </h1>
+          <p class="text-gray-400 text-sm mt-1">Watch 25,000 tokens compress to ~850</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <!-- Connection Status -->
+          <div class="flex items-center gap-2">
+            <div id="connection-indicator" class="w-3 h-3 rounded-full bg-gray-500"></div>
+            <span id="connection-text" class="text-sm text-gray-400">Checking...</span>
+          </div>
+          <!-- Replay Button (P1-5) - Hidden initially -->
+          <button id="replay-button" class="hidden bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition" onclick="replayAnimation()">
+            ▶ Replay
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats Bar (P0-10) -->
+  <section id="stats-bar" class="bg-gray-800/30 border-b border-gray-700">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-4 text-center">
+        <!-- Sessions -->
+        <div class="bg-gray-800/50 rounded-lg p-3 skeleton-stats">
+          <div class="text-2xl font-bold text-blue-400" id="stat-sessions">-</div>
+          <div class="text-xs text-gray-400">Sessions</div>
+        </div>
+        <!-- Compression -->
+        <div class="bg-gray-800/50 rounded-lg p-3 skeleton-stats">
+          <div class="text-2xl font-bold text-purple-400" id="stat-compression">-</div>
+          <div class="text-xs text-gray-400">Compression</div>
+        </div>
+        <!-- Tokens Before -->
+        <div class="bg-gray-800/50 rounded-lg p-3 skeleton-stats">
+          <div class="text-2xl font-bold text-red-400" id="stat-tokens-before">-</div>
+          <div class="text-xs text-gray-400">Before</div>
+        </div>
+        <!-- Tokens After -->
+        <div class="bg-gray-800/50 rounded-lg p-3 skeleton-stats">
+          <div class="text-2xl font-bold text-green-400" id="stat-tokens-after">-</div>
+          <div class="text-xs text-gray-400">After</div>
+        </div>
+        <!-- Savings -->
+        <div class="bg-gray-800/50 rounded-lg p-3 skeleton-stats">
+          <div class="text-2xl font-bold text-amber-400" id="stat-savings">-</div>
+          <div class="text-xs text-gray-400">Saved</div>
+        </div>
+        <!-- Identity Age -->
+        <div class="bg-gray-800/50 rounded-lg p-3 skeleton-stats">
+          <div class="text-2xl font-bold text-cyan-400" id="stat-age">-</div>
+          <div class="text-xs text-gray-400">Age</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content (P0-3) -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Layer Legend -->
+    <div class="flex flex-wrap gap-4 justify-center mb-8">
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded" style="background-color: var(--color-metadata)"></div>
+        <span class="text-sm text-gray-300">Metadata (~50 tokens)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded" style="background-color: var(--color-reflection)"></div>
+        <span class="text-sm text-gray-300">Reflection (~200 tokens)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded" style="background-color: var(--color-recent)"></div>
+        <span class="text-sm text-gray-300">Recent (~500 tokens)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded" style="background-color: var(--color-progressive)"></div>
+        <span class="text-sm text-gray-300">Progressive (~100 tokens)</span>
+      </div>
+    </div>
+
+    <!-- Layer Cards Container (P0-3, P0-6, P0-7, P0-8) -->
+    <div class="space-y-4" id="layers-container">
+      <!-- Metadata Layer -->
+      <div id="layer-metadata" class="layer-card layer-metadata bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Metadata layer">
+        <button
+          class="w-full flex items-center justify-between text-left"
+          aria-expanded="false"
+          aria-controls="metadata-content"
+          onclick="toggleLayer('metadata')"
+        >
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full" style="background-color: var(--color-metadata)"></div>
+            <h3 class="text-lg font-semibold">Metadata Layer</h3>
+            <span class="text-sm text-gray-400">(~50 tokens)</span>
+            <span id="metadata-status" class="ml-2 text-sm text-gray-500">Loading...</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="metadata-check" class="hidden text-green-400">✓</span>
+            <span id="metadata-expand-icon" class="text-gray-400">▼</span>
+          </div>
+        </button>
+        <div id="metadata-content" class="layer-content mt-4">
+          <!-- Content will be injected by P0-8 -->
+        </div>
+      </div>
+
+      <!-- Reflection Layer -->
+      <div id="layer-reflection" class="layer-card layer-reflection bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Reflection layer">
+        <button
+          class="w-full flex items-center justify-between text-left"
+          aria-expanded="false"
+          aria-controls="reflection-content"
+          onclick="toggleLayer('reflection')"
+        >
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full" style="background-color: var(--color-reflection)"></div>
+            <h3 class="text-lg font-semibold">Reflection Layer</h3>
+            <span class="text-sm text-gray-400">(~200 tokens)</span>
+            <span id="reflection-status" class="ml-2 text-sm text-gray-500">Loading...</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="reflection-check" class="hidden text-green-400">✓</span>
+            <span id="reflection-expand-icon" class="text-gray-400">▼</span>
+          </div>
+        </button>
+        <div id="reflection-content" class="layer-content mt-4">
+          <!-- Content will be injected by P0-8 -->
+        </div>
+      </div>
+
+      <!-- Recent Layer -->
+      <div id="layer-recent" class="layer-card layer-recent bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Recent layer">
+        <button
+          class="w-full flex items-center justify-between text-left"
+          aria-expanded="false"
+          aria-controls="recent-content"
+          onclick="toggleLayer('recent')"
+        >
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full" style="background-color: var(--color-recent)"></div>
+            <h3 class="text-lg font-semibold">Recent Layer</h3>
+            <span class="text-sm text-gray-400">(~500 tokens)</span>
+            <span id="recent-status" class="ml-2 text-sm text-gray-500">Loading...</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="recent-check" class="hidden text-green-400">✓</span>
+            <span id="recent-expand-icon" class="text-gray-400">▼</span>
+          </div>
+        </button>
+        <div id="recent-content" class="layer-content mt-4">
+          <!-- Content will be injected by P0-8 -->
+        </div>
+      </div>
+
+      <!-- Progressive Layer -->
+      <div id="layer-progressive" class="layer-card layer-progressive bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Progressive layer">
+        <button
+          class="w-full flex items-center justify-between text-left"
+          aria-expanded="false"
+          aria-controls="progressive-content"
+          onclick="toggleLayer('progressive')"
+        >
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full" style="background-color: var(--color-progressive)"></div>
+            <h3 class="text-lg font-semibold">Progressive Layer</h3>
+            <span class="text-sm text-gray-400">(~100 tokens)</span>
+            <span id="progressive-status" class="ml-2 text-sm text-gray-500">Loading...</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="progressive-check" class="hidden text-green-400">✓</span>
+            <span id="progressive-expand-icon" class="text-gray-400">▼</span>
+          </div>
+        </button>
+        <div id="progressive-content" class="layer-content mt-4">
+          <!-- Content will be injected by P0-8 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Region for Screen Readers (P1-3) -->
+    <div id="live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-gray-700 mt-16">
+    <div class="max-w-7xl mx-auto px-4 py-6 text-center text-gray-400 text-sm">
+      <p>Stratified Memory Visualizer • Thread's Memory System</p>
+      <p class="mt-1">Demonstrating 32x token compression through semantic layers</p>
+    </div>
+  </footer>
 
   <script src="api.js"></script>
   <script src="app.js"></script>
