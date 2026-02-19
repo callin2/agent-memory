@@ -47,7 +47,7 @@
 /* Layer Card Styles */
 .layer-card {
   will-change: transform, opacity;
-  transform: translateZ(0); /* Force GPU layer */
+  transform: translateZ(0); /* Force GPU layer (P1-2) */
   transition: all 0.3s ease;
 }
 
@@ -72,7 +72,7 @@
   animation: skeletonPulse 1.5s ease-in-out infinite;
 }
 
-/* Focus Styles for Accessibility */
+/* Focus Styles for Accessibility (P1-7) */
 button:focus-visible,
 [tabindex]:focus-visible {
   outline: 2px solid var(--color-metadata);
@@ -92,7 +92,7 @@ button:focus-visible,
   border-width: 0;
 }
 
-/* Reduced Motion Support */
+/* Reduced Motion Support (P2-1) */
 @media (prefers-reduced-motion: reduce) {
   .layer-card {
     transition: none;
@@ -136,4 +136,137 @@ button:focus-visible,
 
 .status-loading {
   color: #f59e0b; /* Amber-500 */
+}
+
+/* Responsive Mobile Layout (P1-6) */
+
+/* Small phones (< 375px) */
+@media (max-width: 374px) {
+  /* Stats bar: 2 columns instead of 3 or 6 */
+  #stats-bar .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Stack header content */
+  header .flex {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* Simplify tenant selector */
+  #tenant-selector {
+    max-width: 100%;
+  }
+
+  /* Hide less important elements on very small screens */
+  .layer-legend {
+    display: none;
+  }
+
+  /* Smaller font sizes */
+  h1 {
+    font-size: 1.25rem; /* text-xl → text-lg */
+  }
+
+  .layer-card h3 {
+    font-size: 1rem; /* text-lg → text-base */
+  }
+}
+
+/* Medium phones (375px - 639px) */
+@media (min-width: 375px) and (max-width: 639px) {
+  /* Stats bar: 3 columns on mobile */
+  #stats-bar .grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  /* Stack header content on mobile */
+  header {
+    padding: 0.75rem;
+  }
+
+  header .flex {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  header h1 {
+    font-size: 1.125rem; /* text-2xl → text-xl */
+  }
+
+  header p {
+    font-size: 0.75rem; /* text-sm → text-xs */
+  }
+
+  /* Smaller stats */
+  .stat-card {
+    padding: 0.5rem;
+  }
+
+  .stat-card .text-2xl {
+    font-size: 1.25rem; /* text-2xl → text-xl */
+  }
+
+  .stat-card .text-xs {
+    font-size: 0.625rem; /* text-xs → 10px */
+  }
+
+  /* Tenant selector full width */
+  #tenant-selector {
+    width: 100%;
+  }
+
+  /* Side-by-side comparison: stack vertically on mobile */
+  #comparison-view .grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Layer cards: full width */
+  .layer-card {
+    padding: 0.75rem;
+  }
+
+  /* Smaller layer content text */
+  .layer-content {
+    font-size: 0.875rem; /* text-sm → text-xs */
+  }
+
+  /* Hide replay button text on very small screens */
+  #replay-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Tablets (640px - 767px) */
+@media (min-width: 640px) and (max-width: 767px) {
+  /* Stats bar: 3x2 grid on tablets */
+  #stats-bar .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Side-by-side comparison: still side-by-side on tablets */
+  #comparison-view .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Landscape mobile (max height, any width) */
+@media (max-height: 600px) and (orientation: landscape) {
+  /* Reduce padding on short screens */
+  main {
+    padding: 1rem;
+  }
+
+  /* Compact layer cards */
+  .layer-card {
+    padding: 0.5rem;
+  }
+
+  /* Hide footer on landscape mobile */
+  footer {
+    display: none;
+  }
 }
