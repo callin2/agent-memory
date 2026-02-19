@@ -22,6 +22,7 @@ import { createServer, IncomingMessage, ServerResponse } from "http";
 import { URL } from "url";
 import { extractBearerToken, validateBearerToken } from "./auth.js";
 import * as quickReference from "../utils/quick-reference.js";
+import { EmbeddingService } from "../services/embedding-service.js";
 
 // Database connection
 const pool = new Pool({
@@ -31,6 +32,9 @@ const pool = new Pool({
   user: process.env.PGUSER || "postgres",
   password: process.env.PGPASSWORD || "postgres",
 });
+
+// Initialize embedding service
+const embeddingService = new EmbeddingService(pool);
 
 // Create MCP server
 const server = new Server(
@@ -545,6 +549,59 @@ const listToolsHandler = async () => {
             },
           },
           required: [],
+        },
+      },
+      {
+        name: "semantic_search",
+        description: "Find semantically similar memories using vector embeddings. Matches meaning, not just keywords. For example, 'implementation methodology' will match 'code changes', 'security fixes', 'spec creation'. Uses local Qwen3 embedding model for semantic similarity search.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier",
+              default: "default",
+            },
+            query: {
+              type: "string",
+              description: "Search query to find semantically similar memories",
+            },
+            limit: {
+              type: "number",
+              description: "Maximum number of results to return (default: 5)",
+              default: 5,
+            },
+            min_similarity: {
+              type: "number",
+              description: "Minimum similarity threshold (0.0-1.0, default: 0.5)",
+              default: 0.5,
+            },
+          },
+          required: ["query"],
+        },
+      },
+      {
+        name: "hybrid_search",
+        description: "Advanced search combining full-text search (keywords) AND vector embeddings (semantic meaning). Uses Reciprocal Rank Fusion (RRF) algorithm to combine results. Best of both worlds: precise keyword matching + conceptual understanding. Example: 'database optimization' finds both exact matches and concepts like 'performance tuning', 'query speedup'.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier",
+              default: "default",
+            },
+            query: {
+              type: "string",
+              description: "Search query (keywords and semantic meaning both considered)",
+            },
+            limit: {
+              type: "number",
+              description: "Maximum number of results to return (default: 5)",
+              default: 5,
+            },
+          },
+          required: ["query"],
         },
       },
     ],
@@ -1515,6 +1572,114 @@ const callToolHandler = async (request: any) => {
                   : health.health === 'fair'
                   ? "System needs attention. Address open feedback items."
                   : "System needs immediate attention. Focus on high-priority feedback items.",
+              }),
+            },
+          ],
+        };
+      }
+
+      case "semantic_search": {
+        const {
+          tenant_id = "default",
+          query,
+          limit = 5,
+          min_similarity = 0.5,
+        } = args as {
+          tenant_id?: string;
+          query: string;
+          limit?: number;
+          min_similarity?: number;
+        };
+
+        if (!query) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: "Missing required parameter: query",
+                }),
+              },
+            ],
+          };
+        }
+
+        const results = await embeddingService.semanticSearch(
+          tenant_id,
+          query,
+          limit,
+          min_similarity
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                query,
+                method: "semantic_vector_search",
+                results: results.map(r => ({
+                  handoff_id: r.handoff_id,
+                  similarity: r.similarity,
+                  experienced: r.experienced?.substring(0, 200),
+                  learned: r.learned?.substring(0, 200),
+                  created_at: r.created_at,
+                })),
+                count: results.length,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "hybrid_search": {
+        const {
+          tenant_id = "default",
+          query,
+          limit = 5,
+        } = args as {
+          tenant_id?: string;
+          query: string;
+          limit?: number;
+        };
+
+        if (!query) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: "Missing required parameter: query",
+                }),
+              },
+            ],
+          };
+        }
+
+        const results = await embeddingService.hybridSearch(
+          tenant_id,
+          query,
+          limit
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                query,
+                method: "hybrid_search_fts_plus_vector",
+                algorithm: "Reciprocal Rank Fusion (RRF)",
+                results: results.map(r => ({
+                  handoff_id: r.handoff_id,
+                  experienced: r.experienced?.substring(0, 200),
+                  created_at: r.created_at,
+                })),
+                count: results.length,
               }),
             },
           ],
