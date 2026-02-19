@@ -8,12 +8,24 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
-  <!-- Placeholder content - will be replaced in P0-3 -->
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-center mb-4">Stratified Memory Visualizer</h1>
-    <p class="text-center text-gray-400">Project setup complete. Ready for development.</p>
+  <!-- Loading Overlay (P0-9) -->
+  <div id="loading-overlay" class="hidden fixed inset-0 bg-gray-900/90 z-50 flex items-center justify-center">
+    <div class="text-center">
+      <div class="inline-block w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p class="text-xl text-gray-300">Loading stratified memory...</p>
+    </div>
   </div>
 
+  <!-- Error Container (P0-9) -->
+  <div id="error-container" class="container mx-auto px-4 py-6 hidden"></div>
+
+  <!-- Main Content -->
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-center mb-4">Stratified Memory Visualizer</h1>
+    <p class="text-center text-gray-400">Project setup complete. API integration ready.</p>
+  </div>
+
+  <script src="api.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
