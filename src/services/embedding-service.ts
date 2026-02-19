@@ -147,12 +147,14 @@ export class EmbeddingService {
         // Generate embedding
         const embedding = await this.generateEmbedding(text);
 
-        // Store embedding
+        // Store embedding - format as pgvector array string: [0.1,0.2,0.3]
+        const embeddingString = `[${embedding.join(',')}]`;
+
         await this.pool.query(
           `UPDATE session_handoffs
-          SET embedding = $1
+          SET embedding = $1::vector(1024)
           WHERE handoff_id = $2`,
-          [embedding, handoff.handoff_id]
+          [embeddingString, handoff.handoff_id]
         );
 
         // Remove temporary flag if exists
@@ -195,6 +197,7 @@ export class EmbeddingService {
   ): Promise<any[]> {
     // Generate embedding for query
     const queryEmbedding = await this.generateEmbedding(queryText);
+    const queryEmbeddingString = `[${queryEmbedding.join(',')}]`;
 
     // Find similar handoffs using vector similarity
     const result = await this.pool.query(
@@ -203,15 +206,15 @@ export class EmbeddingService {
         experienced,
         learned,
         becoming,
-        1 - (embedding <=> $1) AS similarity,
+        1 - (embedding <=> $1::vector(1024)) AS similarity,
         created_at
       FROM session_handoffs
       WHERE tenant_id = $2
         AND embedding IS NOT NULL
-        AND (embedding <=> $1) < (1 - $3)
-      ORDER BY embedding <=> $1
+        AND (embedding <=> $1::vector(1024)) < (1 - $3::float8)
+      ORDER BY embedding <=> $1::vector(1024)
       LIMIT $4`,
-      [queryEmbedding, tenantId, minSimilarity, limit]
+      [queryEmbeddingString, tenantId, minSimilarity, limit]
     );
 
     return result.rows;
@@ -247,12 +250,13 @@ export class EmbeddingService {
         if (text.length < 10) continue;
 
         const embedding = await this.generateEmbedding(text);
+        const embeddingString = `[${embedding.join(',')}]`;
 
         await this.pool.query(
           `UPDATE semantic_memory
-          SET embedding = $1
+          SET embedding = $1::vector(1024)
           WHERE semantic_id = $2`,
-          [embedding, principle.semantic_id]
+          [embeddingString, principle.semantic_id]
         );
 
         generated++;

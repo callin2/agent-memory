@@ -2,6 +2,17 @@ import { Pool } from 'pg';
 import { generateACBId } from '../utils/id-generator.js';
 import { estimateTokens } from '../utils/token-counter.js';
 import { getAllowedSensitivity, type Channel } from './privacy.js';
+import {
+  detectModeWithFullAnalysis,
+  getBudgets,
+  createInvariantContext,
+  detectInvariantBreach,
+  StickyInvariantType,
+  type InteractionMode,
+  type ModeTelemetryEvent,
+  type InvariantContext,
+} from './mode-detection.js';
+import { getTelemetry } from './telemetry.js';
 
 export interface ACBRequest {
   tenant_id: string;
@@ -64,6 +75,12 @@ export interface ACBResponse {
   // Capsule and edit integration
   capsules: CapsuleInfo[];
   edits_applied: number;
+  // Mode-aware filtering (v0.3) with runtime guardrails
+  mode: InteractionMode;
+  mode_confidence: number;
+  mode_invariants: string[];
+  mode_telemetry?: ModeTelemetryEvent;
+  fallback_reason?: string;
 }
 
 export interface CapsuleInfo {
@@ -438,6 +455,7 @@ async function buildCapsulesSection(
 /**
  * Build Active Context Bundle with capsules and memory edits
  * Main orchestrator function - enhanced for SPEC-MEMORY-002
+ * NOW: Mode-aware filtering (v0.3) with runtime guardrails
  */
 export async function buildACB(
   pool: Pool,
@@ -450,14 +468,27 @@ export async function buildACB(
   let total_edits_applied = 0;
   const allCapsules: CapsuleInfo[] = [];
 
-  // Budget allocations (from PRD)
+  // NEW: Full mode analysis with confidence estimation and invariant extraction
+  const { mode, confidence, invariants, fallbackReason, telemetry: modeTelemetry } =
+    detectModeWithFullAnalysis(request);
+
+  // NEW: Create invariant context for tracking sticky invariants
+  const invariantContext = createInvariantContext();
+
+  // NEW: Add detected invariants to context
+  for (const invariant of invariants) {
+    invariantContext.add(invariant);
+  }
+
+  // NEW: Get mode-aware budgets
+  const baseBudgets = getBudgets(mode);
   const budgets = {
-    rules: 6000,
-    task_state: 3000,
-    recent_window: 8000,
-    capsules: request.include_capsules ? 4000 : 0,
-    retrieved_evidence: 28000,
-    relevant_decisions: 4000,
+    rules: baseBudgets.rules,
+    task_state: baseBudgets.task_state,
+    recent_window: baseBudgets.recent_window,
+    capsules: request.include_capsules ? baseBudgets.capsules : 0,
+    retrieved_evidence: baseBudgets.retrieved_evidence,
+    relevant_decisions: baseBudgets.relevant_decisions,
   };
 
   // 1. Rules section
@@ -543,6 +574,24 @@ export async function buildACB(
     token_used += section.token_est;
   }
 
+  // NEW: Check for invariant breaches before returning (runtime safety)
+  const breach = detectInvariantBreach(invariantContext, 800, acb_id);
+  if (breach.breached) {
+    // Invariant breach detected - log via telemetry
+    const telemetry = getTelemetry();
+    telemetry.logInvariantBreach({
+      request_id: acb_id,
+      session_id: request.session_id,
+      tenant_id: request.tenant_id,
+      missing_invariant: breach.missing!,
+      context_id: breach.context_id || acb_id,
+      action_taken: 'logged_only', // Continue anyway for now
+    });
+  }
+
+  // Convert invariants set to array for response
+  const invariantArray = Array.from(invariantContext.invariants);
+
   return {
     acb_id,
     budget_tokens,
@@ -565,5 +614,11 @@ export async function buildACB(
     // New for SPEC-MEMORY-002
     capsules: allCapsules,
     edits_applied: total_edits_applied,
+    // NEW: Mode-aware filtering (v0.3) with full analysis
+    mode,
+    mode_confidence: confidence,
+    mode_invariants: invariantArray,
+    mode_telemetry: modeTelemetry,
+    fallback_reason: fallbackReason,
   };
 }

@@ -53,7 +53,7 @@ export async function validateBearerToken(
   if (pool && process.env.NODE_ENV === "production") {
     try {
       const result = await pool.query(
-        `SELECT api_key, is_active, tenant_id
+        `SELECT api_key, is_active, tenant_id, expires_at
          FROM api_keys
          WHERE api_key = $1 AND is_active = true`,
         [token]
@@ -66,9 +66,19 @@ export async function validateBearerToken(
         };
       }
 
+      const keyData = result.rows[0];
+
+      // Check if expired
+      if (keyData.expires_at && new Date() > keyData.expires_at) {
+        return {
+          valid: false,
+          error: "API key has expired",
+        };
+      }
+
       return {
         valid: true,
-        tenant_id: result.rows[0].tenant_id,
+        tenant_id: keyData.tenant_id,
       };
     } catch (error) {
       console.error("Error validating API key:", error);

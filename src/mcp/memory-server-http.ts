@@ -1647,9 +1647,11 @@ async function main() {
         jsonRpcRequest.params = normalizeParams(jsonRpcRequest.method, jsonRpcRequest.params);
 
         // Log if parameters were normalized
-        if (JSON.stringify(originalParams) !== JSON.stringify(jsonRpcRequest.params)) {
-          console.error(`[${new Date().toISOString()}] Params normalized from:`, JSON.stringify(originalParams).substring(0, 200));
-          console.error(`[${new Date().toISOString()}] Params normalized to:`, JSON.stringify(jsonRpcRequest.params).substring(0, 200));
+        const originalStr = JSON.stringify(originalParams);
+        const normalizedStr = JSON.stringify(jsonRpcRequest.params);
+        if (originalStr !== normalizedStr) {
+          console.error(`[${new Date().toISOString()}] Params normalized from:`, (originalStr || 'undefined').substring(0, 200));
+          console.error(`[${new Date().toISOString()}] Params normalized to:`, (normalizedStr || 'undefined').substring(0, 200));
         }
 
         console.error(`[${new Date().toISOString()}] MCP ${jsonRpcRequest.method} request`);
