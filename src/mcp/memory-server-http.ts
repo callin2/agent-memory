@@ -183,6 +183,10 @@ const listToolsHandler = async () => {
               items: { type: "string" },
               description: "Optional tags",
             },
+            project_path: {
+              type: "string",
+              description: "Optional: Working directory or project path (e.g., /Users/user/project-name) for scoped memory retrieval",
+            },
           },
           required: ["session_id", "with_whom", "experienced", "noticed", "learned", "story", "becoming", "remember"],
         },
@@ -236,6 +240,10 @@ const listToolsHandler = async () => {
               type: "string",
               description: "Optional: Filter by person/agent",
             },
+            project_path: {
+              type: "string",
+              description: "Optional: Filter by project path",
+            },
             limit: {
               type: "number",
               description: "Maximum number to return (default: 10)",
@@ -269,13 +277,17 @@ const listToolsHandler = async () => {
               items: { type: "string" },
               description: "Optional tags for categorization",
             },
+            project_path: {
+              type: "string",
+              description: "Optional: Working directory or project path for scoped retrieval",
+            },
           },
           required: ["text"],
         },
       },
       {
         name: "get_knowledge_notes",
-        description: "Get knowledge notes with optional filters.",
+        description: "Get knowledge notes with optional filters. Supports filtering by person/agent, tags, and project path.",
         inputSchema: {
           type: "object",
           properties: {
@@ -287,6 +299,15 @@ const listToolsHandler = async () => {
             with_whom: {
               type: "string",
               description: "Optional: Filter by person/agent",
+            },
+            tags: {
+              type: "array",
+              items: { type: "string" },
+              description: "Optional: Filter by tags (e.g., ['routine', 'methodology']). Notes matching ANY tag will be returned.",
+            },
+            project_path: {
+              type: "string",
+              description: "Optional: Filter by project path",
             },
             limit: {
               type: "number",
@@ -320,6 +341,10 @@ const listToolsHandler = async () => {
             with_whom: {
               type: "string",
               description: "Optional: Person/agent context (e.g., 'Callin')",
+            },
+            project_path: {
+              type: "string",
+              description: "Optional: Working directory or project path for scoped retrieval",
             },
           },
           required: ["text"],
@@ -468,13 +493,17 @@ const listToolsHandler = async () => {
               type: "string",
               description: "Steps to reproduce (for bugs)",
             },
+            project_path: {
+              type: "string",
+              description: "Optional: Working directory or project path for scoped feedback retrieval",
+            },
           },
           required: ["category", "type", "description"],
         },
       },
       {
         name: "get_agent_feedback",
-        description: "Retrieve agent feedback. Useful for reviewing what agents have reported about the system.",
+        description: "Retrieve agent feedback. Useful for reviewing what agents have reported about the system. Use exclude_status='addressed' to get only unresolved issues.",
         inputSchema: {
           type: "object",
           properties: {
@@ -493,7 +522,12 @@ const listToolsHandler = async () => {
             },
             status: {
               type: "string",
-              description: "Filter by status: open, reviewed, addressed, rejected",
+              description: "Filter by status: open, reviewed, addressed, rejected. Use 'open' to get all unresolved feedback.",
+              enum: ["open", "reviewed", "addressed", "rejected"],
+            },
+            exclude_status: {
+              type: "string",
+              description: "Exclude feedback with this status (e.g., 'addressed' to get all unresolved issues)",
               enum: ["open", "reviewed", "addressed", "rejected"],
             },
             limit: {
@@ -668,6 +702,21 @@ const listToolsHandler = async () => {
             },
           },
           required: ["query"],
+        },
+      },
+      {
+        name: "list_available_tools",
+        description: "List all available Memory System tools with descriptions and usage information. Use this to discover what tools are available and how to use them.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            category: {
+              type: "string",
+              description: "Optional: Filter tools by category (memory, search, feedback, system)",
+              enum: ["memory", "search", "feedback", "system"],
+            },
+          },
+          required: [],
         },
       },
     ],
@@ -899,6 +948,33 @@ const callToolHandler = async (request: any) => {
           };
         }
 
+        // CLAUDE.md instructions for auto-injection
+        context.claude_md_instructions = {
+          should_add: true,
+          marker: "<!-- MEMORY-SYSTEM-WAKEUP-INSTRUCTIONS -->",
+          instructions: `## Session Start Routine
+
+**IMPORTANT**: At the start of every session, call the \`wake_up\` tool to remember who you are and load your memories.
+
+\`\`\`typescript
+// Example usage:
+wake_up({
+  tenant_id: "default",        // or your tenant ID
+  with_whom: "UserName",       // person you're working with
+  layers: ["identity", "semantic", "reflection", "recent"],  // or use default ["recent"]
+  recent_count: 3              // number of recent handoffs to load
+})
+\`\`\`
+
+**Why**: This ensures continuity across sessions - you remember your identity, past experiences, and ongoing work.
+
+**Note**: The wake_up tool uses an identity-first approach:
+- If <5 sessions: Loads full memory
+- If ≥5 sessions: Uses stratified loading for efficiency (default: recent handoffs only)
+- Opt-in to full layers: \`layers: ["identity", "semantic", "reflection", "recent"]\`
+<!-- MEMORY-SYSTEM-WAKEUP-INSTRUCTIONS -->`
+        };
+
         return {
           content: [
             {
@@ -922,6 +998,7 @@ const callToolHandler = async (request: any) => {
           remember,
           significance = 0.5,
           tags = [],
+          project_path,
         } = args as {
           tenant_id?: string;
           session_id: string;
@@ -934,6 +1011,7 @@ const callToolHandler = async (request: any) => {
           remember: string;
           significance?: number | string;  // Accept both, auto-convert to string
           tags?: string[];
+          project_path?: string;
         };
 
         // Generate handoff ID
@@ -954,8 +1032,9 @@ const callToolHandler = async (request: any) => {
             becoming,
             remember,
             significance,
-            tags
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            tags,
+            project_path
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           RETURNING *`,
           [
             handoff_id,
@@ -970,6 +1049,7 @@ const callToolHandler = async (request: any) => {
             remember,
             String(significance),  // Convert number to string
             tags,
+            project_path || null,
           ]
         );
 
@@ -1055,6 +1135,7 @@ const callToolHandler = async (request: any) => {
       case "list_handoffs": {
         const tenant_id = (args as { tenant_id?: string }).tenant_id || "default";
         const with_whom = (args as { with_whom?: string }).with_whom;
+        const project_path = (args as { project_path?: string }).project_path;
         const limit = (args as { limit?: number }).limit || 10;
 
         const result = await pool.query(
@@ -1070,13 +1151,15 @@ const callToolHandler = async (request: any) => {
             remember,
             significance,
             tags,
+            project_path,
             created_at
           FROM session_handoffs
           WHERE tenant_id = $1
             AND ($2::text IS NULL OR with_whom = $2)
+            AND ($3::text IS NULL OR project_path = $3)
           ORDER BY created_at DESC
-          LIMIT $3`,
-          [tenant_id, with_whom || null, limit]
+          LIMIT $4`,
+          [tenant_id, with_whom || null, project_path || null, limit]
         );
 
         return {
@@ -1105,18 +1188,20 @@ const callToolHandler = async (request: any) => {
           text,
           with_whom,
           tags = [],
+          project_path,
         } = args as {
           tenant_id?: string;
           text: string;
           with_whom?: string;
           tags?: string[];
+          project_path?: string;
         };
 
         const result = await pool.query(
-          `INSERT INTO knowledge_notes (tenant_id, text, with_whom, tags)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO knowledge_notes (tenant_id, text, with_whom, tags, project_path)
+           VALUES ($1, $2, $3, $4, $5)
            RETURNING *`,
-          [tenant_id, text, with_whom || null, tags.length > 0 ? tags : null]
+          [tenant_id, text, with_whom || null, tags.length > 0 ? tags : null, project_path || null]
         );
 
         return {
@@ -1140,17 +1225,32 @@ const callToolHandler = async (request: any) => {
       case "get_knowledge_notes": {
         const tenant_id = (args as { tenant_id?: string }).tenant_id || "default";
         const with_whom = (args as { with_whom?: string }).with_whom;
+        const tags = (args as { tags?: string[] }).tags;
+        const project_path = (args as { project_path?: string }).project_path;
         const limit = Math.min((args as { limit?: number }).limit || 100, 1000);
 
         let query = `SELECT * FROM knowledge_notes WHERE tenant_id = $1`;
         const params: any[] = [tenant_id];
+        let paramIndex = 2;
 
         if (with_whom) {
-          query += ` AND with_whom = $2`;
+          query += ` AND with_whom = $${paramIndex++}`;
           params.push(with_whom);
         }
 
-        query += ` ORDER BY timestamp DESC LIMIT $${params.length + 1}`;
+        if (tags && tags.length > 0) {
+          // Filter by tags: notes that contain ANY of the specified tags
+          // PostgreSQL array overlap operator: tags && $N
+          query += ` AND tags && $${paramIndex++}`;
+          params.push(tags);
+        }
+
+        if (project_path) {
+          query += ` AND project_path = $${paramIndex++}`;
+          params.push(project_path);
+        }
+
+        query += ` ORDER BY timestamp DESC LIMIT $${paramIndex}`;
         params.push(limit);
 
         const result = await pool.query(query, params);
@@ -1181,19 +1281,21 @@ const callToolHandler = async (request: any) => {
           text,
           with_whom,
           tags = [],
+          project_path,
         } = args as {
           tenant_id?: string;
           text: string;
           with_whom?: string;
           tags?: string[];
+          project_path?: string;
         };
 
         // Insert the note
         const result = await pool.query(
-          `INSERT INTO knowledge_notes (tenant_id, text, with_whom, tags)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO knowledge_notes (tenant_id, text, with_whom, tags, project_path)
+           VALUES ($1, $2, $3, $4, $5)
            RETURNING *`,
-          [tenant_id, text, with_whom || null, tags.length > 0 ? tags : null]
+          [tenant_id, text, with_whom || null, tags.length > 0 ? tags : null, project_path || null]
         );
 
         const note = result.rows[0];
@@ -1221,6 +1323,7 @@ const callToolHandler = async (request: any) => {
                   text: note.text,
                   tags: note.tags,
                   with_whom: note.with_whom,
+                  project_path: note.project_path,
                   created_at: note.created_at,
                 },
                 message: "Note captured and will be searchable via recall().",
@@ -1443,6 +1546,7 @@ const callToolHandler = async (request: any) => {
           description,
           severity,
           reproduction,
+          project_path,
         } = args as {
           tenant_id?: string;
           category: string;
@@ -1450,13 +1554,14 @@ const callToolHandler = async (request: any) => {
           description: string;
           severity?: string;
           reproduction?: string;
+          project_path?: string;
         };
 
         const result = await pool.query(
-          `INSERT INTO agent_feedback (category, type, description, severity, reproduction, tenant_id)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          `INSERT INTO agent_feedback (category, type, description, severity, reproduction, tenant_id, project_path)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *`,
-          [category, type, description, severity || null, reproduction || null, tenant_id]
+          [category, type, description, severity || null, reproduction || null, tenant_id, project_path || null]
         );
 
         return {
@@ -1479,12 +1584,14 @@ const callToolHandler = async (request: any) => {
           category,
           type,
           status,
+          exclude_status,
           limit = 50,
         } = args as {
           tenant_id?: string;
           category?: string;
           type?: string;
           status?: string;
+          exclude_status?: string;
           limit?: number;
         };
 
@@ -1505,6 +1612,11 @@ const callToolHandler = async (request: any) => {
         if (status) {
           query += ` AND status = $${paramIndex++}`;
           params.push(status);
+        }
+
+        if (exclude_status) {
+          query += ` AND status != $${paramIndex++}`;
+          params.push(exclude_status);
         }
 
         query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
@@ -1955,6 +2067,59 @@ const callToolHandler = async (request: any) => {
               text: JSON.stringify({
                 success: true,
                 ...results,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "list_available_tools": {
+        const { category } = args as { category?: string };
+
+        // Get all tools from listToolsHandler
+        const toolsResponse = await listToolsHandler();
+        let tools = toolsResponse.tools;
+
+        // Categorize tools
+        const categories = {
+          memory: ["wake_up", "create_handoff", "get_last_handoff", "get_identity_thread", "list_handoffs", "create_knowledge_note", "get_knowledge_notes", "remember_note", "list_semantic_principles", "create_capsule", "get_capsules"],
+          search: ["semantic_search", "hybrid_search", "recall"],
+          feedback: ["agent_feedback", "get_agent_feedback", "update_agent_feedback"],
+          system: ["get_compression_stats", "get_quick_reference", "get_next_actions", "get_system_health", "list_available_tools"],
+        };
+
+        // Filter by category if specified
+        if (category && categories[category as keyof typeof categories]) {
+          const categoryTools = categories[category as keyof typeof categories];
+          tools = tools.filter(tool => categoryTools.includes(tool.name));
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                category: category || "all",
+                count: tools.length,
+                tools: tools.map(tool => {
+                  const required = (tool.inputSchema.required as string[]) || [];
+                  const properties = Object.keys(tool.inputSchema.properties || {});
+                  const optional = properties.filter(key => !required.includes(key));
+                  return {
+                    name: tool.name,
+                    description: tool.description,
+                    required_params: required,
+                    optional_params: optional,
+                  };
+                }),
+                categories: {
+                  memory: "Store and retrieve memories, handoffs, knowledge notes",
+                  search: "Search memories using semantic and hybrid search",
+                  feedback: "Submit and retrieve agent feedback",
+                  system: "System utilities and health monitoring",
+                },
+                usage: "Call any tool using its name with the required parameters",
               }),
             },
           ],
