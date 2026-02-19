@@ -745,6 +745,35 @@
   - Local Qwen3 API works perfectly for embeddings (no OpenAI needed)
 - **Next:** Production deployment, monitoring setup
 
+### Session 12 (2026-02-19)
+- **Started:** 2026-02-19 04:30 UTC
+- **Completed:**
+  - [x] Added semantic_search MCP tool
+    - Exposes vector search to all agents
+    - Query: "implementation methodology" → finds conceptual matches
+    - Returns: handoff_id, similarity, experienced, learned, created_at
+  - [x] Added hybrid_search MCP tool
+    - Combines full-text search + vector embeddings
+    - Uses Reciprocal Rank Fusion (RRF) algorithm
+    - Best of both: keyword precision + semantic understanding
+- **Files Modified:**
+  - src/mcp/memory-server-http.ts
+    - Imported EmbeddingService
+    - Added semantic_search tool to listToolsHandler
+    - Added hybrid_search tool to listToolsHandler
+    - Implemented both tool handlers in callToolHandler
+  - DEVELOPMENT-PROGRESS.md (updated)
+- **MCP Tools Total:** 19 tools (was 17)
+- **Tests:** Both tools verified working
+  - semantic_search: Returns 3 results, similarity scores 0.50-0.56
+  - hybrid_search: Returns 3 results combining FTS + vector
+- **Impact:** All agents can now use semantic search via MCP
+- **Learnings:**
+  - Vector search needs to be exposed as MCP tool for agents to use
+  - EmbeddingService works perfectly with local Qwen3 API
+  - Semantic search finds meaning, not just keywords
+- **Knowledge Note:** Created "Vector Search MCP Tools" for future reference
+
 ---
 
 ## 🔗 Quick Links
