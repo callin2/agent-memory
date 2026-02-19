@@ -13,10 +13,11 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| MCP Server | ✅ HTTP (current) | Migrated from SSE, 13 tools available |
+| MCP Server | ✅ HTTP (current) | Migrated from SSE, 14 tools available |
 | Authentication | ✅ Bearer token (current) | HTTP header auth, n8n-style |
 | WAL System | ✅ Operational | Fault tolerance for memory operations |
 | Memory Client v2 | ✅ Current | Unified parameter handling + feedback loop |
+| Quick Reference | ✅ Current | Fast documentation lookup via get_quick_reference |
 | REST API | ✅ Running | Express.js on port 3000 |
 | Database | ✅ PostgreSQL | Schema in `src/db/schema.sql` |
 | Tests | ✅ Organized | Migrated to `tests/integration/`, `tests/manual/`, `tests/debug/` |
@@ -65,6 +66,16 @@
 
 **Usage**: Import `tryMemoryOperation` from `src/utils/wal.js` or use `MemoryClient` from `src/utils/memory-client.js`
 
+### Quick Reference System
+
+| File | Purpose | Status | Last Updated |
+|------|---------|--------|--------------|
+| `src/utils/quick-reference.ts` | Fast documentation lookup | ✅ Current | 2026-02-19 |
+
+**Available Topics**: `mcp_tools`, `common_tasks`, `project_structure`, `troubleshooting`, `database_schema`
+
+**Usage**: Call `get_quick_reference` tool with topic parameter. Much faster than reading entire SOURCES_OF_TRUTH.md.
+
 ### Removed Source Code
 
 | File | Replaced By | Removed Date |
@@ -91,6 +102,8 @@ All tools available in `src/mcp/memory-server-http.ts`:
 | `get_compression_stats` | Get token savings statistics | ✅ Current |
 | `agent_feedback` | Submit system feedback (friction, bugs, suggestions) | ✅ Current | 2026-02-19 |
 | `get_agent_feedback` | Retrieve agent feedback | ✅ Current | 2026-02-19 |
+| `update_agent_feedback` | Mark feedback as addressed/reviewed/rejected | ✅ Current | 2026-02-19 |
+| `get_quick_reference` | Fast documentation lookup (5 topics available) | ✅ Current | 2026-02-19 |
 
 ### Documentation - Primary Sources
 

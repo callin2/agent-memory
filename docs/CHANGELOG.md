@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Implemented agent feedback loop to identify system problems from agent perspective (not narcissistic self-tracking).
 
-#### New MCP Tools (13 Total)
+#### New MCP Tools (15 Total)
 - **agent_feedback** - Submit friction points, bugs, suggestions, patterns, insights
 - **get_agent_feedback** - Retrieve feedback by category, type, status
+- **update_agent_feedback** - Mark feedback as addressed/reviewed/rejected
+- **get_quick_reference** - Fast documentation lookup (5 topics: mcp_tools, common_tasks, project_structure, troubleshooting, database_schema)
 
 #### Database
 - **agent_feedback** table with indexes on category, type, status
@@ -37,6 +39,12 @@ Implemented agent feedback loop to identify system problems from agent perspecti
   - Error was: `"null value in column 'significance'"` when passing number
   - Fix: `String(significance)` conversion in handler
   - Tested: `0.85`, `"0.75"`, and default all work correctly
+
+- **Documentation navigation friction** - Added `get_quick_reference` tool
+  - **src/utils/quick-reference.ts** - Focused summaries for fast lookups
+  - Topics: mcp_tools, common_tasks, project_structure, troubleshooting, database_schema
+  - Much faster than reading entire SOURCES_OF_TRUTH.md
+  - Can be extended with more topics as needed
 
 #### Focus Test Results
 - Maintained focus for 90 seconds implementing both fixes

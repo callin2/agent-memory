@@ -21,6 +21,7 @@ import { Pool } from "pg";
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { URL } from "url";
 import { extractBearerToken, validateBearerToken } from "./auth.js";
+import * as quickReference from "../utils/quick-reference.js";
 
 // Database connection
 const pool = new Pool({
@@ -455,6 +456,21 @@ const listToolsHandler = async () => {
             },
           },
           required: ["feedback_id", "status"],
+        },
+      },
+      {
+        name: "get_quick_reference",
+        description: "Get quick reference summary for common topics. Faster than reading entire SOURCES_OF_TRUTH.md. Available topics: mcp_tools, common_tasks, project_structure, troubleshooting, database_schema",
+        inputSchema: {
+          type: "object",
+          properties: {
+            topic: {
+              type: "string",
+              description: "Topic to get reference for: mcp_tools, common_tasks, project_structure, troubleshooting, database_schema",
+              enum: ["mcp_tools", "common_tasks", "project_structure", "troubleshooting", "database_schema"],
+            },
+          },
+          required: [],
         },
       },
     ],
@@ -1300,6 +1316,58 @@ const callToolHandler = async (request: any) => {
                 success: true,
                 feedback: result.rows[0],
                 message: `Feedback status updated to: ${status}`,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "get_quick_reference": {
+        const { topic } = args as { topic?: string };
+
+        if (!topic) {
+          // List all available topics
+          const topics = quickReference.listQuickReferenceTopics();
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  available_topics: topics,
+                  usage: "Call get_quick_reference with a topic parameter",
+                }),
+              },
+            ],
+          };
+        }
+
+        const ref = quickReference.getQuickReference(topic);
+        if (!ref) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: `Unknown topic: ${topic}`,
+                  available_topics: quickReference.listQuickReferenceTopics(),
+                }),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                topic,
+                title: ref.title,
+                content: ref.content,
               }),
             },
           ],
