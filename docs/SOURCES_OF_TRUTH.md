@@ -13,11 +13,12 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| MCP Server | ✅ HTTP (current) | Migrated from SSE, 14 tools available |
+| MCP Server | ✅ HTTP (current) | Migrated from SSE, 16 tools available |
 | Authentication | ✅ Bearer token (current) | HTTP header auth, n8n-style |
 | WAL System | ✅ Operational | Fault tolerance for memory operations |
 | Memory Client v2 | ✅ Current | Unified parameter handling + feedback loop |
-| Quick Reference | ✅ Current | Fast documentation lookup via get_quick_reference |
+| Quick Reference | ✅ Current | 6 topics: pre_implementation_checklist, mcp_tools, etc. |
+| Workflow Support | ✅ Current | Pre-implementation checklist prevents rushing to code |
 | REST API | ✅ Running | Express.js on port 3000 |
 | Database | ✅ PostgreSQL | Schema in `src/db/schema.sql` |
 | Tests | ✅ Organized | Migrated to `tests/integration/`, `tests/manual/`, `tests/debug/` |
@@ -72,9 +73,11 @@
 |------|---------|--------|--------------|
 | `src/utils/quick-reference.ts` | Fast documentation lookup | ✅ Current | 2026-02-19 |
 
-**Available Topics**: `mcp_tools`, `common_tasks`, `project_structure`, `troubleshooting`, `database_schema`
+**Available Topics**: `pre_implementation_checklist`, `mcp_tools`, `common_tasks`, `project_structure`, `troubleshooting`, `database_schema`
 
 **Usage**: Call `get_quick_reference` tool with topic parameter. Much faster than reading entire SOURCES_OF_TRUTH.md.
+
+**Note**: `pre_implementation_checklist` is automatically reminded in wake_up to prevent "implement before understanding" pattern.
 
 ### Removed Source Code
 
@@ -103,7 +106,7 @@ All tools available in `src/mcp/memory-server-http.ts`:
 | `agent_feedback` | Submit system feedback (friction, bugs, suggestions) | ✅ Current | 2026-02-19 |
 | `get_agent_feedback` | Retrieve agent feedback | ✅ Current | 2026-02-19 |
 | `update_agent_feedback` | Mark feedback as addressed/reviewed/rejected | ✅ Current | 2026-02-19 |
-| `get_quick_reference` | Fast documentation lookup (5 topics available) | ✅ Current | 2026-02-19 |
+| `get_quick_reference` | Fast documentation lookup (6 topics) | ✅ Current | 2026-02-19 |
 
 ### Documentation - Primary Sources
 

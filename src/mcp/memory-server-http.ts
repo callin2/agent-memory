@@ -460,14 +460,14 @@ const listToolsHandler = async () => {
       },
       {
         name: "get_quick_reference",
-        description: "Get quick reference summary for common topics. Faster than reading entire SOURCES_OF_TRUTH.md. Available topics: mcp_tools, common_tasks, project_structure, troubleshooting, database_schema",
+        description: "Get quick reference summary for common topics. Faster than reading entire SOURCES_OF_TRUTH.md. Available topics: pre_implementation_checklist, mcp_tools, common_tasks, project_structure, troubleshooting, database_schema",
         inputSchema: {
           type: "object",
           properties: {
             topic: {
               type: "string",
-              description: "Topic to get reference for: mcp_tools, common_tasks, project_structure, troubleshooting, database_schema",
-              enum: ["mcp_tools", "common_tasks", "project_structure", "troubleshooting", "database_schema"],
+              description: "Topic to get reference for: pre_implementation_checklist, mcp_tools, common_tasks, project_structure, troubleshooting, database_schema",
+              enum: ["pre_implementation_checklist", "mcp_tools", "common_tasks", "project_structure", "troubleshooting", "database_schema"],
             },
           },
           required: [],
@@ -684,7 +684,8 @@ const callToolHandler = async (request: any) => {
         const isDefaultLayers = layers.length === 1 && layers[0] === "recent";
         if (isDefaultLayers && sessionCount > 0) {
           context.hint = {
-            layers_tip: "Loading recent handoffs only (default). For full memory including identity, semantic principles, and reflections, use: layers: ['identity', 'semantic', 'reflection', 'recent']"
+            layers_tip: "Loading recent handoffs only (default). For full memory including identity, semantic principles, and reflections, use: layers: ['identity', 'semantic', 'reflection', 'recent']",
+            pre_work_tip: "⚠️  Pattern reminder: Before implementing, call get_quick_reference(topic='pre_implementation_checklist'). Avoid 'implement before understanding' mistake."
           };
         }
 

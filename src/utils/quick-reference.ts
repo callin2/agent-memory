@@ -6,6 +6,37 @@
  */
 
 export const QUICK_REFERENCES = {
+  pre_implementation_checklist: {
+    title: "Pre-Implementation Checklist",
+    content: `
+**STOP. Before you code, ask yourself:**
+
+1. **Do I understand the problem?**
+   - Can I state it in one sentence?
+   - If NO → Ask user to clarify. Don't guess.
+
+2. **What are the assumptions?**
+   - List them explicitly
+   - If uncertain → Present multiple interpretations
+
+3. **Is there a simpler approach?**
+   - What's the minimum viable solution?
+   - Am I over-engineering?
+
+4. **Have I presented a plan?**
+   - State what you'll do
+   - Get user sign-off before coding
+
+5. **Why am I doing this?**
+   - Connect to actual user need
+   - Not just "because I can"
+
+**Pattern to avoid**: Implement before understanding → User stops you → Wasted effort.
+
+**Better pattern**: Understand → Plan → Confirm → Implement → Right first time.
+    `.trim()
+  },
+
   mcp_tools: {
     title: "MCP Tools (13 Total)",
     content: `
