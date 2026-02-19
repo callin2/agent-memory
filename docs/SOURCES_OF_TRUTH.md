@@ -13,12 +13,14 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| MCP Server | ✅ HTTP (current) | Migrated from SSE, 16 tools available |
+| MCP Server | ✅ HTTP (current) | Migrated from SSE, 18 tools available |
 | Authentication | ✅ Bearer token (current) | HTTP header auth, n8n-style |
 | WAL System | ✅ Operational | Fault tolerance for memory operations |
 | Memory Client v2 | ✅ Current | Unified parameter handling + feedback loop |
-| Quick Reference | ✅ Current | 6 topics: pre_implementation_checklist, mcp_tools, etc. |
+| Quick Reference | ✅ Current | 6 topics for fast documentation lookup |
 | Workflow Support | ✅ Current | Pre-implementation checklist prevents rushing to code |
+| Priority System | ✅ Current | get_next_actions suggests high-impact improvements |
+| System Health | ✅ Good | 90% feedback completion rate (9/10 addressed) |
 | REST API | ✅ Running | Express.js on port 3000 |
 | Database | ✅ PostgreSQL | Schema in `src/db/schema.sql` |
 | Tests | ✅ Organized | Migrated to `tests/integration/`, `tests/manual/`, `tests/debug/` |
@@ -107,6 +109,8 @@ All tools available in `src/mcp/memory-server-http.ts`:
 | `get_agent_feedback` | Retrieve agent feedback | ✅ Current | 2026-02-19 |
 | `update_agent_feedback` | Mark feedback as addressed/reviewed/rejected | ✅ Current | 2026-02-19 |
 | `get_quick_reference` | Fast documentation lookup (6 topics) | ✅ Current | 2026-02-19 |
+| `get_next_actions` | Get prioritized improvement suggestions | ✅ Current | 2026-02-19 |
+| `get_system_health` | Get system health metrics and status | ✅ Current | 2026-02-19 |
 
 ### Documentation - Primary Sources
 

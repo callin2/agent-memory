@@ -473,6 +473,41 @@ const listToolsHandler = async () => {
           required: [],
         },
       },
+      {
+        name: "get_next_actions",
+        description: "Get prioritized next actions based on open feedback. Helps maintain focus on high-impact improvements. Shows priority, estimated effort, and specific actions to take.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier",
+              default: "default",
+            },
+            limit: {
+              type: "number",
+              description: "Maximum number of actions to return (default: 5)",
+              default: 5,
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: "get_system_health",
+        description: "Get system health summary including feedback stats, activity metrics, and overall health status (good/fair/needs_attention). Useful for monitoring progress and system state.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier",
+              default: "default",
+            },
+          },
+          required: [],
+        },
+      },
     ],
   };
 };
@@ -1369,6 +1404,78 @@ const callToolHandler = async (request: any) => {
                 topic,
                 title: ref.title,
                 content: ref.content,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "get_next_actions": {
+        const {
+          tenant_id = "default",
+          limit = 5,
+        } = args as {
+          tenant_id?: string;
+          limit?: number;
+        };
+
+        // Get all feedback to analyze
+        const feedbackResult = await pool.query(
+          `SELECT * FROM agent_feedback WHERE tenant_id = $1 ORDER BY created_at DESC`,
+          [tenant_id]
+        );
+
+        const { getNextActions } = await import("../utils/next-actions.js" satisfies string);
+        const actions = (getNextActions as any)(feedbackResult.rows, limit);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                count: actions.length,
+                actions,
+                tip: "Prioritized by priority (high/medium/low) and effort (quick/moderate/large). Focus on high-priority, quick-effort items first.",
+              }),
+            },
+          ],
+        };
+      }
+
+      case "get_system_health": {
+        const { tenant_id = "default" } = args as { tenant_id?: string };
+
+        // Get feedback stats
+        const [feedbackResult, handoffResult] = await Promise.all([
+          pool.query(
+            `SELECT * FROM agent_feedback WHERE tenant_id = $1`,
+            [tenant_id]
+          ),
+          pool.query(
+            `SELECT COUNT(*) as count FROM session_handoffs WHERE tenant_id = $1 AND created_at > NOW() - INTERVAL '7 days'`,
+            [tenant_id]
+          )
+        ]);
+
+        const { getSystemHealth } = await import("../utils/next-actions.js" satisfies string);
+        const health = (getSystemHealth as any)(
+          feedbackResult.rows,
+          parseInt(handoffResult.rows[0].count)
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                ...health,
+                recommendation: health.health === 'good'
+                  ? "System is healthy! Keep maintaining feedback loop."
+                  : health.health === 'fair'
+                  ? "System needs attention. Address open feedback items."
+                  : "System needs immediate attention. Focus on high-priority feedback items.",
               }),
             },
           ],

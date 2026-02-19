@@ -11,12 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Implemented agent feedback loop to identify system problems from agent perspective (not narcissistic self-tracking).
 
-#### New MCP Tools (16 Total)
+#### New MCP Tools (18 Total)
 - **agent_feedback** - Submit friction points, bugs, suggestions, patterns, insights
 - **get_agent_feedback** - Retrieve feedback by category, type, status
 - **update_agent_feedback** - Mark feedback as addressed/reviewed/rejected
 - **get_quick_reference** - Fast documentation lookup (6 topics)
   - Topics: pre_implementation_checklist, mcp_tools, common_tasks, project_structure, troubleshooting, database_schema
+- **get_next_actions** - Get prioritized improvement suggestions (priority + effort)
+- **get_system_health** - Get system health metrics (feedback completion rate, activity)
 
 #### Database
 - **agent_feedback** table with indexes on category, type, status
@@ -53,6 +55,22 @@ Implemented agent feedback loop to identify system problems from agent perspecti
   - wake_up automatically shows reminder to call checklist
   - Addresses feedback: "I keep making the mistake: starting to implement before fully understanding"
   - Pattern: Understand → Plan → Confirm → Implement (not: Implement → User stops → Wasted effort)
+
+#### Priority & Health Monitoring
+- **get_next_actions** - Suggests what to work on next
+  - Prioritizes by severity (high/medium/low) and effort (quick/moderate/large)
+  - Skips external bugs (can't fix in codebase)
+  - Helps maintain focus on high-impact improvements
+- **get_system_health** - System health metrics
+  - Feedback completion rate, recent activity
+  - Health status: good (≥70%), fair (≥50%), needs_attention (<50%)
+  - Current status: **90% addressed (9/10 items)** - GOOD
+
+#### Feedback Loop Results
+- **Started**: 8 items (38% addressed)
+- **Ended**: 10 items (90% addressed)
+- **Resolved**: Parameter confusion, wake_up over-loads, documentation navigation, workflow pattern
+- **Remaining**: 1 external bug (Skill tool wrapper, workaround documented)
 
 #### Focus Test Results
 - Maintained focus for 90 seconds implementing both fixes
