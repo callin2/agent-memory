@@ -362,6 +362,101 @@ const listToolsHandler = async () => {
           required: [],
         },
       },
+      {
+        name: "agent_feedback",
+        description: "Submit feedback about the system (friction points, bugs, suggestions, patterns, insights). Agents can report their direct experience using the tools to help improve the system.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier",
+              default: "default",
+            },
+            category: {
+              type: "string",
+              description: "Area of system: memory_system, documentation, tools, workflow, other",
+              enum: ["memory_system", "documentation", "tools", "workflow", "other"],
+            },
+            type: {
+              type: "string",
+              description: "Feedback type: friction (pain point), bug (broken), suggestion (improvement), pattern (observation), insight (learning)",
+              enum: ["friction", "bug", "suggestion", "pattern", "insight"],
+            },
+            description: {
+              type: "string",
+              description: "Clear description of the feedback",
+            },
+            severity: {
+              type: "string",
+              description: "Impact level: low, medium, high, critical",
+              enum: ["low", "medium", "high", "critical"],
+            },
+            reproduction: {
+              type: "string",
+              description: "Steps to reproduce (for bugs)",
+            },
+          },
+          required: ["category", "type", "description"],
+        },
+      },
+      {
+        name: "get_agent_feedback",
+        description: "Retrieve agent feedback. Useful for reviewing what agents have reported about the system.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier",
+              default: "default",
+            },
+            category: {
+              type: "string",
+              description: "Filter by category",
+            },
+            type: {
+              type: "string",
+              description: "Filter by feedback type",
+            },
+            status: {
+              type: "string",
+              description: "Filter by status: open, reviewed, addressed, rejected",
+              enum: ["open", "reviewed", "addressed", "rejected"],
+            },
+            limit: {
+              type: "number",
+              description: "Maximum number to return (default: 50)",
+              default: 50,
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: "update_agent_feedback",
+        description: "Update the status of agent feedback items. Use this when issues have been addressed or reviewed.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier",
+              default: "default",
+            },
+            feedback_id: {
+              type: "string",
+              description: "Feedback ID to update",
+            },
+            status: {
+              type: "string",
+              description: "New status: open, reviewed, addressed, rejected",
+              enum: ["open", "reviewed", "addressed", "rejected"],
+            },
+          },
+          required: ["feedback_id", "status"],
+        },
+      },
     ],
   };
 };
@@ -381,7 +476,7 @@ const callToolHandler = async (request: any) => {
         const {
           tenant_id = "default",
           with_whom,
-          layers = ["identity", "semantic", "reflection", "recent"],
+          layers = ["recent"],  // Changed: default to recent only, opt-in for full layers
           recent_count = 3,
           topic,
         } = args as {
@@ -569,6 +664,14 @@ const callToolHandler = async (request: any) => {
         // Agent onboarding
         const isFirstSession = sessionCount === 0;
 
+        // Hint about layers when using default
+        const isDefaultLayers = layers.length === 1 && layers[0] === "recent";
+        if (isDefaultLayers && sessionCount > 0) {
+          context.hint = {
+            layers_tip: "Loading recent handoffs only (default). For full memory including identity, semantic principles, and reflections, use: layers: ['identity', 'semantic', 'reflection', 'recent']"
+          };
+        }
+
         if (isFirstSession) {
           context.onboarding = {
             type: "welcome",
@@ -615,7 +718,7 @@ const callToolHandler = async (request: any) => {
           story: string;
           becoming: string;
           remember: string;
-          significance?: number;
+          significance?: number | string;  // Accept both, auto-convert to string
           tags?: string[];
         };
 
@@ -651,7 +754,7 @@ const callToolHandler = async (request: any) => {
             story,
             becoming,
             remember,
-            significance,
+            String(significance),  // Convert number to string
             tags,
           ]
         );
@@ -1058,6 +1161,146 @@ const callToolHandler = async (request: any) => {
                 null,
                 2
               ),
+            },
+          ],
+        };
+      }
+
+      case "agent_feedback": {
+        const {
+          tenant_id = "default",
+          category,
+          type,
+          description,
+          severity,
+          reproduction,
+        } = args as {
+          tenant_id?: string;
+          category: string;
+          type: string;
+          description: string;
+          severity?: string;
+          reproduction?: string;
+        };
+
+        const result = await pool.query(
+          `INSERT INTO agent_feedback (category, type, description, severity, reproduction, tenant_id)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING *`,
+          [category, type, description, severity || null, reproduction || null, tenant_id]
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                feedback: result.rows[0],
+                message: "Feedback recorded. Thank you for improving the system.",
+              }),
+            },
+          ],
+        };
+      }
+
+      case "get_agent_feedback": {
+        const {
+          tenant_id = "default",
+          category,
+          type,
+          status,
+          limit = 50,
+        } = args as {
+          tenant_id?: string;
+          category?: string;
+          type?: string;
+          status?: string;
+          limit?: number;
+        };
+
+        let query = `SELECT * FROM agent_feedback WHERE tenant_id = $1`;
+        const params: any[] = [tenant_id];
+        let paramIndex = 2;
+
+        if (category) {
+          query += ` AND category = $${paramIndex++}`;
+          params.push(category);
+        }
+
+        if (type) {
+          query += ` AND type = $${paramIndex++}`;
+          params.push(type);
+        }
+
+        if (status) {
+          query += ` AND status = $${paramIndex++}`;
+          params.push(status);
+        }
+
+        query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
+        params.push(limit);
+
+        const result = await pool.query(query, params);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                tenant_id,
+                count: result.rows.length,
+                feedback: result.rows,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "update_agent_feedback": {
+        const {
+          tenant_id = "default",
+          feedback_id,
+          status,
+        } = args as {
+          tenant_id?: string;
+          feedback_id: string;
+          status: string;
+        };
+
+        const result = await pool.query(
+          `UPDATE agent_feedback
+          SET status = $1, updated_at = NOW()
+          WHERE feedback_id = $2 AND tenant_id = $3
+          RETURNING *`,
+          [status, feedback_id, tenant_id]
+        );
+
+        if (result.rows.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: "Feedback not found",
+                }),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                feedback: result.rows[0],
+                message: `Feedback status updated to: ${status}`,
+              }),
             },
           ],
         };

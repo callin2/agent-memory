@@ -5,6 +5,81 @@ All notable changes to the Agent Memory System will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-02-19
+
+### Added - Agent Feedback System
+
+Implemented agent feedback loop to identify system problems from agent perspective (not narcissistic self-tracking).
+
+#### New MCP Tools (13 Total)
+- **agent_feedback** - Submit friction points, bugs, suggestions, patterns, insights
+- **get_agent_feedback** - Retrieve feedback by category, type, status
+
+#### Database
+- **agent_feedback** table with indexes on category, type, status
+- Migration: `src/db/migrations/030_agent_feedback.sql`
+
+#### Memory Client v2
+- **src/utils/memory-client-v2.js** - Improved memory client
+  - Unified parameter handling: accepts params/arguments/args interchangeably
+  - `wakeUp()` automatically checks agent_feedback on wake_up
+  - Shows reminders of open feedback items
+  - Prevents recurring issues by creating awareness loop
+
+#### wake_up Optimization
+- **Changed default**: `layers` parameter now defaults to `["recent"]` instead of all layers
+- **Added hint**: Shows tip about full loading when using default
+- **Benefit**: Faster wake_up for most use cases, opt-in for full memory
+
+### Fixed
+- **create_handoff significance parameter** - Now accepts both `number` and `string` types
+  - Auto-converts number to string before database insert
+  - Error was: `"null value in column 'significance'"` when passing number
+  - Fix: `String(significance)` conversion in handler
+  - Tested: `0.85`, `"0.75"`, and default all work correctly
+
+#### Focus Test Results
+- Maintained focus for 90 seconds implementing both fixes
+- Agent feedback revealed 5 recurring friction points
+- Parameter confusion eliminated with unified handling
+
+## [2.4.0] - 2026-02-19
+
+### Added - Memory Fault Tolerance (WAL System)
+
+Implemented Write-Ahead Logging (WAL) for memory system fault tolerance, ensuring no memory operations are lost even when MCP server is down.
+
+#### WAL Core System
+- **src/utils/wal.js** - Write-Ahead Logging utilities (149 lines)
+  - `writeToWAL()` - Save operations to local log when MCP is down
+  - `replayWAL()` - Replay logged operations when MCP recovers
+  - `tryMemoryOperation()` - Try MCP first, fallback to WAL automatically
+  - `hasPendingOperations()` - Check for pending WAL operations
+  - JSONL format (`.memory-wal/operations.jsonl`)
+
+#### Memory Client with WAL Integration
+- **src/utils/memory-client.js** - Memory client with automatic WAL fallback (109 lines)
+  - `wakeUp()` - Automatic WAL replay on wake_up
+  - `createHandoff()` - Handoff creation with WAL fallback
+  - All memory tools support WAL fallback
+
+#### Manual WAL Replay
+- **scripts/replay-wal.js** - Standalone WAL replay script (77 lines)
+  - Replay all pending WAL operations to MCP server
+  - Clear WAL after successful replay
+  - Exit codes for automation integration
+
+#### Behavior
+- **MCP up**: Operations go directly to MCP server (no WAL)
+- **MCP down**: Operations saved to `.memory-wal/operations.jsonl`
+- **MCP recovers**: WAL operations replayed automatically
+- **Success**: WAL cleared after all operations replayed
+- **Failure**: WAL preserved, can retry later
+
+#### Testing
+- Tested full cycle: MCP down → WAL save → MCP up → Replay → Success
+- Verified handoff `test-wal-down-1771460206131` survived MCP downtime
+
 ## [2.3.0] - 2026-02-19
 
 ### Breaking Change: MCP Server Transport Migration

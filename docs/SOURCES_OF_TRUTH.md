@@ -13,12 +13,14 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| MCP Server | ✅ HTTP (current) | Migrated from SSE, 11 tools available |
+| MCP Server | ✅ HTTP (current) | Migrated from SSE, 13 tools available |
 | Authentication | ✅ Bearer token (current) | HTTP header auth, n8n-style |
+| WAL System | ✅ Operational | Fault tolerance for memory operations |
+| Memory Client v2 | ✅ Current | Unified parameter handling + feedback loop |
 | REST API | ✅ Running | Express.js on port 3000 |
 | Database | ✅ PostgreSQL | Schema in `src/db/schema.sql` |
-| Tests | ⚠️ Partially organized | Some migrated to `tests/`, cleanup ongoing |
-| Documentation | ⚠️ Partially outdated | See "Truth Table" below |
+| Tests | ✅ Organized | Migrated to `tests/integration/`, `tests/manual/`, `tests/debug/` |
+| Documentation | ✅ Current | See "Truth Table" below |
 
 ---
 
@@ -45,6 +47,24 @@
 | `src/services/` | Business logic services | ✅ Current | 2024-02-17 |
 | `src/db/schema.sql` | Database schema | ✅ Current | 2024-02-17 |
 
+### Memory Fault Tolerance (WAL System)
+
+| File | Purpose | Status | Last Updated |
+|------|---------|--------|--------------|
+| `src/utils/wal.js` | Write-Ahead Logging core | ✅ Current | 2026-02-19 |
+| `src/utils/memory-client.js` | Memory client with WAL fallback | ✅ Current | 2026-02-19 |
+| `src/utils/memory-client-v2.js` | Memory client v2 - unified params + feedback | ✅ Current | 2026-02-19 |
+| `scripts/replay-wal.js` | Manual WAL replay script | ✅ Current | 2026-02-19 |
+| `.memory-wal/operations.jsonl` | WAL log file (auto-created) | ✅ Current | 2026-02-19 |
+
+**How WAL Works**:
+1. **Normal operation**: Memory operations go directly to MCP server
+2. **MCP down**: Operations automatically saved to `.memory-wal/operations.jsonl`
+3. **MCP recovers**: WAL operations replayed automatically on wake_up
+4. **Success**: WAL cleared after all operations replayed
+
+**Usage**: Import `tryMemoryOperation` from `src/utils/wal.js` or use `MemoryClient` from `src/utils/memory-client.js`
+
 ### Removed Source Code
 
 | File | Replaced By | Removed Date |
@@ -69,6 +89,8 @@ All tools available in `src/mcp/memory-server-http.ts`:
 | `create_capsule` | Create secure memory capsule | ✅ Current |
 | `get_capsules` | List available capsules | ✅ Current |
 | `get_compression_stats` | Get token savings statistics | ✅ Current |
+| `agent_feedback` | Submit system feedback (friction, bugs, suggestions) | ✅ Current | 2026-02-19 |
+| `get_agent_feedback` | Retrieve agent feedback | ✅ Current | 2026-02-19 |
 
 ### Documentation - Primary Sources
 
