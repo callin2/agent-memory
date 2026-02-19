@@ -46,6 +46,45 @@ const server = new Server(
 );
 
 /**
+ * Normalize parameters to handle different client formats
+ *
+ * Handles various parameter formats that different clients might send:
+ * - Standard: {name, arguments: {...}}
+ * - Flat: {name, param1, param2, ...}
+ * - Double-nested: {name, params: {...}}
+ * - Missing params: undefined or null
+ */
+function normalizeParams(method: string, params: any): any {
+  if (!params) {
+    return { name: method, arguments: {} };
+  }
+
+  // If already in standard format, return as-is
+  if (params.arguments && typeof params.arguments === 'object') {
+    return params;
+  }
+
+  // If params has 'name' but no 'arguments', might be flat format
+  if (params.name && !params.arguments) {
+    const { name, params: nestedParams, ...rest } = params;
+    // Check if there's a 'params' key that should be extracted
+    if (nestedParams && typeof nestedParams === 'object' && Object.keys(nestedParams).length > 0) {
+      // Has both 'name' and 'params' - extract params as arguments
+      return { name, arguments: nestedParams };
+    }
+    // Pure flat format - all remaining keys are arguments
+    return { name, arguments: rest };
+  }
+
+  // If params is an array or other unexpected format, default to empty arguments
+  if (!params.name) {
+    return { name: method, arguments: {} };
+  }
+
+  return params;
+}
+
+/**
  * List available tools
  */
 const listToolsHandler = async () => {
@@ -1602,6 +1641,17 @@ async function main() {
         // Parse JSON-RPC request
         const jsonRpcRequest = await parseJSONBody(req);
 
+        // Normalize parameters to handle different client formats
+        // Some clients (like Skill tool) send parameters in different structures
+        const originalParams = jsonRpcRequest.params;
+        jsonRpcRequest.params = normalizeParams(jsonRpcRequest.method, jsonRpcRequest.params);
+
+        // Log if parameters were normalized
+        if (JSON.stringify(originalParams) !== JSON.stringify(jsonRpcRequest.params)) {
+          console.error(`[${new Date().toISOString()}] Params normalized from:`, JSON.stringify(originalParams).substring(0, 200));
+          console.error(`[${new Date().toISOString()}] Params normalized to:`, JSON.stringify(jsonRpcRequest.params).substring(0, 200));
+        }
+
         console.error(`[${new Date().toISOString()}] MCP ${jsonRpcRequest.method} request`);
 
         // Extract and validate Bearer token
@@ -1633,6 +1683,10 @@ async function main() {
 
         // Inject tenant_id into arguments for tool calls
         if (jsonRpcRequest.method === "tools/call" && jsonRpcRequest.params) {
+          // Ensure arguments object exists
+          if (!jsonRpcRequest.params.arguments) {
+            jsonRpcRequest.params.arguments = {};
+          }
           jsonRpcRequest.params.arguments = {
             ...jsonRpcRequest.params.arguments,
             tenant_id: jsonRpcRequest.params.arguments.tenant_id || authResult.tenant_id,
