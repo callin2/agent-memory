@@ -35,6 +35,13 @@
             <div id="connection-indicator" class="w-3 h-3 rounded-full bg-gray-500"></div>
             <span id="connection-text" class="text-sm text-gray-400">Checking...</span>
           </div>
+          <!-- Tenant Selector (P1-4) -->
+          <div class="flex items-center gap-2">
+            <select id="tenant-selector" class="bg-gray-700 text-white text-sm rounded px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none" onchange="changeTenant(this.value)">
+              <option value="claude-session">claude-session</option>
+              <option value="default">default</option>
+            </select>
+          </div>
           <!-- Replay Button (P1-5) - Hidden initially -->
           <button id="replay-button" class="hidden bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition" onclick="replayAnimation()">
             ▶ Replay
@@ -84,6 +91,44 @@
 
   <!-- Main Content (P0-3) -->
   <main class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Side-by-Side Comparison (P1-1) -->
+    <section id="comparison-view" class="mb-8 hidden">
+      <h2 class="text-xl font-bold text-center mb-4 bg-gradient-to-r from-red-400 via-purple-400 to-green-400 bg-clip-text text-transparent">
+        Memory Loading Comparison
+      </h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Before (Full Memory) -->
+        <div class="bg-red-900/20 border border-red-700/50 rounded-lg p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-red-400">Full Memory</h3>
+            <span class="text-xs text-gray-400">All handoffs loaded</span>
+          </div>
+          <div class="text-center mb-4">
+            <div class="text-4xl font-bold text-red-400" id="compare-tokens-before">-</div>
+            <div class="text-sm text-gray-400">tokens</div>
+          </div>
+          <div class="h-4 bg-gray-800 rounded-full overflow-hidden">
+            <div id="compare-bar-before" class="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-1000" style="width: 100%"></div>
+          </div>
+        </div>
+
+        <!-- After (Stratified Memory) -->
+        <div class="bg-green-900/20 border border-green-700/50 rounded-lg p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-green-400">Stratified Memory</h3>
+            <span class="text-xs text-gray-400">4-layer loading</span>
+          </div>
+          <div class="text-center mb-4">
+            <div class="text-4xl font-bold text-green-400" id="compare-tokens-after">-</div>
+            <div class="text-sm text-gray-400">tokens</div>
+          </div>
+          <div class="h-4 bg-gray-800 rounded-full overflow-hidden">
+            <div id="compare-bar-after" class="h-full bg-gradient-to-r from-green-600 to-green-400 transition-all duration-1000" style="width: 3.4%"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Layer Legend -->
     <div class="flex flex-wrap gap-4 justify-center mb-8">
       <div class="flex items-center gap-2">
@@ -107,7 +152,7 @@
     <!-- Layer Cards Container (P0-3, P0-6, P0-7, P0-8) -->
     <div class="space-y-4" id="layers-container">
       <!-- Metadata Layer -->
-      <div id="layer-metadata" class="layer-card layer-metadata bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Metadata layer">
+      <div id="layer-metadata" class="layer-card layer-metadata bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Metadata layer" tabindex="0">
         <button
           class="w-full flex items-center justify-between text-left"
           aria-expanded="false"
@@ -131,7 +176,7 @@
       </div>
 
       <!-- Reflection Layer -->
-      <div id="layer-reflection" class="layer-card layer-reflection bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Reflection layer">
+      <div id="layer-reflection" class="layer-card layer-reflection bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Reflection layer" tabindex="0">
         <button
           class="w-full flex items-center justify-between text-left"
           aria-expanded="false"
@@ -155,7 +200,7 @@
       </div>
 
       <!-- Recent Layer -->
-      <div id="layer-recent" class="layer-card layer-recent bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Recent layer">
+      <div id="layer-recent" class="layer-card layer-recent bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Recent layer" tabindex="0">
         <button
           class="w-full flex items-center justify-between text-left"
           aria-expanded="false"
@@ -179,7 +224,7 @@
       </div>
 
       <!-- Progressive Layer -->
-      <div id="layer-progressive" class="layer-card layer-progressive bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Progressive layer">
+      <div id="layer-progressive" class="layer-card layer-progressive bg-gray-800/50 rounded-lg p-6 hidden" role="region" aria-label="Progressive layer" tabindex="0">
         <button
           class="w-full flex items-center justify-between text-left"
           aria-expanded="false"

@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cache DOM elements
   cacheElements();
 
+  // Setup keyboard navigation (P1-7)
+  setupKeyboardNavigation();
+
   // Load initial data
   loadMemoryForTenant(CONFIG.DEFAULT_TENANT);
 });
@@ -44,6 +47,50 @@ function cacheElements() {
   elements.connectionIndicator = document.getElementById('connection-indicator');
   elements.connectionText = document.getElementById('connection-text');
   elements.liveRegion = document.getElementById('live-region');
+}
+
+/**
+ * Setup keyboard navigation (P1-7)
+ */
+function setupKeyboardNavigation() {
+  // Add keyboard event listeners to layer cards
+  const layerCards = document.querySelectorAll('.layer-card');
+
+  layerCards.forEach(card => {
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        const layerId = card.id.replace('layer-', '');
+        toggleLayer(layerId);
+      } else if (event.key === 'Escape') {
+        // Close expanded layer on Escape
+        if (state.expandedLayer) {
+          toggleLayer(state.expandedLayer);
+        }
+      }
+    });
+  });
+
+  // Add arrow key navigation between layers
+  layerCards.forEach((card, index) => {
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        const nextCard = layerCards[index + 1];
+        if (nextCard) {
+          nextCard.focus();
+        }
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+        event.preventDefault();
+        const prevCard = layerCards[index - 1];
+        if (prevCard) {
+          prevCard.focus();
+        }
+      }
+    });
+  });
+
+  console.log('Keyboard navigation setup complete');
 }
 
 /**
@@ -109,6 +156,9 @@ function onDataLoaded(data) {
   // Update statistics dashboard (P0-10)
   updateStatisticsDashboard(stats);
 
+  // Update side-by-side comparison (P1-1)
+  updateComparisonView(stats);
+
   // Start layer loading animation (P0-6)
   animateLayerLoading(data);
 
@@ -173,6 +223,43 @@ function updateStatisticsDashboard(stats) {
   document.getElementById('stat-tokens-after').textContent = formatNumber(stats.tokensAfter);
   document.getElementById('stat-savings').textContent = `${stats.savingsPercent}%`;
   document.getElementById('stat-age').textContent = stats.ageDays > 0 ? `${stats.ageDays}d` : '-';
+
+  // Add tooltips (P1-8)
+  addTooltip('stat-tokens-after', `Exact: ${stats.tokensAfter} tokens`);
+  addTooltip('stat-compression', `Calculation: ${formatNumber(stats.tokensBefore)} ÷ ${stats.tokensAfter}`);
+}
+
+/**
+ * Update side-by-side comparison view (P1-1)
+ */
+function updateComparisonView(stats) {
+  const comparisonView = document.getElementById('comparison-view');
+  if (!comparisonView) return;
+
+  // Show comparison section
+  comparisonView.classList.remove('hidden');
+
+  // Update token counts
+  document.getElementById('compare-tokens-before').textContent = formatNumber(stats.tokensBefore);
+  document.getElementById('compare-tokens-after').textContent = formatNumber(stats.tokensAfter);
+
+  // Animate bar widths
+  const beforeBar = document.getElementById('compare-bar-before');
+  const afterBar = document.getElementById('compare-bar-after');
+
+  if (beforeBar && afterBar) {
+    // Calculate after bar width as percentage
+    const afterPercentage = (stats.tokensAfter / stats.tokensBefore) * 100;
+
+    // Start both at 100%, then animate to actual values
+    beforeBar.style.width = '100%';
+    afterBar.style.width = '100%';
+
+    setTimeout(() => {
+      beforeBar.style.width = '100%'; // Stays at 100%
+      afterBar.style.width = `${afterPercentage}%`;
+    }, 100);
+  }
 }
 
 /**
@@ -656,6 +743,104 @@ function formatDate(dateString) {
     month: 'short',
     day: 'numeric'
   });
+}
+
+/**
+ * Change tenant (P1-4)
+ */
+async function changeTenant(tenantId) {
+  if (!tenantId || tenantId === state.currentTenant) {
+    return;
+  }
+
+  console.log('Changing tenant to:', tenantId);
+
+  // Reset UI
+  resetUI();
+
+  // Load new tenant data
+  await loadMemoryForTenant(tenantId);
+}
+
+/**
+ * Reset UI between tenant changes
+ */
+function resetUI() {
+  // Hide comparison view
+  const comparisonView = document.getElementById('comparison-view');
+  if (comparisonView) {
+    comparisonView.classList.add('hidden');
+  }
+
+  // Hide all layers
+  document.querySelectorAll('.layer-card').forEach(layer => {
+    layer.classList.add('hidden');
+    layer.classList.remove('loading');
+  });
+
+  // Reset status indicators
+  document.querySelectorAll('[id$="-status"]').forEach(status => {
+    status.textContent = 'Loading...';
+    status.className = 'ml-2 text-sm text-gray-500';
+  });
+
+  // Hide checkmarks
+  document.querySelectorAll('[id$="-check"]').forEach(check => {
+    check.classList.add('hidden');
+  });
+
+  // Reset stats to skeleton
+  document.querySelectorAll('#stats-bar .bg-gray-800\\/50').forEach(el => {
+    el.classList.add('skeleton-stats');
+  });
+
+  // Reset stat values
+  document.getElementById('stat-sessions').textContent = '-';
+  document.getElementById('stat-compression').textContent = '-';
+  document.getElementById('stat-tokens-before').textContent = '-';
+  document.getElementById('stat-tokens-after').textContent = '-';
+  document.getElementById('stat-savings').textContent = '-';
+  document.getElementById('stat-age').textContent = '-';
+
+  // Hide replay button
+  const replayButton = document.getElementById('replay-button');
+  if (replayButton) {
+    replayButton.classList.add('hidden');
+  }
+
+  // Close expanded layer
+  if (state.expandedLayer) {
+    const prevContent = document.getElementById(`${state.expandedLayer}-content`);
+    const prevButton = prevContent?.previousElementSibling;
+    const prevIcon = document.getElementById(`${state.expandedLayer}-expand-icon`);
+
+    if (prevContent) {
+      prevContent.classList.remove('expanded');
+      prevContent.style.maxHeight = '0';
+    }
+    if (prevButton) {
+      prevButton.setAttribute('aria-expanded', 'false');
+    }
+    if (prevIcon) {
+      prevIcon.textContent = '▼';
+      prevIcon.style.transform = 'rotate(0deg)';
+    }
+    state.expandedLayer = null;
+  }
+}
+
+/**
+ * Add tooltip to element (P1-8)
+ */
+function addTooltip(elementId, tooltipText) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+
+  // Use browser native title attribute for simplicity
+  element.setAttribute('title', tooltipText);
+
+  // Add cursor pointer to indicate tooltip
+  element.style.cursor = 'help';
 }
 
 /**
