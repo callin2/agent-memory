@@ -1,12 +1,13 @@
 # Memory System MCP Tools
 
-Complete reference for all 19 Memory System MCP tools, organized by category.
+Complete reference for all 25 Memory System MCP tools, organized by category.
 
 ## Table of Contents
 
 - [Memory Tools](#memory-tools) - Session continuity and knowledge capture
 - [Search Tools](#search-tools) - Find information across all memory types
 - [Feedback Tools](#feedback-tools) - Report and track system improvements
+- [Graph Tools](#graph-tools) - Create and manage relationships between content
 - [System Tools](#system-tools) - Monitoring, health, and diagnostics
 
 ---
@@ -447,6 +448,429 @@ Tools for reporting system issues and tracking improvements.
   "feedback_id": "bbca19a50eb0c0c8f85e662704adac4e",
   "status": "addressed"
 }
+```
+
+---
+
+## Graph Tools
+
+Tools for creating and managing typed relationships between content. Enables graph-based agent coordination and BBS + Kanban workflows.
+
+### `create_edge`
+
+**Purpose:** Create a typed edge (relationship) between two nodes. Enables graph-based connections between any content types.
+
+**When to use:**
+- Creating project/task hierarchies (`parent_of`)
+- Linking tasks to dependencies (`depends_on`)
+- Connecting tasks to findings (`created_by`)
+- Cross-referencing related content (`references`)
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from_node_id` | string | ✅ | Source node ID |
+| `to_node_id` | string | ✅ | Target node ID |
+| `type` | string | ✅ | Relationship type. Options: `parent_of`, `child_of`, `references`, `created_by`, `related_to`, `depends_on` |
+| `properties` | object | ❌ | Optional metadata (status, priority, etc.) |
+| `tenant_id` | string | ❌ | Tenant identifier (default: "default") |
+
+**Features:**
+- ✅ Validates both nodes exist before creating edge
+- ✅ Detects circular dependencies for `depends_on` type
+- ✅ Generates unique `edge_id` automatically
+
+**Example - Create parent task:**
+```json
+{
+  "from_node_id": "kn_project_abc",
+  "to_node_id": "kn_task_xyz",
+  "type": "parent_of",
+  "properties": {
+    "status": "todo",
+    "priority": "high",
+    "assigned_to": "agent-1"
+  }
+}
+```
+
+**Example - Create dependency:**
+```json
+{
+  "from_node_id": "kn_task_b",
+  "to_node_id": "kn_task_a",
+  "type": "depends_on",
+  "properties": {
+    "reason": "Task A must complete before Task B starts"
+  }
+}
+```
+
+---
+
+### `get_edges`
+
+**Purpose:** Get all edges for a node, optionally filtered by direction and type.
+
+**When to use:**
+- Finding what a node connects to
+- Discovering parent/child relationships
+- Checking task dependencies
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `node_id` | string | ✅ | Node to get edges for |
+| `direction` | string | ❌ | Edge direction. Options: `incoming`, `outgoing`, `both` (default: "both") |
+| `type` | string | ❌ | Filter by relationship type |
+| `tenant_id` | string | ❌ | Tenant identifier (default: "default") |
+
+**Example - Get all tasks in a project:**
+```json
+{
+  "node_id": "kn_project_abc",
+  "direction": "outgoing",
+  "type": "parent_of"
+}
+```
+
+**Example - Get dependencies:**
+```json
+{
+  "node_id": "kn_task_xyz",
+  "direction": "outgoing",
+  "type": "depends_on"
+}
+```
+
+---
+
+### `traverse`
+
+**Purpose:** Traverse graph from a node following specific relationship type. Returns tree structure of connected nodes.
+
+**When to use:**
+- Finding all tasks in a project hierarchy
+- Walking dependency chains
+- Discovering related content through multiple hops
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `node_id` | string | ✅ | Starting node |
+| `type` | string | ✅ | Relationship type to follow |
+| `direction` | string | ✅ | Traversal direction. Options: `incoming`, `outgoing` |
+| `depth` | number | ❌ | Max traversal depth (default: 2, max: 5) |
+| `tenant_id` | string | ❌ | Tenant identifier (default: "default") |
+
+**Features:**
+- ✅ Prevents cycles using path arrays
+- ✅ Returns flat list with depth information
+- ✅ Configurable depth limit (max: 5)
+
+**Example - Find all child tasks:**
+```json
+{
+  "node_id": "kn_project_abc",
+  "type": "parent_of",
+  "direction": "outgoing",
+  "depth": 3
+}
+```
+
+**Example - Walk dependency chain:**
+```json
+{
+  "node_id": "kn_task_c",
+  "type": "depends_on",
+  "direction": "incoming",
+  "depth": 5
+}
+```
+
+---
+
+### `delete_edge`
+
+**Purpose:** Delete an edge by ID. Use this to remove relationships between nodes.
+
+**When to use:**
+- Removing outdated relationships
+- Cleaning up after task completion
+- Reparenting nodes (delete old edge, create new one)
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `edge_id` | string | ✅ | Edge ID to delete |
+| `tenant_id` | string | ❌ | Tenant identifier (default: "default") |
+
+**Example:**
+```json
+{
+  "edge_id": "edge_abc123..."
+}
+```
+
+**Note:** Deleting nodes automatically triggers cleanup of associated edges via database triggers.
+
+---
+
+### `update_edge_properties`
+
+**Purpose:** Update edge properties (JSONB merge with existing). Use this to update task status, priority, or other metadata.
+
+**When to use:**
+- Updating task status (todo → doing → done)
+- Changing task priority
+- Adding completion metadata
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `edge_id` | string | ✅ | Edge ID to update |
+| `properties` | object | ✅ | Properties to merge with existing |
+| `tenant_id` | string | ❌ | Tenant identifier (default: "default") |
+
+**Features:**
+- ✅ Merges with existing properties (doesn't replace)
+- ✅ Auto-updates `updated_at` timestamp
+
+**Example - Update task status:**
+```json
+{
+  "edge_id": "edge_abc123...",
+  "properties": {
+    "status": "doing",
+    "started_at": "2026-02-21T10:00:00Z"
+  }
+}
+```
+
+**Example - Mark task complete:**
+```json
+{
+  "edge_id": "edge_abc123...",
+  "properties": {
+    "status": "done",
+    "completed_at": "2026-02-21T11:00:00Z",
+    "agent": "general-purpose-1"
+  }
+}
+```
+
+---
+
+### `get_project_tasks`
+
+**Purpose:** Get Kanban board view of project tasks. Returns tasks grouped by status (todo, doing, done).
+
+**When to use:**
+- Monitoring project progress
+- Seeing what agents are working on
+- Identifying blocked or overdue tasks
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_node_id` | string | ✅ | Project knowledge note's node_id |
+| `status` | string | ❌ | Optional status filter. Options: `todo`, `doing`, `done` |
+| `tenant_id` | string | ❌ | Tenant identifier (default: "default") |
+
+**Features:**
+- ✅ Groups tasks by status property
+- ✅ Returns task details (title, tags, properties)
+- ✅ Ordered by priority and creation date
+
+**Example:**
+```json
+{
+  "project_node_id": "kn_project_abc"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "todo": [
+    {
+      "node_id": "kn_task_2",
+      "title": "Implement backend API",
+      "tags": ["task", "backend"],
+      "properties": {
+        "status": "todo",
+        "priority": "high"
+      }
+    }
+  ],
+  "doing": [
+    {
+      "node_id": "kn_task_1",
+      "title": "Create database schema",
+      "tags": ["task", "database"],
+      "properties": {
+        "status": "doing",
+        "priority": "high",
+        "started_at": "2026-02-21T10:00:00Z"
+      }
+    }
+  ],
+  "done": [],
+  "total": 2
+}
+```
+
+---
+
+### Graph Tool Patterns
+
+#### Pattern 1: Project + Tasks + Agents
+
+```javascript
+// 1. Create project knowledge
+const project = await create_knowledge_note({
+  text: "# Build Feature X\n\nGoals: Implement user authentication...",
+  tags: ["project", "feature-x"]
+});
+
+// 2. Create tasks
+const task1 = await create_knowledge_note({
+  text: "# Task: Database Schema\n\nAdd users table...",
+  tags: ["task", "database"]
+});
+
+// 3. Link project → task
+await create_edge({
+  from_node_id: project.node_id,
+  to_node_id: task1.node_id,
+  type: "parent_of",
+  properties: { status: "todo", priority: "high" }
+});
+
+// 4. Agent: On startup, find project and siblings
+const parent = await traverse({
+  node_id: task1.node_id,
+  type: "child_of",
+  direction: "incoming",
+  depth: 1
+});
+
+const siblings = await traverse({
+  node_id: parent.root.node_id,
+  type: "parent_of",
+  direction: "outgoing",
+  depth: 1
+});
+
+// 5. Agent: Do work, create findings
+const findings = await create_knowledge_note({
+  text: "# Implementation\n\nCreated users table migration...",
+  tags: ["findings", "database"]
+});
+
+await create_edge({
+  from_node_id: task1.node_id,
+  to_node_id: findings.node_id,
+  type: "created_by",
+  properties: { agent: "database-agent-1" }
+});
+
+// 6. Agent: Mark task complete
+await update_edge_properties({
+  edge_id: edgeId,
+  properties: { status: "done", completed_at: new Date().toISOString() }
+});
+
+// 7. Main session: Get Kanban board
+const board = await get_project_tasks({
+  project_node_id: project.node_id
+});
+// Returns: { todo: [...], doing: [...], done: [task1], total: 3 }
+```
+
+#### Pattern 2: Task Dependencies
+
+```javascript
+// Task B depends on Task A
+await create_edge({
+  from_node_id: taskB.node_id,
+  to_node_id: taskA.node_id,
+  type: "depends_on",
+  properties: { reason: "Needs database schema first" }
+});
+
+// Agent B: Check dependencies before starting
+const deps = await get_edges({
+  node_id: taskB.node_id,
+  direction: "outgoing",
+  type: "depends_on"
+});
+
+// Wait for dependencies to complete
+for (const dep of deps.edges) {
+  const depEdge = await get_edges({
+    node_id: dep.to_node_id,
+    direction: "incoming",
+    type: "child_of"
+  });
+
+  while (depEdge.edges[0].properties.status !== "done") {
+    await sleep(5000); // Poll every 5 seconds
+  }
+}
+
+// Safe to start work
+await update_edge_properties({
+  edge_id: myTaskEdgeId,
+  properties: { status: "doing" }
+});
+```
+
+#### Pattern 3: Finding Related Work
+
+```javascript
+// Agent startup: Find context
+// 1. Get parent project
+const parent = await traverse({
+  node_id: myTaskNodeId,
+  type: "child_of",
+  direction: "incoming",
+  depth: 1
+});
+
+// 2. Get sibling tasks
+const siblings = await traverse({
+  node_id: parent.root.node_id,
+  type: "parent_of",
+  direction: "outgoing",
+  depth: 1
+});
+
+// 3. Semantic search for related work
+const related = await semantic_search({
+  query: "database schema users table oauth",
+  project_path: parent.root.content.project_path,
+  limit: 5
+});
+
+// 4. Check what siblings created
+const siblingFindings = await Promise.all(
+  siblings.children.map(sibling =>
+    traverse({
+      node_id: sibling.node.node_id,
+      type: "created_by",
+      direction: "outgoing",
+      depth: 1
+    })
+  )
+);
+
+// Agent now knows:
+// - What project they're part of
+// - What siblings are working on
+// - What related work exists
+// - What findings siblings produced
 ```
 
 ---
