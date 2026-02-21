@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { Layout } from './components/layout/Layout'
 import { NavHeader } from './components/layout/NavHeader'
-import { Dashboard, Chat, Retrieval, Visualization, Metrics } from './pages'
+import { Dashboard, Chat, Retrieval, Visualization, Metrics, Projects, ProjectDetail } from './pages'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +47,8 @@ function AppContent() {
         <Route path="/retrieval" element={<Retrieval />} />
         <Route path="/visualization" element={<Visualization />} />
         <Route path="/metrics" element={<Metrics />} />
+        <Route path="/projects" element={<Projects />} />
+        <Route path="/projects/:projectId" element={<ProjectDetail />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
