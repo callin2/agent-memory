@@ -28,11 +28,12 @@ export async function validateBearerToken(
   token: string,
   pool?: Pool
 ): Promise<AuthResult> {
-  // Dev mode: accept test token
+  // Dev mode: accept test token - let caller specify tenant_id
   if (process.env.NODE_ENV !== "production" && token === "test-mcp-token") {
     return {
       valid: true,
-      tenant_id: "default",
+      // Return undefined to let caller's tenant_id be used
+      tenant_id: undefined,
     };
   }
 

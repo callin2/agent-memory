@@ -396,6 +396,55 @@ tsx examples/nodejs-client.ts
 python examples/python-client.py
 ```
 
+## Coordination Examples
+
+### Multi-Agent Coordination Patterns
+
+**File:** `coordination-patterns.ts`
+
+Demonstrates the BBS (Bulletin Board System) + Kanban workflow for coordinating multiple agents:
+
+```bash
+npx tsx examples/coordination-patterns.ts
+```
+
+**What it demonstrates:**
+- **BBS Pattern**: `post_finding` → post findings to team bulletin board
+- **BBS Pattern**: `get_team_findings` → retrieve all team findings
+- **Kanban Pattern**: `claim_task` → claim a task (status: todo → doing)
+- **Kanban Pattern**: `complete_task` → mark task as done (status: doing → done)
+- **Dependency Pattern**: `wait_for_dependencies` → wait for upstream tasks
+- **Kanban Pattern**: `get_kanban_board` → monitor project progress
+
+**Tools demonstrated:**
+| Tool | Purpose |
+|------|---------|
+| `create_knowledge_note` | Post findings to team BBS |
+| `get_knowledge_notes` | Get team findings |
+| `create_edge` | Link tasks, create dependencies |
+| `get_edges` | Check dependencies, find task edges |
+| `update_edge_properties` | Claim/complete tasks |
+| `get_project_tasks` | Get Kanban board view |
+
+**Example Scenario: Build OAuth Feature**
+1. Database Agent: Creates users table (no dependencies)
+2. Backend Agent: Implements OAuth endpoints (waits for Database)
+3. Frontend Agent: Builds login UI (waits for Backend)
+4. Lead Agent: Monitors Kanban board, reviews all findings
+
+```typescript
+// Agent workflow:
+await claimTask('agent-name', 'task-id', 'project-id');
+await waitForDependencies('task-id');  // if needed
+// ... do work ...
+const finding = await postFinding('agent-name', 'task-id', 'Work completed...');
+await completeTask('agent-name', 'task-id', 'edge-id', finding.node_id);
+
+// Lead workflow:
+const board = await getKanbanBoard('project-id');
+const findings = await getTeamFindings('project-path');
+```
+
 ## Support
 
 For more information, see:
