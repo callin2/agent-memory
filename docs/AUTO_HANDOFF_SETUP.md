@@ -70,7 +70,7 @@ if [[ -z "$SESSION_ID" ]]; then
 fi
 
 # Configuration
-API_BASE="${HANDOFF_API_BASE:-http://localhost:4000}"
+API_BASE="${HANDOFF_API_BASE:-http://localhost:3456}"
 TENANT_ID="${HANDOFF_TENANT_ID:-default}"
 WITH_WHOM="${HANDOFF_WITH_WHOM:-Callin}"
 
@@ -140,14 +140,14 @@ You can customize the behavior with environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HANDOFF_API_BASE` | `http://localhost:4000` | Memory system API endpoint |
+| `HANDOFF_API_BASE` | `http://localhost:3456` | Memory system API endpoint |
 | `HANDOFF_TENANT_ID` | `default` | Tenant ID for multi-tenancy |
 | `HANDOFF_WITH_WHOM` | `Callin` | The person the agent works with |
 
 Set them in your shell profile (`.bashrc`, `.zshrc`, etc.):
 
 ```bash
-export HANDOFF_API_BASE="http://localhost:4000"
+export HANDOFF_API_BASE="http://localhost:3456"
 export HANDOFF_TENANT_ID="default"
 export HANDOFF_WITH_WHOM="YourName"
 ```
@@ -225,15 +225,15 @@ When you start:
 
 ### Handoff not being created?
 
-1. Verify the memory system is running: `curl http://localhost:4000/health`
-2. Check the API endpoint: `curl -X POST http://localhost:4000/api/v1/handoff -d '{"test":"data"}'`
+1. Verify the memory system is running: `curl http://localhost:3456/health`
+2. Check the API endpoint: `curl -X POST http://localhost:3456/api/v1/handoff -d '{"test":"data"}'`
 3. Try running the script manually with test input
 
 ### Agent not waking up with memory?
 
 1. Verify SessionStart hook is configured (separate from SessionEnd)
 2. Check that the wake-up command is calling the memory API
-3. Check recent handoffs: `curl http://localhost:4000/api/v1/handoffs`
+3. Check recent handoffs: `curl http://localhost:3456/api/v1/handoffs`
 
 ---
 

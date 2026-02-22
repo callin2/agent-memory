@@ -20,9 +20,9 @@ import {
 import { Pool } from "pg";
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { URL } from "url";
-import { extractBearerToken, validateBearerToken } from "./auth.js";
-import * as quickReference from "../utils/quick-reference.js";
-import { EmbeddingService } from "../services/embedding-service.js";
+import { extractBearerToken, validateBearerToken } from "./auth.ts";
+import * as quickReference from "../utils/quick-reference.ts";
+import { EmbeddingService } from "../services/embedding-service.ts";
 
 // Database connection
 const pool = new Pool({
@@ -719,6 +719,290 @@ const listToolsHandler = async () => {
           required: [],
         },
       },
+      {
+        name: "create_edge",
+        description: "Create a typed edge (relationship) between two nodes. Enables graph-based connections between any content types (knowledge notes, tasks, feedback, capsules).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            from_node_id: {
+              type: "string",
+              description: "Source node ID",
+            },
+            to_node_id: {
+              type: "string",
+              description: "Target node ID",
+            },
+            type: {
+              type: "string",
+              description: "Relationship type",
+              enum: ["parent_of", "child_of", "references", "created_by", "related_to", "depends_on"],
+            },
+            properties: {
+              type: "object",
+              description: "Optional metadata (status, priority, etc.)",
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["from_node_id", "to_node_id", "type"],
+        },
+      },
+      {
+        name: "get_edges",
+        description: "Get all edges for a node, optionally filtered by direction and type. Use this to find connected nodes.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            node_id: {
+              type: "string",
+              description: "Node to get edges for",
+            },
+            direction: {
+              type: "string",
+              description: "Edge direction relative to node",
+              enum: ["incoming", "outgoing", "both"],
+              default: "both",
+            },
+            type: {
+              type: "string",
+              description: "Filter by relationship type (optional)",
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["node_id"],
+        },
+      },
+      {
+        name: "traverse",
+        description: "Traverse graph from a node following specific relationship type. Returns tree structure of connected nodes up to specified depth.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            node_id: {
+              type: "string",
+              description: "Starting node",
+            },
+            type: {
+              type: "string",
+              description: "Relationship type to follow",
+            },
+            direction: {
+              type: "string",
+              description: "Traversal direction",
+              enum: ["incoming", "outgoing"],
+            },
+            depth: {
+              type: "number",
+              description: "Max traversal depth (default: 2, max: 5)",
+              default: 2,
+              minimum: 1,
+              maximum: 5,
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["node_id", "type", "direction"],
+        },
+      },
+      {
+        name: "delete_edge",
+        description: "Delete an edge by ID. Use this to remove relationships between nodes.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            edge_id: {
+              type: "string",
+              description: "Edge ID to delete",
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["edge_id"],
+        },
+      },
+      {
+        name: "update_edge_properties",
+        description: "Update edge properties (JSONB merge with existing). Use this to update task status, priority, or other metadata.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            edge_id: {
+              type: "string",
+              description: "Edge ID to update",
+            },
+            properties: {
+              type: "object",
+              description: "Properties to merge with existing",
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["edge_id", "properties"],
+        },
+      },
+      {
+        name: "get_project_tasks",
+        description: "Get Kanban board view of project tasks. Returns tasks grouped by status (todo, doing, done).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            project_node_id: {
+              type: "string",
+              description: "Project knowledge note's node_id",
+            },
+            status: {
+              type: "string",
+              description: "Optional status filter",
+              enum: ["todo", "doing", "done"],
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["project_node_id"],
+        },
+      },
+      {
+        name: "post_finding",
+        description: "Post a finding to the team BBS (Bulletin Board System). Creates a knowledge note and links it to the project.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            text: {
+              type: "string",
+              description: "Finding content",
+            },
+            project_id: {
+              type: "string",
+              description: "Project node_id to link to",
+            },
+            tags: {
+              type: "array",
+              items: { type: "string" },
+              description: "Tags (auto-adds 'findings')",
+            },
+            agent: {
+              type: "string",
+              description: "Agent name for attribution",
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["text", "project_id"],
+        },
+      },
+      {
+        name: "get_team_findings",
+        description: "Get all findings posted by the team for a project.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            project_id: {
+              type: "string",
+              description: "Project node_id",
+            },
+            limit: {
+              type: "number",
+              description: "Maximum number to return (default: 50)",
+              default: 50,
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["project_id"],
+        },
+      },
+      {
+        name: "claim_task",
+        description: "Claim a task and update status to 'doing'. Automatically checks dependencies and waits if blocked.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            task_id: {
+              type: "string",
+              description: "Task node_id to claim",
+            },
+            agent: {
+              type: "string",
+              description: "Agent name claiming the task",
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["task_id", "agent"],
+        },
+      },
+      {
+        name: "complete_task",
+        description: "Complete a task and post findings. Creates findings note, links it to task, and updates status to 'done'.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            task_id: {
+              type: "string",
+              description: "Task node_id to complete",
+            },
+            findings: {
+              type: "string",
+              description: "What was accomplished",
+            },
+            agent: {
+              type: "string",
+              description: "Agent name completing the task",
+            },
+            tenant_id: {
+              type: "string",
+              description: "Tenant identifier (default: 'default')",
+              default: "default",
+            },
+          },
+          required: ["task_id", "findings", "agent"],
+        },
+      },
+      {
+        name: "get_coordination_guide",
+        description: "**META TOOL**: Get complete guide to multi-agent coordination patterns (BBS + Kanban). This is a documentation/reference tool that explains when to use each pattern, tool sequences, and example workflows. It describes how agents can coordinate effectively using the memory system's graph edges and coordination tools. Use this to learn about: (1) BBS pattern for posting findings, (2) Kanban pattern for task tracking, (3) Dependency management, (4) Example workflows. This tool itself does not modify memory - it returns educational content.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            format: {
+              type: "string",
+              description: "Response format: 'markdown' (default, human-readable) or 'json' (structured for agents)",
+              enum: ["markdown", "json"],
+              default: "markdown",
+            },
+          },
+          required: [],
+        },
+      },
     ],
   };
 };
@@ -1197,11 +1481,15 @@ wake_up({
           project_path?: string;
         };
 
+        // Generate ID first, then insert with node_id = id
+        const { randomBytes } = await import("crypto");
+        const noteId = `kn_${randomBytes(16).toString("hex")}`;
+
         const result = await pool.query(
-          `INSERT INTO knowledge_notes (tenant_id, text, with_whom, tags, project_path)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO knowledge_notes (id, tenant_id, text, with_whom, tags, project_path, node_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING *`,
-          [tenant_id, text, with_whom || null, tags.length > 0 ? tags : null, project_path || null]
+          [noteId, tenant_id, text, with_whom || null, tags.length > 0 ? tags : null, project_path || null, noteId]
         );
 
         return {
@@ -1290,12 +1578,16 @@ wake_up({
           project_path?: string;
         };
 
+        // Generate ID first, then insert with node_id = id
+        const { randomBytes } = await import("crypto");
+        const noteId = `kn_${randomBytes(16).toString("hex")}`;
+
         // Insert the note
         const result = await pool.query(
-          `INSERT INTO knowledge_notes (tenant_id, text, with_whom, tags, project_path)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO knowledge_notes (id, tenant_id, text, with_whom, tags, project_path, node_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING *`,
-          [tenant_id, text, with_whom || null, tags.length > 0 ? tags : null, project_path || null]
+          [noteId, tenant_id, text, with_whom || null, tags.length > 0 ? tags : null, project_path || null, noteId]
         );
 
         const note = result.rows[0];
@@ -2086,6 +2378,7 @@ wake_up({
           search: ["semantic_search", "hybrid_search", "recall"],
           feedback: ["agent_feedback", "get_agent_feedback", "update_agent_feedback"],
           system: ["get_compression_stats", "get_quick_reference", "get_next_actions", "get_system_health", "list_available_tools"],
+          graph: ["create_edge", "get_edges", "traverse", "delete_edge", "update_edge_properties", "get_project_tasks"],
         };
 
         // Filter by category if specified
@@ -2118,9 +2411,825 @@ wake_up({
                   search: "Search memories using semantic and hybrid search",
                   feedback: "Submit and retrieve agent feedback",
                   system: "System utilities and health monitoring",
+                  graph: "Graph-based edge management for agent coordination",
                 },
                 usage: "Call any tool using its name with the required parameters",
               }),
+            },
+          ],
+        };
+      }
+
+      case "create_edge": {
+        const { from_node_id, to_node_id, type, properties = {}, tenant_id = "default" } = args as {
+          from_node_id: string;
+          to_node_id: string;
+          type: string;
+          properties?: Record<string, unknown>;
+          tenant_id?: string;
+        };
+
+        // Validate nodes exist
+        const fromCheck = await pool.query("SELECT * FROM resolve_node($1, $2) LIMIT 1", [from_node_id, tenant_id]);
+        if (fromCheck.rows.length === 0) {
+          throw new Error(`Source node not found: ${from_node_id}`);
+        }
+
+        const toCheck = await pool.query("SELECT * FROM resolve_node($1, $2) LIMIT 1", [to_node_id, tenant_id]);
+        if (toCheck.rows.length === 0) {
+          throw new Error(`Target node not found: ${to_node_id}`);
+        }
+
+        // Detect circular dependencies for 'depends_on' type
+        if (type === "depends_on") {
+          const cycleCheck = await pool.query("SELECT detect_dependency_cycle($1, $2)", [from_node_id, to_node_id]);
+          if (cycleCheck.rows[0].detect_dependency_cycle) {
+            throw new Error(`Circular dependency detected: ${from_node_id} → ${to_node_id}`);
+          }
+        }
+
+        const { randomBytes } = await import("crypto");
+        const edge_id = `edge_${randomBytes(16).toString("hex")}`;
+        const result = await pool.query(
+          `INSERT INTO edges (edge_id, from_node_id, to_node_id, type, properties, tenant_id)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING *`,
+          [edge_id, from_node_id, to_node_id, type, JSON.stringify(properties), tenant_id]
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                edge: result.rows[0],
+                message: "Edge created successfully",
+              }),
+            },
+          ],
+        };
+      }
+
+      case "get_edges": {
+        const { node_id, direction = "both", type: edgeType, tenant_id = "default" } = args as {
+          node_id: string;
+          direction?: "incoming" | "outgoing" | "both";
+          type?: string;
+          tenant_id?: string;
+        };
+
+        let query = `
+          SELECT e.*
+          FROM edges e
+          WHERE e.tenant_id = $1
+            AND ($2::text = 'both' OR e.tenant_id = $1)
+            AND (e.from_node_id = $2 OR e.to_node_id = $2)
+        `;
+        const params: (string | number)[] = [tenant_id, node_id];
+        let paramCount = 2;
+
+        if (direction === "incoming") {
+          query = `
+            SELECT e.*
+            FROM edges e
+            WHERE e.tenant_id = $1 AND e.to_node_id = $2
+          `;
+        } else if (direction === "outgoing") {
+          query = `
+            SELECT e.*
+            FROM edges e
+            WHERE e.tenant_id = $1 AND e.from_node_id = $2
+          `;
+        }
+
+        if (edgeType) {
+          query += ` AND e.type = $${++paramCount}`;
+          params.push(edgeType);
+        }
+
+        query += ` ORDER BY e.created_at DESC`;
+
+        const result = await pool.query(query, params);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                edges: result.rows,
+                count: result.rows.length,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "traverse": {
+        const { node_id, type: edgeType, direction, depth = 2, tenant_id = "default" } = args as {
+          node_id: string;
+          type: string;
+          direction: "incoming" | "outgoing";
+          depth?: number;
+          tenant_id?: string;
+        };
+
+        // Build recursive CTE query for traversal using path array to prevent cycles
+        const traverseDirection = direction === "outgoing" ? "from_node_id" : "to_node_id";
+        const oppositeDirection = direction === "outgoing" ? "to_node_id" : "from_node_id";
+
+        const query = `
+          WITH RECURSIVE graph_traversal AS (
+            -- Base case: starting node
+            SELECT
+              $1::text AS node_id,
+              0 AS depth,
+              NULL::text AS edge_id,
+              NULL::text AS edge_type,
+              NULL::jsonb AS edge_properties,
+              ARRAY[$1::text] AS path
+            UNION ALL
+            -- Recursive case: follow edges
+            SELECT
+              e.${oppositeDirection} AS node_id,
+              gt.depth + 1,
+              e.edge_id,
+              e.type AS edge_type,
+              e.properties AS edge_properties,
+              gt.path || e.${oppositeDirection}
+            FROM graph_traversal gt
+            JOIN edges e ON e.${traverseDirection} = gt.node_id
+            WHERE e.type = $2
+              AND e.tenant_id = $3
+              AND gt.depth < $4
+              AND gt.depth >= 0
+              -- Prevent cycles using path array
+              AND NOT e.${oppositeDirection} = ANY(gt.path)
+          )
+          SELECT node_id, depth, edge_id, edge_type, edge_properties
+          FROM graph_traversal
+          WHERE depth > 0
+          ORDER BY depth, edge_id
+        `;
+
+        const result = await pool.query(query, [node_id, edgeType, tenant_id, Math.min(depth, 5)]);
+
+        // Get root node info
+        const rootInfo = await pool.query("SELECT * FROM resolve_node($1, $2)", [node_id, tenant_id]);
+        const root = rootInfo.rows[0];
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                root: root ? { node_type: root.node_type, node_id: root.node_id, content: root.content } : null,
+                children: result.rows.map(row => ({
+                  node: { node_id: row.node_id },
+                  edge: {
+                    edge_id: row.edge_id,
+                    type: row.edge_type,
+                    properties: row.edge_properties,
+                  },
+                  depth: row.depth,
+                })),
+                total_found: result.rows.length,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "delete_edge": {
+        const { edge_id, tenant_id = "default" } = args as {
+          edge_id: string;
+          tenant_id?: string;
+        };
+
+        const result = await pool.query(
+          `DELETE FROM edges WHERE edge_id = $1 AND tenant_id = $2 RETURNING *`,
+          [edge_id, tenant_id]
+        );
+
+        if (result.rows.length === 0) {
+          throw new Error(`Edge not found: ${edge_id}`);
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                deleted_edge: result.rows[0],
+                message: "Edge deleted successfully",
+              }),
+            },
+          ],
+        };
+      }
+
+      case "update_edge_properties": {
+        const { edge_id, properties, tenant_id = "default" } = args as {
+          edge_id: string;
+          properties: Record<string, unknown>;
+          tenant_id?: string;
+        };
+
+        const result = await pool.query(
+          `UPDATE edges
+           SET properties = COALESCE(properties, '{}'::jsonb) || $2::jsonb,
+               updated_at = NOW()
+           WHERE edge_id = $1 AND tenant_id = $3
+           RETURNING *`,
+          [edge_id, JSON.stringify(properties), tenant_id]
+        );
+
+        if (result.rows.length === 0) {
+          throw new Error(`Edge not found: ${edge_id}`);
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                edge: result.rows[0],
+                message: "Edge properties updated successfully",
+              }),
+            },
+          ],
+        };
+      }
+
+      case "get_project_tasks": {
+        const { project_node_id, status, tenant_id = "default" } = args as {
+          project_node_id: string;
+          status?: "todo" | "doing" | "done";
+          tenant_id?: string;
+        };
+
+        // Get all child tasks via parent_of edges
+        let query = `
+          SELECT
+            e.properties,
+            kn.id AS task_id,
+            kn.text AS title,
+            kn.tags,
+            kn.created_at
+          FROM edges e
+          JOIN knowledge_notes kn ON e.to_node_id = kn.node_id
+          WHERE e.from_node_id = $1
+            AND e.type = 'parent_of'
+            AND e.tenant_id = $2
+        `;
+
+        const params: (string | number)[] = [project_node_id, tenant_id];
+        let paramCount = 2;
+
+        if (status) {
+          query += ` AND e.properties->>'status' = $${++paramCount}`;
+          params.push(status);
+        }
+
+        query += ` ORDER BY e.properties->>'priority' DESC, kn.created_at ASC`;
+
+        const result = await pool.query(query, params);
+
+        // Group by status
+        const grouped = {
+          todo: [] as any[],
+          doing: [] as any[],
+          done: [] as any[],
+        };
+
+        result.rows.forEach(row => {
+          const taskStatus = (row.properties?.status as string) || "todo";
+          if (grouped[taskStatus as keyof typeof grouped]) {
+            grouped[taskStatus as keyof typeof grouped].push({
+              node_id: row.task_id,
+              title: row.title,
+              tags: row.tags,
+              properties: row.properties,
+              created_at: row.created_at,
+            });
+          }
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                project_node_id,
+                ...grouped,
+                total: result.rows.length,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "post_finding": {
+        const { text, project_id, tags = [], agent, tenant_id = "default" } = args as {
+          text: string;
+          project_id: string;
+          tags?: string[];
+          agent?: string;
+          tenant_id?: string;
+        };
+
+        // Validate project exists
+        const projectCheck = await pool.query("SELECT * FROM resolve_node($1, $2) LIMIT 1", [project_id, tenant_id]);
+        if (projectCheck.rows.length === 0) {
+          throw new Error(`Project node not found: ${project_id}`);
+        }
+
+        // Create knowledge note with auto-added 'findings' tag
+        const { randomBytes } = await import("crypto");
+        const findingTags = [...new Set([...tags, "findings"])];
+        const noteId = `kn_${randomBytes(16).toString("hex")}`;
+        const noteResult = await pool.query(
+          `INSERT INTO knowledge_notes (id, tenant_id, text, tags, with_whom, node_id)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING *`,
+          [noteId, tenant_id, text, findingTags.length > 0 ? findingTags : null, agent || null, noteId]
+        );
+
+        const note = noteResult.rows[0];
+
+        // Create edge from project to note
+        const edge_id = `edge_${randomBytes(16).toString("hex")}`;
+        const edgeResult = await pool.query(
+          `INSERT INTO edges (edge_id, from_node_id, to_node_id, type, tenant_id)
+           VALUES ($1, $2, $3, 'parent_of', $4)
+           RETURNING *`,
+          [edge_id, project_id, note.node_id, tenant_id]
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                note,
+                edge: edgeResult.rows[0],
+                message: "Finding posted to team BBS",
+              }),
+            },
+          ],
+        };
+      }
+
+      case "get_team_findings": {
+        const { project_id, limit = 50, tenant_id = "default" } = args as {
+          project_id: string;
+          limit?: number;
+          tenant_id?: string;
+        };
+
+        // Traverse to find all knowledge notes linked to project
+        const query = `
+          SELECT DISTINCT
+            kn.node_id,
+            kn.id,
+            kn.text,
+            kn.tags,
+            kn.with_whom,
+            kn.created_at
+          FROM edges e
+          JOIN knowledge_notes kn ON e.to_node_id = kn.node_id
+          WHERE e.from_node_id = $1
+            AND e.type = 'parent_of'
+            AND e.tenant_id = $2
+            AND $3 = ANY(kn.tags)
+          ORDER BY kn.created_at DESC
+          LIMIT $4
+        `;
+
+        const result = await pool.query(query, [project_id, tenant_id, "findings", Math.min(limit, 500)]);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                project_id,
+                findings: result.rows,
+                count: result.rows.length,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "claim_task": {
+        const { task_id, agent, tenant_id = "default" } = args as {
+          task_id: string;
+          agent: string;
+          tenant_id?: string;
+        };
+
+        // Validate task exists
+        const taskCheck = await pool.query("SELECT * FROM resolve_node($1, $2) LIMIT 1", [task_id, tenant_id]);
+        if (taskCheck.rows.length === 0) {
+          throw new Error(`Task node not found: ${task_id}`);
+        }
+
+        // Find the task edge (project →[parent_of]→ task)
+        const taskEdgeResult = await pool.query(
+          `SELECT * FROM edges
+           WHERE to_node_id = $1
+             AND type = 'parent_of'
+             AND tenant_id = $2`,
+          [task_id, tenant_id]
+        );
+
+        if (taskEdgeResult.rows.length === 0) {
+          throw new Error(`Task not linked to a project: ${task_id}`);
+        }
+
+        const taskEdge = taskEdgeResult.rows[0];
+
+        // Check dependencies
+        const depEdgesResult = await pool.query(
+          `SELECT * FROM edges
+           WHERE from_node_id = $1
+             AND type = 'depends_on'
+             AND tenant_id = $2`,
+          [task_id, tenant_id]
+        );
+
+        const dependencies: any[] = [];
+        const blocked = [];
+
+        for (const depEdge of depEdgesResult.rows) {
+          // Get the dependency task's edge to check status
+          const depTaskEdgeResult = await pool.query(
+            `SELECT properties FROM edges
+             WHERE to_node_id = $1
+               AND type = 'parent_of'
+               AND tenant_id = $2`,
+            [depEdge.to_node_id, tenant_id]
+          );
+
+          if (depTaskEdgeResult.rows.length > 0) {
+            const depStatus = depTaskEdgeResult.rows[0].properties?.status || "todo";
+            dependencies.push({
+              task_id: depEdge.to_node_id,
+              status: depStatus,
+            });
+
+            if (depStatus !== "done") {
+              blocked.push(depEdge.to_node_id);
+            }
+          }
+        }
+
+        // Find project and siblings
+        const project_id = taskEdge.from_node_id;
+        const siblingsResult = await pool.query(
+          `SELECT e.to_node_id, kn.text, e.properties
+           FROM edges e
+           JOIN knowledge_notes kn ON e.to_node_id = kn.node_id
+           WHERE e.from_node_id = $1
+             AND e.type = 'parent_of'
+             AND e.tenant_id = $2
+             AND e.to_node_id != $3`,
+          [project_id, tenant_id, task_id]
+        );
+
+        const siblings = siblingsResult.rows.map(r => ({
+          task_id: r.to_node_id,
+          title: r.text,
+          status: r.properties?.status || "todo",
+        }));
+
+        // Update task status to doing (or report blocked)
+        if (blocked.length > 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  message: "Task is blocked by incomplete dependencies",
+                  blocked,
+                  dependencies,
+                  project_id,
+                  siblings,
+                }),
+              },
+            ],
+          };
+        }
+
+        // Update edge properties to doing
+        const updateResult = await pool.query(
+          `UPDATE edges
+           SET properties = COALESCE(properties, '{}'::jsonb) || jsonb_build_object('status', 'doing', 'agent', $2::text, 'started_at', NOW()::text),
+               updated_at = NOW()
+           WHERE edge_id = $1 AND tenant_id = $3
+           RETURNING *`,
+          [taskEdge.edge_id, agent, tenant_id]
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                message: "Task claimed successfully",
+                task_edge: updateResult.rows[0],
+                project_id,
+                siblings,
+                dependencies,
+              }),
+            },
+          ],
+        };
+      }
+
+      case "complete_task": {
+        const { task_id, findings, agent, tenant_id = "default" } = args as {
+          task_id: string;
+          findings: string;
+          agent: string;
+          tenant_id?: string;
+        };
+
+        // Create findings knowledge note
+        const { randomBytes } = await import("crypto");
+        const findingTags = ["findings", "implemented"];
+        const noteId = `kn_${randomBytes(16).toString("hex")}`;
+        const noteResult = await pool.query(
+          `INSERT INTO knowledge_notes (id, tenant_id, text, tags, with_whom, node_id)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING *`,
+          [noteId, tenant_id, findings, findingTags, agent, noteId]
+        );
+
+        const findingsNote = noteResult.rows[0];
+
+        // Create edge from task to findings note
+        const findingsEdgeId = `edge_${randomBytes(16).toString("hex")}`;
+        await pool.query(
+          `INSERT INTO edges (edge_id, from_node_id, to_node_id, type, tenant_id)
+           VALUES ($1, $2, $3, 'created_by', $4)`,
+          [findingsEdgeId, task_id, findingsNote.node_id, tenant_id]
+        );
+
+        // Get the task edge (project →[parent_of]→ task) to update status
+        const taskEdgeResult = await pool.query(
+          `SELECT * FROM edges
+           WHERE to_node_id = $1
+             AND type = 'parent_of'
+             AND tenant_id = $2`,
+          [task_id, tenant_id]
+        );
+
+        if (taskEdgeResult.rows.length === 0) {
+          throw new Error(`Task not linked to a project: ${task_id}`);
+        }
+
+        const taskEdge = taskEdgeResult.rows[0];
+
+        // Update task status to done
+        const updateResult = await pool.query(
+          `UPDATE edges
+           SET properties = COALESCE(properties, '{}'::jsonb) || jsonb_build_object('status', 'done', 'agent', $2::text, 'completed_at', NOW()::text),
+               updated_at = NOW()
+           WHERE edge_id = $1 AND tenant_id = $3
+           RETURNING *`,
+          [taskEdge.edge_id, agent, tenant_id]
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                message: "Task completed successfully",
+                findings_note: findingsNote,
+                findings_edge_id: findingsEdgeId,
+                task_edge: updateResult.rows[0],
+              }),
+            },
+          ],
+        };
+      }
+
+      case "get_coordination_guide": {
+        const { format = "markdown", tenant_id = "default" } = args as {
+          format: string;
+          tenant_id?: string;
+        };
+
+        const guide = `# Multi-Agent Coordination Patterns Guide
+
+**Memory System MCP Server** - This guide explains how agents can coordinate effectively using graph edges and coordination tools.
+
+---
+
+## Two Core Patterns
+
+### 1. BBS (Bulletin Board System)
+**Purpose**: Agents post findings for other agents to see
+
+**When to use**:
+- Share work results with the team
+- Document discoveries
+- Broadcast important information
+
+**Tools**:
+- \`post_finding(text, project_id)\` - Post a finding
+- \`get_team_findings(project_id)\` - Get all team findings
+
+**How it works**:
+1. Agent completes work
+2. Creates knowledge note with findings
+3. Links to project via \`parent_of\` edge
+4. Other agents can retrieve via \`get_team_findings\`
+
+---
+
+### 2. Kanban (Task Tracking)
+**Purpose**: Track task progress and manage dependencies
+
+**When to use**:
+- Multi-agent projects with parallel/concurrent tasks
+- Need to coordinate who works on what
+- Track progress (todo → doing → done)
+
+**Tools**:
+- \`claim_task(task_id, agent)\` - Pick up work (waits for dependencies)
+- \`complete_task(task_id, findings, agent)\` - Finish work
+- \`get_project_tasks(project_id)\` - View Kanban board
+
+**How it works**:
+1. Tasks linked to projects via \`parent_of\` edges
+2. Task status in edge properties: "todo" → "doing" → "done"
+3. \`claim_task\` checks \`depends_on\` edges, waits if blocked
+4. \`complete_task\` creates findings note + links via \`created_by\` edge
+
+---
+
+## Edge Types Reference
+
+| Edge Type | Purpose | When to Use |
+|-----------|---------|-------------|
+| \`parent_of\` / \`child_of\` | Hierarchy | Project → Task, Task → Subtask |
+| \`created_by\` | Attribution | Task → Findings (task produced this output) |
+| \`depends_on\` | Dependencies | Task B depends on Task A |
+| \`references\` | Cross-reference | Link related items |
+| \`related_to\` | Loose association | "See also" relationships |
+
+---
+
+## Example: 3-Agent OAuth Workflow
+
+### Setup
+\`\`\`
+// Create project and tasks
+project = create_knowledge_note("# Feature: OAuth2")
+task_db = create_knowledge_note("# Task: Database schema")
+task_be = create_knowledge_note("# Task: Backend API")
+task_fe = create_knowledge_note("# Task: Frontend UI")
+
+// Link to project
+create_edge(project, task_db, "parent_of", {status: "todo"})
+create_edge(project, task_be, "parent_of", {status: "todo"})
+create_edge(project, task_fe, "parent_of", {status: "todo"})
+
+// Create dependencies
+create_edge(task_be, task_db, "depends_on")  // Backend needs DB
+create_edge(task_fe, task_be, "depends_on")  // Frontend needs Backend
+\`\`\`
+
+### Agent 1: Database (no dependencies)
+\`\`\`
+claim_task(task_db, "database-agent")
+// → Returns: status updated to "doing"
+// Work on migration...
+complete_task(task_db, "Created users table with OAuth fields", "database-agent")
+// → Returns: status "done", findings note created, linked via created_by
+\`\`\`
+
+### Agent 2: Backend (waits for Database)
+\`\`\`
+claim_task(task_be, "backend-agent")
+// → Automatically waits for task_db status = "done"
+// Once unblocked, status updates to "doing"
+// Work on OAuth endpoints...
+complete_task(task_be, "Implemented /auth/google and /auth/github", "backend-agent")
+\`\`\`
+
+### Agent 3: Frontend (waits for Backend)
+\`\`\`
+claim_task(task_fe, "frontend-agent")
+// → Automatically waits for task_be status = "done"
+// Once unblocked, status updates to "doing"
+// Work on login UI...
+complete_task(task_fe, "Created login button and callback handler", "frontend-agent")
+\`\`\`
+
+### Lead: Monitor Progress
+\`\`\`
+// See Kanban board
+get_project_tasks(project)
+// → Returns: {todo: [], doing: 0, done: 3}
+
+// Get all findings
+get_team_findings(project)
+// → Returns: [DB findings, Backend findings, Frontend findings]
+\`\`\`
+
+---
+
+## Key Benefits
+
+1. **No Duplication**: Agents see sibling tasks and related work via \`get_team_findings\`
+2. **Automatic Blocking**: \`claim_task\` waits for \`depends_on\` edges automatically
+3. **Progress Tracking**: Kanban board shows todo/doing/done columns
+4. **Attribution**: \`created_by\` edges link tasks to their outputs
+5. **Transparency**: All coordination visible via graph traversal
+
+---
+
+## Quick Reference
+
+| I want to... | Tool |
+|---------------|------|
+| Share findings with team | \`post_finding(text, project_id)\` |
+| See team posts | \`get_team_findings(project_id)\` |
+| Pick up work | \`claim_task(task_id, agent)\` |
+| Finish work | \`complete_task(task_id, findings, agent)\` |
+| Check progress | \`get_project_tasks(project_id)\` |
+| Wait for dependencies | Use \`claim_task\` (waits automatically) |
+
+---
+
+**Generated**: 2026-02-22
+**For**: Memory System MCP Server v2.0
+`;
+
+        if (format === "json") {
+          const structured = {
+            patterns: {
+              bbs: {
+                name: "BBS (Bulletin Board System)",
+                purpose: "Agents post findings for team visibility",
+                tools: ["post_finding", "get_team_findings"],
+                workflow: "post_finding → share work → get_team_findings → discover"
+              },
+              kanban: {
+                name: "Kanban (Task Tracking)",
+                purpose: "Track task progress and manage dependencies",
+                tools: ["claim_task", "complete_task", "get_project_tasks"],
+                workflow: "claim_task → work → complete_task → get_project_tasks"
+              }
+            },
+            edge_types: [
+              { type: "parent_of", purpose: "Hierarchy", example: "project → task" },
+              { type: "child_of", purpose: "Reverse hierarchy", example: "task → project" },
+              { type: "created_by", purpose: "Attribution", example: "task → findings" },
+              { type: "depends_on", purpose: "Dependencies", example: "taskB → taskA" },
+              { type: "references", purpose: "Cross-reference", example: "related docs" },
+              { type: "related_to", purpose: "Loose association", example: "see also" }
+            ],
+            example_workflow: "3 agents building OAuth feature: Database (no deps) → Backend (waits for DB) → Frontend (waits for Backend)",
+            quick_reference: {
+              "Share findings": "post_finding",
+              "See posts": "get_team_findings",
+              "Pick up work": "claim_task",
+              "Finish work": "complete_task",
+              "Check progress": "get_project_tasks"
+            }
+          };
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(structured, null, 2),
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: guide,
             },
           ],
         };
@@ -2211,7 +3320,7 @@ async function main() {
     // CORS headers
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Project-Path");
 
     // Handle OPTIONS preflight
     if (req.method === "OPTIONS") {
@@ -2288,16 +3397,27 @@ async function main() {
 
         console.error(`[${new Date().toISOString()}] Authenticated tenant: ${authResult.tenant_id}`);
 
-        // Inject tenant_id into arguments for tool calls
+        // Inject tenant_id and project_path into arguments for tool calls
         if (jsonRpcRequest.method === "tools/call" && jsonRpcRequest.params) {
           // Ensure arguments object exists
           if (!jsonRpcRequest.params.arguments) {
             jsonRpcRequest.params.arguments = {};
           }
+
+          // Extract project_path from X-Project-Path header if present
+          const projectPath = req.headers["x-project-path"];
+
           jsonRpcRequest.params.arguments = {
             ...jsonRpcRequest.params.arguments,
-            tenant_id: jsonRpcRequest.params.arguments.tenant_id || authResult.tenant_id,
+            // Use token's tenant_id only if not provided in arguments
+            ...(jsonRpcRequest.params.arguments.tenant_id ? {} : { tenant_id: authResult.tenant_id || "default" }),
+            // Inject project_path if header is present and not already in arguments
+            ...(typeof projectPath === "string" ? { project_path: projectPath } : {}),
           };
+
+          if (typeof projectPath === "string") {
+            console.error(`[${new Date().toISOString()}] Injected project_path: ${projectPath}`);
+          }
         }
 
         // Handle initialize

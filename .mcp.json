@@ -6,7 +6,8 @@
       "type": "http",
       "url": "http://localhost:4000/mcp",
       "headers": {
-        "Authorization": "Bearer test-mcp-token"
+        "Authorization": "Bearer test-mcp-token",
+        "X-Project-Path": "/Users/callin/Callin_Project/agent_memory_v2"
       }
     }
   },

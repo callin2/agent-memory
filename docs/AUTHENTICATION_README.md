@@ -1,8 +1,28 @@
 # Authentication System - Complete Guide
 
-## Overview
+> **⚠️ WARNING: UNIMPLEMENTED FEATURES**
+>
+> This document describes **PLANNED** features that are **NOT YET IMPLEMENTED**.
+>
+> **Current Reality:**
+> - ✅ Simple Bearer token authentication for MCP server (test-mcp-token)
+> - ✅ API key validation in `src/mcp/auth.ts`
+> - ❌ NO JWT authentication
+> - ❌ NO `/auth/login` endpoints
+> - ❌ NO session management
+> - ❌ NO refresh token rotation
+>
+> **What Exists Today:**
+> - See `src/mcp/auth.ts` for current bearer token implementation
+> - See `docs/MCP_QUICK_START.md` for current MCP auth setup
+>
+> **This document is a design specification for future development.**
 
-The Agent Memory System v2.0 now includes a comprehensive, production-ready authentication system with **95% production readiness**.
+---
+
+## Overview (DESIGN DOCUMENT - NOT IMPLEMENTED)
+
+The Agent Memory System v2.0 is planned to include a comprehensive authentication system with the following features (when implemented):
 
 ## Key Features
 
