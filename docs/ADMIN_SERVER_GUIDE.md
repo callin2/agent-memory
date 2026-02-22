@@ -1,10 +1,27 @@
 # Admin Server Guide
 
-Complete guide to the Admin Server component in the Agent Memory System microservices architecture.
+> **⚠️ WARNING: UNIMPLEMENTED FEATURE**
+>
+> This document describes a **PLANNED** microservices architecture that is **NOT YET IMPLEMENTED**.
+>
+> **Current Reality:**
+> - ✅ Monolithic API server on port 3456 (`src/server.ts`)
+> - ✅ MCP server on port 4000 (`src/mcp/memory-server-http.ts`)
+> - ❌ NO separate Admin Server on port 3001
+> - ❌ NO microservices architecture
+> - ❌ NO SPEC-ARCH-001 specification file
+>
+> **What Exists Today:**
+> - See `src/server.ts` for current monolithic architecture
+> - See `docs/ARCHITECTURE.md` for current system design
+>
+> **This document is a design specification for future microservices migration.**
 
-## Overview
+---
 
-The Admin Server is a dedicated microservice handling authentication, authorization, and user management. It is extracted from the monolithic API server as part of [SPEC-ARCH-001](../.moai/specs/SPEC-ARCH-001/spec.md).
+## Overview (DESIGN DOCUMENT - NOT IMPLEMENTED)
+
+The Admin Server is planned as a dedicated microservice to handle authentication, authorization, and user management. This would be extracted from the monolithic API server as part of a future microservices migration (SPEC-ARCH-001 - not yet written).
 
 **Port**: 3001
 **Responsibilities**:
